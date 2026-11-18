@@ -3,44 +3,35 @@ import { Theme, Chalk } from '../theme';
 export class InputBoxRenderer {
   public static render(input: string, cursorIndex: number, width: number = 80, isFocused: boolean = true): string[] {
     const lines: string[] = [];
-    const b = Theme.borders;
-    const boxWidth = Math.max(30, width - 2);
-    const borderColor = isFocused ? Theme.colors.primary : Theme.colors.surfaceBorder;
+    const isCompact = width < 75;
 
-    // Top border with refined label and status pill
-    const titleTag = isFocused ? ' Comando ' : ' Input ';
-    const cloudTag = ' [Cloud Ready] ';
-    const rawTagLen = titleTag.length + cloudTag.length;
-    const remainingTop = Math.max(0, boxWidth - rawTagLen - 2);
+    // Line 1: Minimal border divider
+    const dividerColor = isFocused ? Theme.colors.divider : Theme.colors.surfaceBorder;
+    lines.push(Chalk.hex(dividerColor, '─'.repeat(width)));
 
-    const topBorder =
-      Chalk.hex(borderColor, `${b.topLeft}${b.horizontal}`) +
-      Chalk.hex(Theme.colors.primary, Chalk.bold(titleTag)) +
-      Chalk.hex(borderColor, b.horizontal.repeat(remainingTop)) +
-      Chalk.hex(Theme.colors.success, cloudTag) +
-      Chalk.hex(borderColor, `${b.horizontal}${b.topRight}`);
-
-    lines.push(topBorder);
-
-    // Input line: Wattpad Orange prompt ❯
-    const promptPrefix = Chalk.hex(Theme.colors.primary, Chalk.bold(' ❯ '));
+    // Line 2: Modern clean prompt
+    const promptSymbol = Chalk.hex(Theme.colors.primary, Chalk.bold('  › '));
     let contentDisplay = '';
 
     if (input.length === 0) {
-      contentDisplay = Chalk.dim('Escribe un comando (/help para consultar sugerencias)...');
+      const placeholder = isCompact
+        ? 'Escribe un comando (/help)...'
+        : 'Escribe un comando o acción (/help para consultar)...';
+      contentDisplay = Chalk.hex(Theme.colors.muted, placeholder);
     } else {
-      contentDisplay = Chalk.hex(Theme.colors.white, input);
+      contentDisplay = Chalk.hex(Theme.colors.text, Chalk.bold(input));
     }
 
-    const rawLen = input.length === 0 ? 56 : 3 + input.length;
-    const remaining = Math.max(0, boxWidth - rawLen);
+    lines.push(`${promptSymbol}${contentDisplay}`);
 
-    lines.push(
-      `${Chalk.hex(borderColor, b.vertical)}${promptPrefix}${contentDisplay}${' '.repeat(remaining)}${Chalk.hex(borderColor, b.vertical)}`
-    );
-
-    // Bottom border
-    lines.push(Chalk.hex(borderColor, `${b.bottomLeft}${b.horizontal.repeat(boxWidth)}${b.bottomRight}`));
+    // Line 3: Contextual hints bar
+    let hints = '';
+    if (isCompact) {
+      hints = '  Tab Autocompletar · Enter Ejecutar · /exit Salir';
+    } else {
+      hints = '  Tab Autocompletar · ↑↓ Navegar/Historial · Esc Cancelar · /help Ayuda · /exit Salir';
+    }
+    lines.push(Chalk.hex(Theme.colors.muted, hints));
 
     return lines;
   }

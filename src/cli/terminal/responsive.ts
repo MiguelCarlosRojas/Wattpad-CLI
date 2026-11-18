@@ -30,7 +30,7 @@ export class ResponsiveManager {
     let breakpoint: TerminalBreakpoint = 'STANDARD';
     if (width < 75 || height < 22) {
       breakpoint = 'COMPACT';
-    } else if (width > 140 && height > 45) {
+    } else if (width >= 140) {
       breakpoint = 'ULTRA_WIDE';
     } else if (width >= 106) {
       breakpoint = 'WIDE';

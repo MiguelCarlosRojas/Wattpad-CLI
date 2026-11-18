@@ -8,6 +8,8 @@ import { SelectorList } from './components/selector-list';
 import { SuggestionListRenderer } from './components/suggestion-list';
 import { InputBoxRenderer } from './components/input-box';
 import { WelcomeHeroRenderer } from './components/welcome-hero';
+import { NavigationRailRenderer } from './components/navigation-rail';
+import { ContextPanelRenderer } from './components/context-panel';
 import { Theme, Chalk } from './theme';
 import { CommandRegistry } from '../../commands/command-registry';
 import { CommandHistory } from '../../commands/history';
@@ -130,42 +132,81 @@ export class TerminalRenderer {
     this.contentLines = [];
   }
 
+  private stripAnsi(str: string): string {
+    return str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+  }
+
+  private padEndVisible(str: string, targetLength: number): string {
+    const currentLen = this.stripAnsi(str).length;
+    if (currentLen >= targetLength) return str;
+    return str + ' '.repeat(targetLength - currentLen);
+  }
+
   public renderScreen(): void {
     const config = ResponsiveManager.getLayoutConfig();
     const output: string[] = [];
 
-    // 1. Header Bar
+    // 1. Header Bar (Clean Studio Top Bar)
     const headerLines = HeaderBarRenderer.render(this.latestHeaderState, config);
     output.push(...headerLines);
 
     // 2. Interactive Selector List (if open)
-    let selectorLinesCount = 0;
+    let selLines: string[] = [];
     if (this.activeSelector && this.activeSelector.getItems().length > 0) {
       const isSelFocused = this.focusManager.getFocus() === 'selector';
-      const selLines = this.activeSelector.render(config.cardWidth, isSelFocused);
-      selectorLinesCount = selLines.length;
-      output.push(...selLines);
+      selLines = this.activeSelector.render(config.cardWidth, isSelFocused);
     }
 
     // 3. Suggestions List (if active)
-    let suggestionsLinesCount = 0;
+    let sugLines: string[] = [];
     if (this.suggestions.length > 0) {
-      const sugLines = SuggestionListRenderer.render(this.suggestions, this.selectedSuggestionIndex, config.cardWidth);
-      suggestionsLinesCount = sugLines.length;
-      output.push(...sugLines);
+      sugLines = SuggestionListRenderer.render(this.suggestions, this.selectedSuggestionIndex, config.cardWidth);
     }
 
-    // 4. Main Scrollable Content Area
-    const fixedReserved = headerLines.length + selectorLinesCount + suggestionsLinesCount + 6;
-    const maxContentLines = Math.max(3, config.height - fixedReserved);
-    const visibleContent = this.contentLines.slice(-maxContentLines);
-    output.push(...visibleContent);
+    // 4. Middle Content Calculations
+    // Reserve header + input (3) + status (1) = 7
+    const fixedReserved = headerLines.length + 4;
+    const midHeight = Math.max(4, config.height - fixedReserved);
 
-    // Fill remaining vertical space to keep input anchored
-    const currentLinesTotal = headerLines.length + selectorLinesCount + suggestionsLinesCount + visibleContent.length;
-    const blankNeeded = Math.max(0, config.height - currentLinesTotal - 5);
-    for (let i = 0; i < blankNeeded; i++) {
-      output.push('');
+    const overlayCount = selLines.length + sugLines.length;
+    const maxContentLines = Math.max(2, midHeight - overlayCount);
+    const visibleContent = this.contentLines.slice(-maxContentLines);
+
+    const midContentLines: string[] = [
+      ...selLines,
+      ...sugLines,
+      ...visibleContent,
+    ];
+
+    while (midContentLines.length < midHeight) {
+      midContentLines.push('');
+    }
+    const finalMidLines = midContentLines.slice(0, midHeight);
+
+    // Multi-column or Single-column based on breakpoint
+    const isMultiColumn = config.showSecondaryPanels && (config.breakpoint === 'WIDE' || config.breakpoint === 'ULTRA_WIDE');
+
+    if (isMultiColumn && config.breakpoint === 'WIDE') {
+      const railLines = NavigationRailRenderer.render('Inicio', midHeight);
+      const sep = Chalk.hex(Theme.colors.divider, '│');
+      for (let i = 0; i < midHeight; i++) {
+        const left = this.padEndVisible(railLines[i] || '', 22);
+        const right = finalMidLines[i] || '';
+        output.push(`${left} ${sep} ${right}`);
+      }
+    } else if (isMultiColumn && config.breakpoint === 'ULTRA_WIDE') {
+      const railLines = NavigationRailRenderer.render('Inicio', midHeight);
+      const ctxLines = ContextPanelRenderer.render(this.latestHeaderState, midHeight);
+      const centerWidth = Math.max(40, config.width - 54);
+      const sep = Chalk.hex(Theme.colors.divider, '│');
+      for (let i = 0; i < midHeight; i++) {
+        const left = this.padEndVisible(railLines[i] || '', 22);
+        const center = this.padEndVisible(finalMidLines[i] || '', centerWidth);
+        const right = ctxLines[i] || '';
+        output.push(`${left} ${sep} ${center} ${sep} ${right}`);
+      }
+    } else {
+      output.push(...finalMidLines);
     }
 
     // 5. Framed Command Input Box
@@ -299,7 +340,7 @@ export class TerminalRenderer {
           ]);
         } else {
           this.contentLines.push(
-            Chalk.hex(Theme.colors.primary, ' ❯ ') + Chalk.bold(Chalk.hex(Theme.colors.white, cmdToExec))
+            '  ' + Chalk.hex(Theme.colors.primary, '› ') + Chalk.bold(Chalk.hex(Theme.colors.white, cmdToExec))
           );
         }
 

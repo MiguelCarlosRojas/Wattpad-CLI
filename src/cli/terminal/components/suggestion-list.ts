@@ -6,34 +6,30 @@ export class SuggestionListRenderer {
     if (suggestions.length === 0) return [];
 
     const lines: string[] = [];
-    const b = Theme.borders;
     const contentWidth = Math.max(30, width - 4);
 
-    const title = ' SUGERENCIAS (↑↓ NAVEGAR │ TAB / ENTER SELECCIONAR) ';
-    const remaining = Math.max(0, contentWidth - title.length);
-    lines.push(
-      Chalk.hex(Theme.colors.primary, `${b.topLeft}${b.horizontal}${title}${b.horizontal.repeat(remaining)}${b.topRight}`)
-    );
+    // Dimmed modern header
+    const header = Chalk.dim('  Comandos sugeridos') + Chalk.hex(Theme.colors.muted, ' · ↑↓ navegar  Tab autocompletar  Esc cerrar');
+    lines.push(header);
 
     for (let i = 0; i < suggestions.length; i++) {
       const s = suggestions[i];
       const isSelected = i === selectedIndex;
 
-      const cmdStr = s.command.padEnd(18);
-      const descStr = s.description;
-      const full = `  ${cmdStr} ${descStr}`;
-      const lineStr = full.slice(0, contentWidth);
-
+      const cmdPad = s.command.padEnd(20);
       if (isSelected) {
-        const highlighted = Chalk.bgHex(Theme.colors.selectedBg, Chalk.bold(Chalk.hex(Theme.colors.selectedText, lineStr.padEnd(contentWidth))));
-        lines.push(`${Chalk.hex(Theme.colors.primary, b.vertical)} ${highlighted} ${Chalk.hex(Theme.colors.primary, b.vertical)}`);
+        const marker = Chalk.bgHex(Theme.colors.primary, Chalk.hex(Theme.colors.white, Chalk.bold(' › ')));
+        const cmd = Chalk.bold(Chalk.hex(Theme.colors.white, cmdPad));
+        const desc = Chalk.hex(Theme.colors.textSecondary, s.description);
+        lines.push(` ${marker} ${cmd} ${Chalk.hex(Theme.colors.divider, '│')} ${desc}`);
       } else {
-        const formatted = Chalk.hex(Theme.colors.text, lineStr.padEnd(contentWidth));
-        lines.push(`${Chalk.hex(Theme.colors.primary, b.vertical)} ${formatted} ${Chalk.hex(Theme.colors.primary, b.vertical)}`);
+        const cmd = Chalk.hex(Theme.colors.textSecondary, cmdPad);
+        const desc = Chalk.hex(Theme.colors.muted, s.description);
+        lines.push(`     ${cmd} ${Chalk.hex(Theme.colors.divider, '│')} ${desc}`);
       }
     }
 
-    lines.push(Chalk.hex(Theme.colors.primary, `${b.bottomLeft}${b.horizontal.repeat(contentWidth + 2)}${b.bottomRight}`));
+    lines.push(Chalk.hex(Theme.colors.divider, '  ' + '─'.repeat(Math.min(contentWidth, 60))));
     return lines;
   }
 }

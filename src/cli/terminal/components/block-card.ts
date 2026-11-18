@@ -4,113 +4,92 @@ import { Theme, Chalk } from '../theme';
 export class BlockCardRenderer {
   public static renderBlock(block: RenderBlock, width: number = 78): string[] {
     const lines: string[] = [];
-    const b = Theme.borders;
     const contentWidth = Math.max(30, width - 4);
+    const dividerWidth = Math.min(contentWidth, 76);
 
-    let borderColor = Theme.colors.surfaceBorder;
-    if (block.type === 'error') borderColor = Theme.colors.error;
-    else if (block.type === 'success') borderColor = Theme.colors.success;
-    else if (block.type === 'warning') borderColor = Theme.colors.warning;
-    else if (block.type === 'info') borderColor = Theme.colors.info;
-    else if (block.statusColor) borderColor = block.statusColor;
+    // 1. Icon & Title Line
+    let icon = '';
+    let titleColor = Theme.colors.text;
 
-    // Header title with badge
-    let rawTitleLen = 0;
-    let titleStyled = '';
+    if (block.type === 'success') {
+      icon = Chalk.hex(Theme.colors.success, Chalk.bold('✓ '));
+      titleColor = Theme.colors.success;
+    } else if (block.type === 'error') {
+      icon = Chalk.hex(Theme.colors.error, Chalk.bold('✕ '));
+      titleColor = Theme.colors.error;
+    } else if (block.type === 'warning') {
+      icon = Chalk.hex(Theme.colors.warning, Chalk.bold('⚠ '));
+      titleColor = Theme.colors.warning;
+    } else if (block.type === 'info') {
+      icon = Chalk.hex(Theme.colors.info, Chalk.bold('ℹ '));
+      titleColor = Theme.colors.info;
+    }
+
+    let badgePart = '';
+    if (block.statusBadge) {
+      const badgeColor = block.type === 'error' ? Theme.colors.error : block.type === 'success' ? Theme.colors.success : Theme.colors.info;
+      badgePart = `  ${Chalk.hex(badgeColor, `[${block.statusBadge}]`)}`;
+    }
 
     if (block.title) {
-      let badgePart = '';
-      if (block.statusBadge) {
-        badgePart = ` [${block.statusBadge}]`;
-      }
-      const rawTitle = ` ${block.title}${badgePart} `;
-      rawTitleLen = rawTitle.length;
-
-      const titleColor = block.type === 'error' ? Theme.colors.error : Theme.colors.primary;
-      titleStyled = ` ${Chalk.bold(Chalk.hex(titleColor, block.title))}${block.statusBadge ? ` ${Chalk.hex(Theme.colors.cyan, `[${block.statusBadge}]`)}` : ''} `;
+      lines.push(`  ${icon}${Chalk.bold(Chalk.hex(titleColor, block.title))}${badgePart}`);
     }
 
-    const remainingTop = Math.max(0, contentWidth - rawTitleLen);
-    lines.push(
-      Chalk.hex(borderColor, `${b.topLeft}${b.horizontal}`) +
-        titleStyled +
-        Chalk.hex(borderColor, `${b.horizontal.repeat(remainingTop)}${b.topRight}`)
-    );
+    // 2. Subtle Divider for general cards
+    if (block.type === 'card' || !block.type) {
+      lines.push(`  ${Chalk.hex(Theme.colors.divider, '─'.repeat(dividerWidth))}`);
+    }
 
-    // Subtitle
+    // 3. Subtitle / Description
     if (block.subtitle) {
-      const subLines = this.wrapText(block.subtitle, contentWidth - 4);
-      for (const sl of subLines) {
-        lines.push(
-          `${Chalk.hex(borderColor, b.vertical)}  ${Chalk.dim(sl.padEnd(contentWidth - 2))}  ${Chalk.hex(borderColor, b.vertical)}`
-        );
+      const wrappedSub = this.wrapText(block.subtitle, contentWidth - 4);
+      for (const sl of wrappedSub) {
+        lines.push(`    ${Chalk.hex(Theme.colors.textSecondary, sl)}`);
       }
-      lines.push(`${Chalk.hex(borderColor, b.vertical)}${' '.repeat(contentWidth + 2)}${Chalk.hex(borderColor, b.vertical)}`);
     }
 
-    // Fields
+    // 4. Fields (Label: Value alignment)
     if (block.fields && block.fields.length > 0) {
       for (const f of block.fields) {
-        const labelStyled = Chalk.bold(Chalk.hex(Theme.colors.white, f.label.padEnd(18)));
-        const valStyled = Chalk.hex(Theme.colors.text, f.value);
-        const rawText = `${f.label.padEnd(18)}: ${f.value}`;
-        const remaining = Math.max(0, contentWidth - 2 - rawText.length);
-        lines.push(
-          `${Chalk.hex(borderColor, b.vertical)}  ${labelStyled}: ${valStyled}${' '.repeat(remaining)}${Chalk.hex(borderColor, b.vertical)}`
-        );
+        const labelStr = Chalk.hex(Theme.colors.muted, f.label.padEnd(20));
+        const valStr = Chalk.bold(Chalk.hex(Theme.colors.text, f.value));
+        lines.push(`    ${labelStr}  ${valStr}`);
       }
     }
 
-    // Content body
+    // 5. Body Content (Paragraphs / Explanations)
     if (block.content) {
-      if (block.fields && block.fields.length > 0) {
-        lines.push(`${Chalk.hex(borderColor, b.vertical)}${' '.repeat(contentWidth + 2)}${Chalk.hex(borderColor, b.vertical)}`);
-      }
       const rawLines = block.content.split('\n');
       for (const rl of rawLines) {
-        const wrapped = this.wrapText(rl, contentWidth - 4);
-        if (wrapped.length === 0) {
-          lines.push(`${Chalk.hex(borderColor, b.vertical)}${' '.repeat(contentWidth + 2)}${Chalk.hex(borderColor, b.vertical)}`);
+        if (!rl.trim()) {
+          lines.push('');
         } else {
+          const wrapped = this.wrapText(rl, contentWidth - 4);
           for (const wl of wrapped) {
-            const padded = wl.padEnd(contentWidth - 2);
-            lines.push(`${Chalk.hex(borderColor, b.vertical)}  ${padded}  ${Chalk.hex(borderColor, b.vertical)}`);
+            lines.push(`    ${Chalk.hex(Theme.colors.textSecondary, wl)}`);
           }
         }
       }
     }
 
-    // Items list (Cards / individual blocks, NOT tables)
+    // 6. List Items
     if (block.items && block.items.length > 0) {
       for (const item of block.items) {
         if (typeof item === 'string') {
-          const itemLine = `• ${item}`;
-          const remaining = Math.max(0, contentWidth - 2 - itemLine.length);
-          lines.push(
-            `${Chalk.hex(borderColor, b.vertical)}  ${Chalk.hex(Theme.colors.text, itemLine)}${' '.repeat(remaining)}${Chalk.hex(borderColor, b.vertical)}`
-          );
+          lines.push(`    ${Chalk.hex(Theme.colors.muted, '•')} ${Chalk.hex(Theme.colors.text, item)}`);
         } else {
-          const badgeStr = item.badge ? ` ${Chalk.hex(Theme.colors.cyan, `[${item.badge}]`)}` : '';
-          const primaryStr = `${Chalk.hex(Theme.colors.primary, '▸')} ${Chalk.bold(item.primary)}${badgeStr}`;
-          const rawPrimary = `▸ ${item.primary}${item.badge ? ` [${item.badge}]` : ''}`;
-          const remaining = Math.max(0, contentWidth - 2 - rawPrimary.length);
-          lines.push(
-            `${Chalk.hex(borderColor, b.vertical)}  ${primaryStr}${' '.repeat(remaining)}${Chalk.hex(borderColor, b.vertical)}`
-          );
-
+          const badgeStr = item.badge ? ` ${Chalk.hex(Theme.colors.info, `[${item.badge}]`)}` : '';
+          const marker = Chalk.hex(Theme.colors.primary, '▸');
+          lines.push(`    ${marker} ${Chalk.bold(Chalk.hex(Theme.colors.text, item.primary))}${badgeStr}`);
           if (item.secondary) {
-            const rawSec = `   ${item.secondary}`;
-            const remainingSec = Math.max(0, contentWidth - 2 - rawSec.length);
-            lines.push(
-              `${Chalk.hex(borderColor, b.vertical)}  ${Chalk.dim(rawSec)}${' '.repeat(remainingSec)}${Chalk.hex(borderColor, b.vertical)}`
-            );
+            lines.push(`      ${Chalk.hex(Theme.colors.muted, item.secondary)}`);
           }
         }
       }
     }
 
-    // Bottom border
-    lines.push(Chalk.hex(borderColor, `${b.bottomLeft}${b.horizontal.repeat(contentWidth + 2)}${b.bottomRight}`));
+    // Spacing after each block for readability
+    lines.push('');
     return lines;
   }
 

@@ -512,6 +512,12 @@ export class Application {
       username: this.currentUser?.username,
       isAuthenticated: Boolean(this.currentUser),
       activeStory: null,
+      recentProjects: this.cachedStories.map((s) => ({
+        id: s.id,
+        title: s.title,
+        chaptersCount: this.cachedChapters.filter((c) => c.storyId === s.id).length,
+        syncStatus: s.status === 'synced' ? 'Al día' : s.status === 'published' ? 'Publicado' : 'Borrador',
+      })),
     });
     this.renderer.addBlocks([welcomeBlock]);
   }

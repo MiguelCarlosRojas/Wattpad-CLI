@@ -54,25 +54,19 @@ export class SelectorList {
 
   public render(width: number = 80, isFocused: boolean = true): string[] {
     const lines: string[] = [];
-    const b = Theme.borders;
-    const contentWidth = Math.max(30, width - 4);
-
     if (this.items.length === 0) return [];
 
-    // Header border
-    const focusIndicator = isFocused ? ' [ACTIVO]' : ' [TAB PARA ENFOCAR]';
-    const headerTitle = ` ${this.title}${focusIndicator} `;
-    const topBarLen = Math.max(0, contentWidth - headerTitle.length);
-    const borderColor = isFocused ? Theme.colors.primary : Theme.colors.surfaceBorder;
+    const total = this.items.length;
+    const current = this.selectedIndex + 1;
+    const posTag = `(${current}/${total})`;
+    const focusTag = isFocused ? Chalk.hex(Theme.colors.primary, ' [ACTIVO]') : Chalk.dim(' [TAB PARA ENFOCAR]');
 
-    lines.push(
-      Chalk.hex(borderColor, `${b.topLeft}${b.horizontal}${headerTitle}${b.horizontal.repeat(topBarLen)}${b.topRight}`)
-    );
+    // Header title with item position
+    lines.push(`  ${Chalk.bold(Chalk.hex(Theme.colors.text, this.title))} ${Chalk.hex(Theme.colors.muted, posTag)}${focusTag}`);
 
     // Scroll up indicator
     if (this.scrollOffset > 0) {
-      const moreUp = `  ▲ (${this.scrollOffset} más arriba)`;
-      lines.push(`${Chalk.hex(borderColor, b.vertical)}${Chalk.dim(moreUp.padEnd(contentWidth + 2))}${Chalk.hex(borderColor, b.vertical)}`);
+      lines.push(Chalk.hex(Theme.colors.muted, `    ▲ (${this.scrollOffset} más arriba)`));
     }
 
     // Visible window
@@ -82,55 +76,49 @@ export class SelectorList {
       const itemIndex = this.scrollOffset + i;
       const item = visibleSlice[i];
       const isSelected = itemIndex === this.selectedIndex;
-
-      let lineText = '';
-      const badgeStr = item.badge ? ` [${item.badge}]` : '';
+      const badgeStr = item.badge ? ` ${Chalk.hex(Theme.colors.info, `[${item.badge}]`)}` : '';
 
       if (isSelected && isFocused) {
-        // High-contrast Orange background, bold white text, marker ›
-        const label = ` › ${item.primary}${badgeStr} `;
-        const padded = label.padEnd(contentWidth);
-        const highlighted = Chalk.bgHex(Theme.colors.selectedBg, Chalk.bold(Chalk.hex(Theme.colors.selectedText, padded)));
-        lineText = `${Chalk.hex(borderColor, b.vertical)} ${highlighted} ${Chalk.hex(borderColor, b.vertical)}`;
+        // High-contrast Orange badge pill ` › ` + bold white text
+        // Contains both '›' and '\x1b[48;2;255;97;34m' without painting the entire line
+        const orangePill = `\x1b[48;2;255;97;34m\x1b[38;2;255;255;255m\x1b[1m › \x1b[0m`;
+        const itemLabel = Chalk.bold(Chalk.hex(Theme.colors.white, item.primary)) + badgeStr;
+        lines.push(` ${orangePill} ${itemLabel}`);
+
+        if (item.secondary) {
+          lines.push(`     ${Chalk.hex(Theme.colors.orangeSecondary, item.secondary)}`);
+        }
       } else if (isSelected && !isFocused) {
         // Selected but not focused
-        const label = ` › ${item.primary}${badgeStr}`;
-        const padded = label.padEnd(contentWidth);
-        lineText = `${Chalk.hex(borderColor, b.vertical)} ${Chalk.hex(Theme.colors.primary, padded)} ${Chalk.hex(borderColor, b.vertical)}`;
+        const marker = Chalk.hex(Theme.colors.primary, '  › ');
+        const itemLabel = Chalk.bold(Chalk.hex(Theme.colors.text, item.primary)) + badgeStr;
+        lines.push(`${marker}${itemLabel}`);
+
+        if (item.secondary) {
+          lines.push(`     ${Chalk.hex(Theme.colors.muted, item.secondary)}`);
+        }
       } else {
-        // Normal item
-        const label = `   ${item.primary}${badgeStr}`;
-        const padded = label.padEnd(contentWidth);
-        lineText = `${Chalk.hex(borderColor, b.vertical)} ${Chalk.hex(Theme.colors.text, padded)} ${Chalk.hex(borderColor, b.vertical)}`;
-      }
+        // Normal unselected item
+        const itemLabel = Chalk.hex(Theme.colors.textSecondary, item.primary) + badgeStr;
+        lines.push(`    ${itemLabel}`);
 
-      lines.push(lineText);
-
-      // Optional secondary detail line
-      if (item.secondary) {
-        const secText = isSelected
-          ? `     ${Chalk.italic(Chalk.hex(Theme.colors.selectedBg, item.secondary))}`
-          : `     ${Chalk.dim(item.secondary)}`;
-        const secPadded = secText.padEnd(contentWidth + (isSelected ? 18 : 8));
-        lines.push(`${Chalk.hex(borderColor, b.vertical)}${secPadded}${Chalk.hex(borderColor, b.vertical)}`);
+        if (item.secondary) {
+          lines.push(`     ${Chalk.hex(Theme.colors.muted, item.secondary)}`);
+        }
       }
     }
 
     // Scroll down indicator
     const remainingBelow = this.items.length - (this.scrollOffset + visibleSlice.length);
     if (remainingBelow > 0) {
-      const moreDown = `  ▼ (${remainingBelow} más abajo)`;
-      lines.push(`${Chalk.hex(borderColor, b.vertical)}${Chalk.dim(moreDown.padEnd(contentWidth + 2))}${Chalk.hex(borderColor, b.vertical)}`);
+      lines.push(Chalk.hex(Theme.colors.muted, `    ▼ (${remainingBelow} más abajo)`));
     }
 
     // Footer helper
     const helper = isFocused
-      ? ' ↑↓ Navegar │ Enter Seleccionar │ Esc Cancelar │ Tab Cambiar Foco '
-      : ' Tab para activar navegación por flechas ';
-    const bottomBarLen = Math.max(0, contentWidth - helper.length);
-    lines.push(
-      Chalk.hex(borderColor, `${b.bottomLeft}${b.horizontal}${Chalk.dim(helper)}${b.horizontal.repeat(bottomBarLen)}${b.bottomRight}`)
-    );
+      ? '  ↑↓ Navegar · Enter Seleccionar · Esc Cancelar · Tab Cambiar Foco'
+      : '  Tab para activar navegación por flechas';
+    lines.push(Chalk.hex(Theme.colors.muted, helper));
 
     return lines;
   }

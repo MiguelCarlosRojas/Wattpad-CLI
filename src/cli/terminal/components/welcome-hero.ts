@@ -1,6 +1,14 @@
 import { Theme, Chalk } from '../theme';
 import { RenderBlock } from '../../../types/command.types';
 
+export interface RecentProjectItem {
+  id: string;
+  title: string;
+  chaptersCount?: number;
+  updatedAt?: string;
+  syncStatus?: string;
+}
+
 export interface WelcomeHeroState {
   version: string;
   serverUrl: string;
@@ -8,130 +16,91 @@ export interface WelcomeHeroState {
   username?: string;
   isAuthenticated?: boolean;
   activeStory?: string | null;
+  recentProjects?: RecentProjectItem[];
 }
 
 export class WelcomeHeroRenderer {
   public static render(state: WelcomeHeroState, width: number = 80): string[] {
     const lines: string[] = [];
-    const b = Theme.borders;
-    const contentWidth = Math.max(34, width - 4);
-    const borderColor = Theme.colors.surfaceBorder;
+    const isCompact = width < 75;
 
-    const logoLines = [
-      '╦ ╦╔═╗╔╦╗╔╦╗╔═╗╔═╗╔╦╗   ╔═╗╦  ╦',
-      '║║║╠═╣ ║  ║ ╠═╝╠═╣ ║║   ║  ║  ║',
-      '╚╩╝╩ ╩ ╩  ╩ ╩  ╩ ╩═╩╝   ╚═╝╩═╝╩',
+    lines.push('');
+
+    // Central Studio Headline
+    const question = Chalk.bold(Chalk.hex(Theme.colors.white, '¿Qué vamos a escribir hoy?'));
+    const subtitle = Chalk.hex(Theme.colors.textSecondary, 'Estudio de desarrollo literario en la nube y asistencia narrativa con IA.');
+    lines.push(`  ${question}`);
+    if (!isCompact) {
+      lines.push(`  ${subtitle}`);
+    }
+    lines.push('');
+
+    // Quick Actions
+    const actionTitle = Chalk.bold(Chalk.hex(Theme.colors.primary, 'Acciones rápidas:'));
+    lines.push(`  ${actionTitle}`);
+
+    const actions = [
+      { cmd: '/story new "Título"', desc: 'Crear una nueva novela' },
+      { cmd: '/stories', desc: 'Abrir biblioteca de proyectos' },
+      { cmd: '/chapters', desc: 'Continuar redactando capítulos activos' },
+      { cmd: '/models', desc: 'Explorar modelos y herramientas de IA' },
+      { cmd: '/sync', desc: 'Sincronizar proyectos con PostgreSQL Cloud' },
     ];
 
-    // Card top border
-    const titleTag = ' WATTPAD STUDIO • NEXT-GEN CLI ';
-    const remainingTop = Math.max(0, contentWidth - titleTag.length);
-    lines.push(
-      Chalk.hex(borderColor, `${b.topLeft}${b.horizontal}`) +
-        Chalk.hex(Theme.colors.primary, Chalk.bold(titleTag)) +
-        Chalk.hex(borderColor, `${b.horizontal.repeat(remainingTop)}${b.topRight}`)
-    );
-
-    // Empty padding line
-    lines.push(`${Chalk.hex(borderColor, b.vertical)}${' '.repeat(contentWidth + 2)}${Chalk.hex(borderColor, b.vertical)}`);
-
-    // Render ASCII logo centered or left-padded
-    for (const logoLine of logoLines) {
-      const styledLogo = Chalk.hex(Theme.colors.primary, Chalk.bold(logoLine));
-      const padRight = Math.max(0, contentWidth - logoLine.length - 2);
-      lines.push(
-        `${Chalk.hex(borderColor, b.vertical)}  ${styledLogo}${' '.repeat(padRight)}${Chalk.hex(borderColor, b.vertical)}`
-      );
+    for (const act of actions) {
+      const prompt = Chalk.hex(Theme.colors.primary, '›');
+      const cmdStyled = Chalk.bold(Chalk.hex(Theme.colors.text, act.cmd.padEnd(24)));
+      const descStyled = Chalk.hex(Theme.colors.muted, act.desc);
+      lines.push(`    ${prompt} ${cmdStyled} ${descStyled}`);
     }
 
-    // Version and platform pill
-    const versionBadge = Chalk.bgHex(Theme.colors.primary, Chalk.bold(Chalk.hex(Theme.colors.white, ` v${state.version} `)));
-    const cloudBadge = state.serverOnline
-      ? Chalk.bgHex(Theme.colors.success, Chalk.bold(Chalk.hex(Theme.colors.white, ' ● CLOUD ONLINE ')))
-      : Chalk.bgHex(Theme.colors.warning, Chalk.bold(Chalk.hex(Theme.colors.white, ' ○ OFFLINE ')));
-    const archBadge = Chalk.bgHex(Theme.colors.surface, Chalk.hex(Theme.colors.muted, ' POSTGRESQL + OBJECT STORAGE '));
+    lines.push('');
 
-    const badgesLine = `  ${versionBadge} ${cloudBadge} ${archBadge}`;
-    const rawBadgesLen = 2 + (state.version.length + 4) + 1 + 16 + 1 + 29;
-    const padBadges = Math.max(0, contentWidth - rawBadgesLen);
-    lines.push(
-      `${Chalk.hex(borderColor, b.vertical)}${badgesLine}${' '.repeat(padBadges)}${Chalk.hex(borderColor, b.vertical)}`
-    );
-
-    // Empty divider
-    lines.push(`${Chalk.hex(borderColor, b.vertical)}${' '.repeat(contentWidth + 2)}${Chalk.hex(borderColor, b.vertical)}`);
-
-    // Host & Author connection status
-    const serverClean = state.serverUrl.replace(/^https?:\/\//, '');
-    const userLabel = state.isAuthenticated && state.username ? `@${state.username}` : 'Invitado (usa /login)';
-    const statusText = `  Conexión: ${Chalk.hex(Theme.colors.cyan, serverClean)}  │  Autor: ${Chalk.hex(Theme.colors.info, userLabel)}`;
-    const rawStatusLen = 2 + 10 + serverClean.length + 5 + 7 + userLabel.length;
-    const padStatus = Math.max(0, contentWidth - rawStatusLen);
-    lines.push(
-      `${Chalk.hex(borderColor, b.vertical)}${statusText}${' '.repeat(padStatus)}${Chalk.hex(borderColor, b.vertical)}`
-    );
-
-    // Active Story (if any)
-    if (state.activeStory) {
-      const storyText = `  Novela Activa: ${Chalk.hex(Theme.colors.primary, Chalk.bold(state.activeStory))}`;
-      const rawStoryLen = 2 + 15 + state.activeStory.length;
-      const padStory = Math.max(0, contentWidth - rawStoryLen);
-      lines.push(
-        `${Chalk.hex(borderColor, b.vertical)}${storyText}${' '.repeat(padStory)}${Chalk.hex(borderColor, b.vertical)}`
-      );
+    // Recent Projects / Empty State
+    if (state.recentProjects && state.recentProjects.length > 0) {
+      lines.push(`  ${Chalk.bold(Chalk.hex(Theme.colors.textSecondary, 'Proyectos recientes:'))}`);
+      for (const p of state.recentProjects.slice(0, 4)) {
+        const marker = Chalk.hex(Theme.colors.primary, '▸');
+        const idBadge = Chalk.hex(Theme.colors.info, `[${p.id}]`);
+        const title = Chalk.bold(Chalk.hex(Theme.colors.text, p.title));
+        const caps = p.chaptersCount !== undefined ? `${p.chaptersCount} cap(s)` : '0 caps';
+        const sync = p.syncStatus ? ` · ${p.syncStatus}` : ' · Al día';
+        lines.push(`    ${marker} ${title} ${idBadge}  ${Chalk.hex(Theme.colors.muted, caps + sync)}`);
+      }
+    } else {
+      lines.push(`  ${Chalk.hex(Theme.colors.muted, 'Estado: Sin novelas abiertas. Ejecuta /story new para comenzar tu primer manuscrito.')}`);
     }
 
-    // Quick Actions Header
-    lines.push(`${Chalk.hex(borderColor, b.vertical)}${' '.repeat(contentWidth + 2)}${Chalk.hex(borderColor, b.vertical)}`);
-    const chipHeader = `  ${Chalk.dim('ACCIONES RÁPIDAS (ejecuta cualquier comando con prefijo "/"):')}`;
-    const rawChipHeaderLen = 2 + 63;
-    const padChipHeader = Math.max(0, contentWidth - rawChipHeaderLen);
-    lines.push(
-      `${Chalk.hex(borderColor, b.vertical)}${chipHeader}${' '.repeat(padChipHeader)}${Chalk.hex(borderColor, b.vertical)}`
-    );
-
-    // Quick Action Chips
-    const chips = ['/stories', '/chapters', '/sync', '/publish', '/connect', '/models', '/help'];
-    const styledChips = chips
-      .map((c) => Chalk.bgHex(Theme.colors.surface, Chalk.hex(Theme.colors.primary, Chalk.bold(` ${c} `))))
-      .join(' ');
-    const rawChipsLen = chips.reduce((acc, c) => acc + c.length + 2, 0) + (chips.length - 1);
-    const padChips = Math.max(0, contentWidth - 2 - rawChipsLen);
-    lines.push(
-      `${Chalk.hex(borderColor, b.vertical)}  ${styledChips}${' '.repeat(padChips)}${Chalk.hex(borderColor, b.vertical)}`
-    );
-
-    // Footer tip
-    lines.push(`${Chalk.hex(borderColor, b.vertical)}${' '.repeat(contentWidth + 2)}${Chalk.hex(borderColor, b.vertical)}`);
-    const tipText = `  ${Chalk.dim('Tip:')} ${Chalk.hex(Theme.colors.text, 'Presiona')} ${Chalk.hex(Theme.colors.primary, 'Tab')} ${Chalk.hex(Theme.colors.text, 'para autocompletar sugerencias o')} ${Chalk.hex(Theme.colors.primary, '↑↓')} ${Chalk.hex(Theme.colors.text, 'para navegar.')}`;
-    const rawTipLen = 2 + 5 + 9 + 4 + 43 + 3 + 17;
-    const padTip = Math.max(0, contentWidth - rawTipLen);
-    lines.push(
-      `${Chalk.hex(borderColor, b.vertical)}${tipText}${' '.repeat(padTip)}${Chalk.hex(borderColor, b.vertical)}`
-    );
-
-    // Card bottom border
-    lines.push(Chalk.hex(borderColor, `${b.bottomLeft}${b.horizontal.repeat(contentWidth + 2)}${b.bottomRight}`));
-
+    lines.push('');
     return lines;
   }
 
   public static getWelcomeBlock(state: WelcomeHeroState): RenderBlock {
-    const serverClean = state.serverUrl.replace(/^https?:\/\//, '');
-    const userLabel = state.isAuthenticated && state.username ? `@${state.username}` : 'Invitado (usa /login)';
+    const userLabel = state.isAuthenticated && state.username ? `@${state.username}` : 'Invitado';
+
+    const recentItems = state.recentProjects && state.recentProjects.length > 0
+      ? state.recentProjects.slice(0, 3).map((p) => ({
+          primary: `${p.title} [${p.id}]`,
+          secondary: `${p.chaptersCount !== undefined ? p.chaptersCount : 0} cap(s) · ${p.syncStatus || 'Al día'}`,
+          badge: p.syncStatus?.toUpperCase() || 'ACTIVO',
+        }))
+      : undefined;
 
     return {
       type: 'card',
-      title: 'WATTPAD CLI — NEXT-GEN STUDIO',
-      subtitle: 'Entorno de desarrollo y publicación literaria en la nube (PostgreSQL + Object Storage)',
-      statusBadge: state.serverOnline ? 'CLOUD READY' : 'OFFLINE',
-      statusColor: state.serverOnline ? '#28A745' : '#FFC107',
+      title: '¿Qué vamos a escribir hoy?',
+      subtitle: 'Estudio de desarrollo literario, asistencia narrativa y sincronización cloud.',
+      statusBadge: state.serverOnline ? 'CLOUD ONLINE' : 'OFFLINE',
+      statusColor: state.serverOnline ? Theme.colors.success : Theme.colors.warning,
       fields: [
-        { label: 'Servidor Cloud', value: `https://${serverClean}` },
-        { label: 'Autor / Sesión', value: userLabel },
-        { label: 'Acciones Rápidas', value: '/stories │ /chapters │ /sync │ /publish │ /connect │ /models │ /help' },
-        { label: 'Navegación', value: 'Tab (Autocompletar) │ ↑↓ (Navegar / Historial) │ Enter (Ejecutar)' },
+        { label: 'Acciones Rápidas', value: '/story new  ·  /stories  ·  /chapters  ·  /models  ·  /sync' },
+        { label: 'Sesión Activa', value: `${userLabel} (${state.serverUrl.replace(/^https?:\/\//, '')})` },
+        { label: 'Navegación', value: 'Tab (Autocompletar)  ·  ↑↓ (Navegar / Historial)  ·  /help (Ayuda)' },
       ],
+      items: recentItems,
+      content:
+        'Comienza redactando con /story new "Título" o consulta tus novelas activas con /stories.\n' +
+        'Escribe /models para consultar los motores de IA literaria disponibles.',
     };
   }
 }

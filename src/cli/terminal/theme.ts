@@ -15,61 +15,85 @@ export function hexToRgb(hex: string): ColorRgb {
 }
 
 export class Chalk {
-  private static supportsTrueColor = true;
+  public static isColorSupported(): boolean {
+    if (typeof process !== 'undefined' && process.env && process.env.NO_COLOR) {
+      return false;
+    }
+    return true;
+  }
 
   public static rgb(r: number, g: number, b: number, text: string): string {
+    if (!Chalk.isColorSupported()) return text;
     return `\x1b[38;2;${r};${g};${b}m${text}\x1b[0m`;
   }
 
   public static bgRgb(r: number, g: number, b: number, text: string): string {
+    if (!Chalk.isColorSupported()) return text;
     return `\x1b[48;2;${r};${g};${b}m${text}\x1b[0m`;
   }
 
   public static hex(hexColor: string, text: string): string {
+    if (!Chalk.isColorSupported()) return text;
     const { r, g, b } = hexToRgb(hexColor);
     return `\x1b[38;2;${r};${g};${b}m${text}\x1b[0m`;
   }
 
   public static bgHex(hexColor: string, text: string): string {
+    if (!Chalk.isColorSupported()) return text;
     const { r, g, b } = hexToRgb(hexColor);
     return `\x1b[48;2;${r};${g};${b}m${text}\x1b[0m`;
   }
 
   public static bold(text: string): string {
+    if (!Chalk.isColorSupported()) return text;
     return `\x1b[1m${text}\x1b[0m`;
   }
 
   public static dim(text: string): string {
+    if (!Chalk.isColorSupported()) return text;
     return `\x1b[2m${text}\x1b[0m`;
   }
 
   public static italic(text: string): string {
+    if (!Chalk.isColorSupported()) return text;
     return `\x1b[3m${text}\x1b[0m`;
   }
 
   public static inverse(text: string): string {
+    if (!Chalk.isColorSupported()) return text;
     return `\x1b[7m${text}\x1b[0m`;
   }
 }
 
 export const Theme = {
   colors: {
-    primary: '#FF6122', // Signature Wattpad Orange
-    secondary: '#808080',
+    // Signature Wattpad Orange
+    primary: '#FF6122',
+    orangeSecondary: '#FF7849',
+
+    // Sleek dark surfaces
+    background: '#0D1117',
+    surface: '#151A21',
+    surfaceBorder: '#27272A',
+    divider: '#30363D',
+
+    // High-contrast clean typography
     white: '#FFFFFF',
-    text: '#EDEDED',
-    muted: '#7A7A7A',
-    background: '#121212',
-    surface: '#1E1E1E',
-    surfaceBorder: '#333333',
+    text: '#F3F4F6',
+    textSecondary: '#A1A1AA',
+    muted: '#71717A',
+
+    // Selection
     selectedBg: '#FF6122',
     selectedText: '#FFFFFF',
-    success: '#28A745',
-    warning: '#FFC107',
-    error: '#DC3545',
-    info: '#17A2B8',
+
+    // Status & semantics
+    success: '#32D583',
+    error: '#F97066',
+    warning: '#FEC84B',
+    info: '#60A5FA', // Technical blue
     cyan: '#00D2D3',
-    purple: '#9B59B6',
+    purple: '#A855F7',
   },
   borders: {
     topLeft: '╭',
@@ -86,8 +110,8 @@ export const Theme = {
     wattpad: (text: string) => `\x1b[48;2;255;97;34m\x1b[38;2;255;255;255m\x1b[1m ${text} \x1b[0m`,
     success: (text: string) => `\x1b[48;2;40;167;69m\x1b[38;2;255;255;255m\x1b[1m ${text} \x1b[0m`,
     warning: (text: string) => `\x1b[48;2;255;193;7m\x1b[38;2;0;0;0m\x1b[1m ${text} \x1b[0m`,
-    error: (text: string) => `\x1b[48;2;220;53;69m\x1b[38;2;255;255;255m\x1b[1m ${text} \x1b[0m`,
-    info: (text: string) => `\x1b[48;2;23;162;184m\x1b[38;2;255;255;255m\x1b[1m ${text} \x1b[0m`,
-    muted: (text: string) => `\x1b[48;2;80;80;80m\x1b[38;2;230;230;230m ${text} \x1b[0m`,
+    error: (text: string) => `\x1b[48;2;249;112;102m\x1b[38;2;255;255;255m\x1b[1m ${text} \x1b[0m`,
+    info: (text: string) => `\x1b[48;2;96;165;250m\x1b[38;2;0;0;0m\x1b[1m ${text} \x1b[0m`,
+    muted: (text: string) => `\x1b[48;2;39;39;42m\x1b[38;2;161;161;170m ${text} \x1b[0m`,
   },
 };

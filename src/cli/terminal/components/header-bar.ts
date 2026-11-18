@@ -21,66 +21,54 @@ export type HeaderState = CloudHeaderState;
 export class HeaderBarRenderer {
   public static render(state: CloudHeaderState, config: ResponsiveLayoutConfig): string[] {
     const lines: string[] = [];
-    const b = Theme.borders;
     const width = config.width;
-    const contentWidth = Math.max(30, width - 2);
+    const isCompact = config.width < 75 || config.compactHeader;
 
-    const logo = Chalk.bgHex(Theme.colors.primary, Chalk.bold(Chalk.hex(Theme.colors.white, ' WATTPAD CLI ')));
-    const versionStr = Chalk.dim(`v${state.version}`);
-
+    const brandName = Chalk.bold(Chalk.hex(Theme.colors.primary, 'Wattpad')) + ' ' + Chalk.bold(Chalk.hex(Theme.colors.white, 'Studio'));
     const statusDot = state.serverOnline
-      ? Chalk.hex(Theme.colors.success, '● Cloud')
-      : Chalk.hex(Theme.colors.warning, '○ Offline');
+      ? Chalk.hex(Theme.colors.success, '● ') + Chalk.hex(Theme.colors.text, 'Cloud Connected')
+      : Chalk.hex(Theme.colors.warning, '○ ') + Chalk.hex(Theme.colors.textSecondary, 'Offline');
 
     const userBadge = state.isAuthenticated
-      ? Chalk.hex(Theme.colors.info, `@${state.user}`)
-      : Chalk.dim('Invitado');
+      ? `@${state.user}`
+      : 'Invitado';
 
-    if (config.compactHeader) {
-      // 1-line compact header for small windows
-      const left = `${logo} ${versionStr} │ ${statusDot}`;
-      const right = `${userBadge} `;
-      const rawLeftLen = 13 + state.version.length + 1 + 9;
-      const rawRightLen = state.user.length + 2;
+    if (isCompact) {
+      // 1-line ultra-clean header for small windows
+      const left = ` ${brandName} ${Chalk.dim('·')} ${Chalk.hex(Theme.colors.muted, 'AI Writing Studio')}`;
+      const right = `${statusDot} `;
+      const rawLeftLen = 15 + 3 + 17;
+      const rawRightLen = 17;
       const spaces = Math.max(1, width - rawLeftLen - rawRightLen);
       lines.push(`${left}${' '.repeat(spaces)}${right}`);
-      lines.push(Chalk.hex(Theme.colors.surfaceBorder, b.horizontal.repeat(width)));
+      lines.push(Chalk.hex(Theme.colors.divider, '─'.repeat(width)));
       return lines;
     }
 
-    // 2-line modern header
-    const topBar = `${b.topLeft}${b.horizontal.repeat(width - 2)}${b.topRight}`;
-    lines.push(Chalk.hex(Theme.colors.surfaceBorder, topBar));
+    // Modern 2-line minimalist studio header (Claude/Antigravity style)
+    // Row 1: Brand title & Cloud status
+    const row1Left = `  ${brandName}`;
+    const row1Right = `${statusDot}  `;
+    const rawLen1 = 16 + 18;
+    const pad1 = Math.max(1, width - rawLen1);
+    lines.push(`${row1Left}${' '.repeat(pad1)}${row1Right}`);
 
-    // Line 1: Logo, server, user
-    const serverUrl = state.serverUrl || 'https://wattpad-cli.onrender.com';
-    const syncState = state.syncState || 'listo';
-    const serverLabel = Chalk.dim(serverUrl.replace('https://', ''));
-    const line1Left = ` ${logo} ${versionStr} │ ${statusDot} (${serverLabel})`;
-    const line1Right = `${userBadge} │ Sync: ${Chalk.hex(Theme.colors.cyan, syncState)} `;
-    const rawLen1Left = 14 + state.version.length + 3 + 7 + 2 + serverUrl.replace('https://', '').length + 1;
-    const rawLen1Right = state.user.length + 10 + syncState.length + 1;
-    const pad1 = Math.max(1, width - 2 - rawLen1Left - rawLen1Right);
-    lines.push(
-      `${Chalk.hex(Theme.colors.surfaceBorder, b.vertical)}${line1Left}${' '.repeat(pad1)}${line1Right}${Chalk.hex(Theme.colors.surfaceBorder, b.vertical)}`
-    );
+    // Row 2: Subtitle & Context / Session
+    let row2Subtitle = 'AI Writing Studio';
+    if (state.activeStory) {
+      row2Subtitle += ` · ${state.activeStory}`;
+    }
+    const row2Left = `  ${Chalk.hex(Theme.colors.textSecondary, row2Subtitle)}`;
 
-    // Line 2: Active context
-    const storyPart = state.activeStory
-      ? `${Chalk.bold('Novela Activa:')} ${Chalk.hex(Theme.colors.primary, state.activeStory)}`
-      : Chalk.dim('Sin novela activa (/story open NOV-xxxx)');
-    const chapterPart = state.activeChapter
-      ? ` │ ${Chalk.bold('Capítulo:')} ${Chalk.hex(Theme.colors.cyan, state.activeChapter)}`
-      : '';
-    const line2Text = ` ${storyPart}${chapterPart}`;
-    const rawLen2 = (state.activeStory ? 15 + state.activeStory.length : 38) + (state.activeChapter ? 12 + state.activeChapter.length : 0);
-    const pad2 = Math.max(1, width - 2 - rawLen2);
-    lines.push(
-      `${Chalk.hex(Theme.colors.surfaceBorder, b.vertical)}${line2Text}${' '.repeat(pad2)}${Chalk.hex(Theme.colors.surfaceBorder, b.vertical)}`
-    );
+    const syncLabel = state.syncState ? ` · ${state.syncState}` : '';
+    const row2Meta = `v${state.version} · ${userBadge}${syncLabel}`;
+    const row2Right = `${Chalk.hex(Theme.colors.muted, row2Meta)}  `;
+    const rawLen2 = 2 + row2Subtitle.length + row2Meta.length + 2;
+    const pad2 = Math.max(1, width - rawLen2);
+    lines.push(`${row2Left}${' '.repeat(pad2)}${row2Right}`);
 
-    const bottomBar = `${b.bottomLeft}${b.horizontal.repeat(width - 2)}${b.bottomRight}`;
-    lines.push(Chalk.hex(Theme.colors.surfaceBorder, bottomBar));
+    // Row 3: Subtle horizontal divider
+    lines.push(Chalk.hex(Theme.colors.divider, '─'.repeat(width)));
 
     return lines;
   }

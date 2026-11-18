@@ -3,24 +3,16 @@ import { ResponsiveLayoutConfig } from '../responsive';
 
 export class StatusBarRenderer {
   public static render(config: ResponsiveLayoutConfig, customShortcuts?: string): string[] {
-    const width = config.width;
-    const b = Theme.borders;
-
-    let shortcuts = '';
     if (customShortcuts) {
-      shortcuts = customShortcuts;
-    } else if (config.isCompact || config.compactStatusBar) {
-      shortcuts = ' Tab Autocomp │ Enter Ejecutar │ /exit Salir ';
-    } else {
-      shortcuts = ' Tab Autocompletar │ Enter Ejecutar │ ↑↓ Navegar/Historial │ /help Ayuda │ /exit Salir ';
+      return [Chalk.hex(Theme.colors.muted, `  ${customShortcuts}`)];
     }
 
-    const styledShortcuts = Chalk.dim(shortcuts);
-    const rawLen = shortcuts.length;
+    if (config.isCompact || config.compactStatusBar) {
+      const line = `  ${Chalk.hex(Theme.colors.textSecondary, 'Tab')} ${Chalk.hex(Theme.colors.muted, 'Autocomp')}  ${Chalk.hex(Theme.colors.divider, '·')}  ${Chalk.hex(Theme.colors.textSecondary, 'Enter')} ${Chalk.hex(Theme.colors.muted, 'Ejecutar')}  ${Chalk.hex(Theme.colors.divider, '·')}  ${Chalk.hex(Theme.colors.textSecondary, '/exit')} ${Chalk.hex(Theme.colors.muted, 'Salir')}`;
+      return [line];
+    }
 
-    const remaining = Math.max(0, width - 2 - rawLen);
-    const borderLine = Chalk.hex(Theme.colors.surfaceBorder, `${b.horizontal}${shortcuts}${b.horizontal.repeat(remaining)}`);
-
-    return [borderLine];
+    const line = `  ${Chalk.hex(Theme.colors.textSecondary, 'Tab')} ${Chalk.hex(Theme.colors.muted, 'Autocompletar')}  ${Chalk.hex(Theme.colors.divider, '·')}  ${Chalk.hex(Theme.colors.textSecondary, 'Enter')} ${Chalk.hex(Theme.colors.muted, 'Ejecutar')}  ${Chalk.hex(Theme.colors.divider, '·')}  ${Chalk.hex(Theme.colors.textSecondary, '↑↓')} ${Chalk.hex(Theme.colors.muted, 'Historial/Navegar')}  ${Chalk.hex(Theme.colors.divider, '·')}  ${Chalk.hex(Theme.colors.textSecondary, '/help')} ${Chalk.hex(Theme.colors.muted, 'Ayuda')}  ${Chalk.hex(Theme.colors.divider, '·')}  ${Chalk.hex(Theme.colors.textSecondary, '/exit')} ${Chalk.hex(Theme.colors.muted, 'Salir')}`;
+    return [line];
   }
 }
