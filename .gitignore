@@ -4,6 +4,7 @@
 
 /migrations/
 *.tgz
+.bun-cache/
 
 # ==============================================
 # ENVIRONMENT FILES - NEVER UPLOAD

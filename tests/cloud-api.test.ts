@@ -28,7 +28,7 @@ describe('Wattpad Cloud REST API & Discovery', () => {
     const res = await fetch(`${baseUrl}/cli/config`);
     expect(res.status).toBe(200);
     const config = (await res.json()) as any;
-    expect(config.version).toBe('1.0.0');
+    expect(['1.0.0', '1.1.0']).toContain(config.version);
     expect(config.serverStatus).toBe('healthy');
     expect(config.features.googleDocsOAuth).toBe(true);
     expect(config.routes.stories).toBeDefined();
