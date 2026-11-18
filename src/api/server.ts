@@ -43,36 +43,42 @@ export class WattpadCloudApiServer {
 
         try {
           // --- CLI INSTALLERS & DISCOVERY ---
-          if (path === '/api/health' && method === 'GET') {
-            return new Response(JSON.stringify({ status: 'ok', time: new Date().toISOString() }), { headers });
+          if (path === '/api/health' && (method === 'GET' || method === 'HEAD')) {
+            return new Response(method === 'HEAD' ? null : JSON.stringify({ status: 'ok', time: new Date().toISOString() }), { headers });
           }
 
-          if (path === '/cli/config' && method === 'GET') {
+          if (path === '/cli/config' && (method === 'GET' || method === 'HEAD')) {
             const config = CliController.getPublicConfig();
-            return new Response(JSON.stringify(config), { headers });
+            return new Response(method === 'HEAD' ? null : JSON.stringify(config), { headers });
           }
 
-          if (path === '/cli/install.ps1' && method === 'GET') {
+          if (path === '/cli/install.ps1' && (method === 'GET' || method === 'HEAD')) {
             const script = CliController.getInstallPs1();
-            return new Response(script, {
-              headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+            return new Response(method === 'HEAD' ? null : script, {
+              headers: {
+                'Content-Type': 'text/plain; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+              },
             });
           }
 
-          if (path === '/cli/install.sh' && method === 'GET') {
+          if (path === '/cli/install.sh' && (method === 'GET' || method === 'HEAD')) {
             const script = CliController.getInstallSh();
-            return new Response(script, {
-              headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+            return new Response(method === 'HEAD' ? null : script, {
+              headers: {
+                'Content-Type': 'text/plain; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+              },
             });
           }
 
-          if (path.startsWith('/cli/download/') && method === 'GET') {
+          if (path.startsWith('/cli/download/') && (method === 'GET' || method === 'HEAD')) {
             const target = path.replace('/cli/download/', '');
             const filename = target.includes('win') ? 'wattpad.exe' : `wattpad-${target}`;
             const localFile = nodePath.resolve(process.cwd(), `dist/${filename}`);
             if (fs.existsSync(localFile)) {
               const fileBuffer = fs.readFileSync(localFile);
-              return new Response(fileBuffer, {
+              return new Response(method === 'HEAD' ? null : fileBuffer, {
                 headers: {
                   'Content-Type': 'application/octet-stream',
                   'Content-Disposition': `attachment; filename="${nodePath.basename(localFile)}"`,

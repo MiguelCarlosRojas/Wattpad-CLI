@@ -22,6 +22,14 @@ export class CliController {
         powershell: `${env.WATTPAD_API_BASE_URL}/cli/install.ps1`,
         linuxMac: `${env.WATTPAD_API_BASE_URL}/cli/install.sh`,
       },
+      binaries: {
+        'win32-x64': {
+          filename: 'wattpad.exe',
+          sha256: '8BFFDBE52F04E92374F084F32E940E8ABBB7095111D0AEF3D3269837EAE6B86C',
+          size: 132808192,
+          downloadUrl: `${env.WATTPAD_API_BASE_URL}/cli/download/win32-x64`,
+        },
+      },
       routes: {
         health: env.API_ROUTE_HEALTH,
         config: env.API_ROUTE_PUBLIC_CONFIG,
@@ -41,15 +49,23 @@ export class CliController {
   public static getInstallPs1(): string {
     const scriptPath = path.resolve(process.cwd(), 'installers/install.ps1');
     if (fs.existsSync(scriptPath)) {
-      return fs.readFileSync(scriptPath, 'utf8');
+      let content = fs.readFileSync(scriptPath, 'utf8');
+      if (content.charCodeAt(0) === 0xFEFF) {
+        content = content.slice(1);
+      }
+      return content;
     }
-    return '# Wattpad CLI installer\nWrite-Host "Instalador no encontrado."';
+    return '# Wattpad CLI installer\nWrite-Host "[ERROR] Instalador no encontrado." -ForegroundColor Red';
   }
 
   public static getInstallSh(): string {
     const scriptPath = path.resolve(process.cwd(), 'installers/install.sh');
     if (fs.existsSync(scriptPath)) {
-      return fs.readFileSync(scriptPath, 'utf8');
+      let content = fs.readFileSync(scriptPath, 'utf8');
+      if (content.charCodeAt(0) === 0xFEFF) {
+        content = content.slice(1);
+      }
+      return content;
     }
     return '#!/usr/bin/env bash\necho "Instalador no encontrado."';
   }

@@ -168,6 +168,15 @@ export interface PublicCliConfig {
     powershell: string;
     linuxMac: string;
   };
+  binaries?: Record<
+    string,
+    {
+      filename: string;
+      sha256: string;
+      size: number;
+      downloadUrl: string;
+    }
+  >;
   routes: Record<string, string>;
   updatedAt: string;
 }
