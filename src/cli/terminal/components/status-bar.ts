@@ -1,18 +1,41 @@
-import { Theme, Chalk } from '../theme';
 import { ResponsiveLayoutConfig } from '../responsive';
+import { Theme, Chalk, padEndVisible } from '../theme';
 
+export class StatusBar {
+  public static render(config: ResponsiveLayoutConfig, notificationMessage?: string | null): string[] {
+    const lines: string[] = [];
+
+    if (notificationMessage) {
+      const toast = Chalk.hex(Theme.colors.info, `ℹ ${notificationMessage}`);
+      lines.push(padEndVisible(toast, config.width));
+      return lines;
+    }
+
+    if (config.compactStatusBar || config.isCompact) {
+      const shortcuts = Chalk.dim('↑↓ Nav │ Enter OK │ Esc Volver │ Ctrl+C Salir');
+      lines.push(padEndVisible(shortcuts, config.width));
+      return lines;
+    }
+
+    const sep = Chalk.dim('  │  ');
+    const items = [
+      Chalk.dim('↑↓') + ' ' + Chalk.hex(Theme.colors.textSecondary, 'Navegar'),
+      Chalk.dim('Enter') + ' ' + Chalk.hex(Theme.colors.textSecondary, 'Seleccionar'),
+      Chalk.dim('Esc') + ' ' + Chalk.hex(Theme.colors.textSecondary, 'Volver'),
+      Chalk.dim('Tab') + ' ' + Chalk.hex(Theme.colors.textSecondary, 'Alternar foco'),
+      Chalk.dim('/') + ' ' + Chalk.hex(Theme.colors.textSecondary, 'Comandos'),
+      Chalk.dim('Ctrl+C') + ' ' + Chalk.hex(Theme.colors.textSecondary, 'Salir'),
+    ];
+
+    const bar = items.join(sep);
+    lines.push(padEndVisible(bar, config.width));
+    return lines;
+  }
+}
+
+// Backward-compatibility alias
 export class StatusBarRenderer {
-  public static render(config: ResponsiveLayoutConfig, customShortcuts?: string): string[] {
-    if (customShortcuts) {
-      return [Chalk.hex(Theme.colors.muted, `  ${customShortcuts}`)];
-    }
-
-    if (config.isCompact || config.compactStatusBar) {
-      const line = `  ${Chalk.hex(Theme.colors.textSecondary, 'Tab')} ${Chalk.hex(Theme.colors.muted, 'Autocomp')}  ${Chalk.hex(Theme.colors.divider, '·')}  ${Chalk.hex(Theme.colors.textSecondary, 'Enter')} ${Chalk.hex(Theme.colors.muted, 'Ejecutar')}  ${Chalk.hex(Theme.colors.divider, '·')}  ${Chalk.hex(Theme.colors.textSecondary, '/exit')} ${Chalk.hex(Theme.colors.muted, 'Salir')}`;
-      return [line];
-    }
-
-    const line = `  ${Chalk.hex(Theme.colors.textSecondary, 'Tab')} ${Chalk.hex(Theme.colors.muted, 'Autocompletar')}  ${Chalk.hex(Theme.colors.divider, '·')}  ${Chalk.hex(Theme.colors.textSecondary, 'Enter')} ${Chalk.hex(Theme.colors.muted, 'Ejecutar')}  ${Chalk.hex(Theme.colors.divider, '·')}  ${Chalk.hex(Theme.colors.textSecondary, '↑↓')} ${Chalk.hex(Theme.colors.muted, 'Historial/Navegar')}  ${Chalk.hex(Theme.colors.divider, '·')}  ${Chalk.hex(Theme.colors.textSecondary, '/help')} ${Chalk.hex(Theme.colors.muted, 'Ayuda')}  ${Chalk.hex(Theme.colors.divider, '·')}  ${Chalk.hex(Theme.colors.textSecondary, '/exit')} ${Chalk.hex(Theme.colors.muted, 'Salir')}`;
-    return [line];
+  public static render(config: ResponsiveLayoutConfig): string[] {
+    return StatusBar.render(config);
   }
 }

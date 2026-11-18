@@ -1,4 +1,3 @@
-import { createCliRenderer, CliRenderer, KeyEvent } from '@opentui/core';
 import { ResponsiveManager, ResponsiveLayoutConfig } from './responsive';
 import { FocusManager, SelectorItem } from './focus-manager';
 import { HeaderBarRenderer, CloudHeaderState } from './components/header-bar';
@@ -7,16 +6,13 @@ import { BlockCardRenderer } from './components/block-card';
 import { SelectorList } from './components/selector-list';
 import { SuggestionListRenderer } from './components/suggestion-list';
 import { InputBoxRenderer } from './components/input-box';
-import { WelcomeHeroRenderer } from './components/welcome-hero';
-import { NavigationRailRenderer } from './components/navigation-rail';
-import { ContextPanelRenderer } from './components/context-panel';
-import { Theme, Chalk } from './theme';
+import { Theme, Chalk, padEndVisible, stripAnsi } from './theme';
 import { CommandRegistry } from '../../commands/command-registry';
 import { CommandHistory } from '../../commands/history';
 import { CommandResult, RenderBlock, Suggestion } from '../../types/command.types';
+import { AppShell } from './app-shell';
 
 export class TerminalRenderer {
-  private renderer: CliRenderer | null = null;
   private contentLines: string[] = [];
   private currentInput: string = '';
   private cursorIndex: number = 0;
@@ -28,11 +24,12 @@ export class TerminalRenderer {
   private history: CommandHistory;
   private isRunning: boolean = false;
   private resizeUnsubscribe?: () => void;
+  public appShell: AppShell;
 
   private latestHeaderState: CloudHeaderState = {
     version: '1.0.0',
-    user: 'Local',
-    isAuthenticated: false,
+    user: 'wattpad_author',
+    isAuthenticated: true,
     serverUrl: 'https://wattpad-cli.onrender.com',
     serverOnline: true,
     syncState: 'Al día',
@@ -47,10 +44,12 @@ export class TerminalRenderer {
   ) {
     this.history = history || new CommandHistory();
     this.focusManager = new FocusManager();
+    this.appShell = new AppShell(this.registry, this.history);
   }
 
   public setSubmitHandler(handler: (cmd: string) => Promise<CommandResult>): void {
     this.onCommandSubmit = handler;
+    this.appShell.setCommandExecutor(handler);
   }
 
   public setSelectorSubmitHandler(handler: (item: SelectorItem) => Promise<CommandResult | void>): void {
@@ -71,6 +70,11 @@ export class TerminalRenderer {
 
   public updateHeaderState(state: Partial<CloudHeaderState>): void {
     this.latestHeaderState = { ...this.latestHeaderState, ...state };
+    this.appShell.setState({
+      version: this.latestHeaderState.version,
+      serverOnline: this.latestHeaderState.serverOnline,
+      serverUrl: this.latestHeaderState.serverUrl,
+    });
     if (this.isRunning) {
       this.renderScreen();
     }
@@ -80,44 +84,21 @@ export class TerminalRenderer {
     this.isRunning = true;
     this.latestHeaderState = initialHeader;
 
-    // Listen for terminal resize events dynamically
-    this.resizeUnsubscribe = ResponsiveManager.onResize(() => {
-      if (this.isRunning) {
-        this.renderScreen();
-      }
+    this.appShell.setState({
+      version: initialHeader.version,
+      serverOnline: initialHeader.serverOnline,
+      serverUrl: initialHeader.serverUrl,
+      activeStoryId: initialHeader.activeStory || null,
+      activeChapterId: initialHeader.activeChapter || null,
     });
 
-    const isTTY = process.stdin.isTTY && process.stdout.isTTY;
-    if (!isTTY) return;
-
-    try {
-      this.renderer = await createCliRenderer({
-        exitOnCtrlC: false,
-      });
-
-      this.renderer.keyInput.on('keypress', async (key: KeyEvent) => {
-        await this.handleKeyPress(key);
-      });
-
-      this.renderScreen();
-    } catch {
-      this.renderer = null;
-    }
+    // Start AppShell lifecycle
+    return await this.appShell.start();
   }
 
   public async stop(): Promise<void> {
     this.isRunning = false;
-    if (this.resizeUnsubscribe) {
-      this.resizeUnsubscribe();
-      this.resizeUnsubscribe = undefined;
-    }
-    if (this.renderer) {
-      try {
-        await this.renderer.destroy();
-      } catch {}
-      this.renderer = null;
-    }
-    process.stdout.write('\x1b[?25h\x1b[0m\n');
+    this.appShell.exit();
   }
 
   public addBlocks(blocks: RenderBlock[]): void {
@@ -125,6 +106,9 @@ export class TerminalRenderer {
     for (const b of blocks) {
       const rendered = BlockCardRenderer.renderBlock(b, config.cardWidth);
       this.contentLines.push(...rendered, '');
+      if (b.title || b.content) {
+        this.appShell.addMessage('assistant', `${b.title ? b.title + '\n' : ''}${b.content || ''}`);
+      }
     }
   }
 
@@ -132,21 +116,16 @@ export class TerminalRenderer {
     this.contentLines = [];
   }
 
-  private stripAnsi(str: string): string {
-    return str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
-  }
-
-  private padEndVisible(str: string, targetLength: number): string {
-    const currentLen = this.stripAnsi(str).length;
-    if (currentLen >= targetLength) return str;
-    return str + ' '.repeat(targetLength - currentLen);
-  }
-
   public renderScreen(): void {
+    if (this.isRunning) {
+      this.appShell.render();
+      return;
+    }
+
     const config = ResponsiveManager.getLayoutConfig();
     const output: string[] = [];
 
-    // 1. Header Bar (Clean Studio Top Bar)
+    // 1. Header Bar
     const headerLines = HeaderBarRenderer.render(this.latestHeaderState, config);
     output.push(...headerLines);
 
@@ -164,7 +143,6 @@ export class TerminalRenderer {
     }
 
     // 4. Middle Content Calculations
-    // Reserve header + input (3) + status (1) = 7
     const fixedReserved = headerLines.length + 4;
     const midHeight = Math.max(4, config.height - fixedReserved);
 
@@ -183,31 +161,7 @@ export class TerminalRenderer {
     }
     const finalMidLines = midContentLines.slice(0, midHeight);
 
-    // Multi-column or Single-column based on breakpoint
-    const isMultiColumn = config.showSecondaryPanels && (config.breakpoint === 'WIDE' || config.breakpoint === 'ULTRA_WIDE');
-
-    if (isMultiColumn && config.breakpoint === 'WIDE') {
-      const railLines = NavigationRailRenderer.render('Inicio', midHeight);
-      const sep = Chalk.hex(Theme.colors.divider, '│');
-      for (let i = 0; i < midHeight; i++) {
-        const left = this.padEndVisible(railLines[i] || '', 22);
-        const right = finalMidLines[i] || '';
-        output.push(`${left} ${sep} ${right}`);
-      }
-    } else if (isMultiColumn && config.breakpoint === 'ULTRA_WIDE') {
-      const railLines = NavigationRailRenderer.render('Inicio', midHeight);
-      const ctxLines = ContextPanelRenderer.render(this.latestHeaderState, midHeight);
-      const centerWidth = Math.max(40, config.width - 54);
-      const sep = Chalk.hex(Theme.colors.divider, '│');
-      for (let i = 0; i < midHeight; i++) {
-        const left = this.padEndVisible(railLines[i] || '', 22);
-        const center = this.padEndVisible(finalMidLines[i] || '', centerWidth);
-        const right = ctxLines[i] || '';
-        output.push(`${left} ${sep} ${center} ${sep} ${right}`);
-      }
-    } else {
-      output.push(...finalMidLines);
-    }
+    output.push(...finalMidLines);
 
     // 5. Framed Command Input Box
     const isInputFocused = this.focusManager.getFocus() === 'input';
@@ -218,213 +172,6 @@ export class TerminalRenderer {
     const statusLines = StatusBarRenderer.render(config);
     output.push(...statusLines);
 
-    // Write buffer directly to terminal
     process.stdout.write('\x1b[H\x1b[2J' + output.join('\n'));
-  }
-
-  private async handleKeyPress(key: KeyEvent): Promise<void> {
-    // Exit shortcuts
-    if ((key.ctrl && key.name === 'c') || (key.ctrl && key.name === 'd')) {
-      await this.stop();
-      process.exit(0);
-      return;
-    }
-
-    const currentFocus = this.focusManager.getFocus();
-
-    // Tab key: Toggle focus or pick suggestion
-    if (key.name === 'tab') {
-      if (this.suggestions.length > 0) {
-        const picked = this.suggestions[this.selectedSuggestionIndex];
-        if (picked) {
-          this.currentInput = picked.command;
-          this.cursorIndex = this.currentInput.length;
-          this.suggestions = [];
-          this.focusManager.setSuggestionsActive(false);
-          this.renderScreen();
-          return;
-        }
-      }
-
-      if (this.activeSelector) {
-        this.focusManager.toggleFocus();
-        this.renderScreen();
-        return;
-      }
-    }
-
-    // --- NAVIGATION: SUGGESTIONS ---
-    if (currentFocus === 'suggestions' && this.suggestions.length > 0) {
-      if (key.name === 'up') {
-        this.selectedSuggestionIndex = Math.max(0, this.selectedSuggestionIndex - 1);
-        this.renderScreen();
-        return;
-      }
-      if (key.name === 'down') {
-        this.selectedSuggestionIndex = Math.min(this.suggestions.length - 1, this.selectedSuggestionIndex + 1);
-        this.renderScreen();
-        return;
-      }
-      if (key.name === 'return' || key.name === 'enter') {
-        const picked = this.suggestions[this.selectedSuggestionIndex];
-        if (picked) {
-          this.currentInput = picked.command;
-          this.cursorIndex = this.currentInput.length;
-          this.suggestions = [];
-          this.focusManager.setSuggestionsActive(false);
-          this.renderScreen();
-          return;
-        }
-      }
-      if (key.name === 'escape') {
-        this.suggestions = [];
-        this.focusManager.setSuggestionsActive(false);
-        this.renderScreen();
-        return;
-      }
-    }
-
-    // --- NAVIGATION: INTERACTIVE SELECTOR LIST ---
-    if (currentFocus === 'selector' && this.activeSelector) {
-      if (key.name === 'up') {
-        this.activeSelector.navigateUp();
-        this.renderScreen();
-        return;
-      }
-      if (key.name === 'down') {
-        this.activeSelector.navigateDown();
-        this.renderScreen();
-        return;
-      }
-      if (key.name === 'return' || key.name === 'enter') {
-        const selected = this.activeSelector.getSelectedItem();
-        if (selected) {
-          if (selected.action) {
-            await selected.action();
-          } else if (this.onSelectorSubmit) {
-            await this.onSelectorSubmit(selected);
-          }
-        }
-        return;
-      }
-      if (key.name === 'escape') {
-        this.clearSelector();
-        return;
-      }
-    }
-
-    // --- COMMAND INPUT FOCUSED ---
-    if (key.name === 'return' || key.name === 'enter') {
-      const cmdToExec = this.currentInput.trim();
-      if (!cmdToExec) return;
-
-      this.history.push(cmdToExec);
-      this.currentInput = '';
-      this.cursorIndex = 0;
-      this.suggestions = [];
-      this.focusManager.setSuggestionsActive(false);
-
-      if (this.onCommandSubmit) {
-        const result = await this.onCommandSubmit(cmdToExec);
-        if (result.clearScreen) {
-          this.clearContent();
-          this.addBlocks([
-            WelcomeHeroRenderer.getWelcomeBlock({
-              version: this.latestHeaderState.version,
-              serverUrl: this.latestHeaderState.serverUrl || 'https://wattpad-cli.onrender.com',
-              serverOnline: Boolean(this.latestHeaderState.serverOnline),
-              username: this.latestHeaderState.user,
-              isAuthenticated: Boolean(this.latestHeaderState.isAuthenticated),
-              activeStory: this.latestHeaderState.activeStory,
-            }),
-          ]);
-        } else {
-          this.contentLines.push(
-            '  ' + Chalk.hex(Theme.colors.primary, '› ') + Chalk.bold(Chalk.hex(Theme.colors.white, cmdToExec))
-          );
-        }
-
-        if (result.blocks && result.blocks.length > 0) {
-          this.addBlocks(result.blocks);
-        } else if (result.message) {
-          this.addBlocks([
-            {
-              type: result.success ? 'success' : 'error',
-              title: result.success ? 'Operación Cloud Exitosa' : 'Aviso',
-              content: result.message,
-            },
-          ]);
-        }
-
-        if (result.exitApp) {
-          await this.stop();
-          process.exit(0);
-          return;
-        }
-      }
-
-      this.renderScreen();
-      return;
-    }
-
-    if (key.name === 'up') {
-      const prev = this.history.navigateUp(this.currentInput);
-      if (prev !== null) {
-        this.currentInput = prev;
-        this.cursorIndex = this.currentInput.length;
-        this.updateSuggestions();
-        this.renderScreen();
-      }
-      return;
-    }
-
-    if (key.name === 'down') {
-      const next = this.history.navigateDown();
-      if (next !== null) {
-        this.currentInput = next;
-        this.cursorIndex = this.currentInput.length;
-        this.updateSuggestions();
-        this.renderScreen();
-      }
-      return;
-    }
-
-    if (key.name === 'backspace') {
-      if (this.currentInput.length > 0) {
-        this.currentInput = this.currentInput.slice(0, -1);
-        this.cursorIndex = Math.max(0, this.cursorIndex - 1);
-        this.updateSuggestions();
-        this.renderScreen();
-      }
-      return;
-    }
-
-    if (key.name === 'escape') {
-      this.currentInput = '';
-      this.cursorIndex = 0;
-      this.suggestions = [];
-      this.focusManager.setSuggestionsActive(false);
-      this.renderScreen();
-      return;
-    }
-
-    // Normal typing
-    if (key.sequence && key.sequence.length === 1 && !key.ctrl && !key.meta) {
-      this.currentInput += key.sequence;
-      this.cursorIndex++;
-      this.updateSuggestions();
-      this.renderScreen();
-    }
-  }
-
-  private updateSuggestions(): void {
-    if (this.currentInput.startsWith('/')) {
-      this.suggestions = this.registry.getSuggestions(this.currentInput, 5);
-      this.selectedSuggestionIndex = 0;
-      this.focusManager.setSuggestionsActive(this.suggestions.length > 0);
-    } else {
-      this.suggestions = [];
-      this.focusManager.setSuggestionsActive(false);
-    }
   }
 }

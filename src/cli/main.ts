@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+process.env.DOTENV_QUIET = 'true';
 import { Application } from './app/application';
 import { LifecycleManager } from '../app/lifecycle';
 import { BlockCardRenderer } from './terminal/components/block-card';

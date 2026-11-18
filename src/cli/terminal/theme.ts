@@ -5,6 +5,9 @@ export interface ColorRgb {
 }
 
 export function hexToRgb(hex: string): ColorRgb {
+  if (!hex || typeof hex !== 'string') {
+    return { r: 255, g: 97, b: 34 };
+  }
   const clean = hex.replace('#', '');
   const num = parseInt(clean, 16);
   return {
@@ -14,10 +17,35 @@ export function hexToRgb(hex: string): ColorRgb {
   };
 }
 
+export function stripAnsi(str: string): string {
+  return str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+}
+
+export function visibleLength(str: string): string {
+  return stripAnsi(str);
+}
+
+export function padEndVisible(str: string, targetLength: number, padChar: string = ' '): string {
+  const currentLen = stripAnsi(str).length;
+  if (currentLen >= targetLength) return str;
+  return str + padChar.repeat(targetLength - currentLen);
+}
+
+export function truncateVisible(str: string, maxLength: number): string {
+  const plain = stripAnsi(str);
+  if (plain.length <= maxLength) return str;
+  return plain.slice(0, Math.max(0, maxLength - 1)) + '…';
+}
+
 export class Chalk {
   public static isColorSupported(): boolean {
-    if (typeof process !== 'undefined' && process.env && process.env.NO_COLOR) {
-      return false;
+    if (typeof process !== 'undefined' && process.env) {
+      if (process.env.NO_COLOR && process.env.NO_COLOR !== '0') {
+        return false;
+      }
+      if (process.env.TERM === 'dumb') {
+        return false;
+      }
     }
     return true;
   }
@@ -59,6 +87,11 @@ export class Chalk {
     return `\x1b[3m${text}\x1b[0m`;
   }
 
+  public static underline(text: string): string {
+    if (!Chalk.isColorSupported()) return text;
+    return `\x1b[4m${text}\x1b[0m`;
+  }
+
   public static inverse(text: string): string {
     if (!Chalk.isColorSupported()) return text;
     return `\x1b[7m${text}\x1b[0m`;
@@ -67,33 +100,42 @@ export class Chalk {
 
 export const Theme = {
   colors: {
-    // Signature Wattpad Orange
-    primary: '#FF6122',
+    // Exact official palette:
+    primary: '#FF6122',         // Wattpad Orange (Accento elegante)
     orangeSecondary: '#FF7849',
-
-    // Sleek dark surfaces
-    background: '#0D1117',
-    surface: '#151A21',
-    surfaceBorder: '#27272A',
+    background: '#0D1117',      // Fondo oscuro studio
+    surface: '#151A21',         // Superficies limpias
+    surfaceBorder: '#21262D',   // Separadores ultra sutiles
     divider: '#30363D',
 
-    // High-contrast clean typography
+    // Tipografía terminal legible y contrastada:
     white: '#FFFFFF',
-    text: '#F3F4F6',
-    textSecondary: '#A1A1AA',
-    muted: '#71717A',
+    text: '#F3F4F6',            // Texto principal
+    textSecondary: '#A1A1AA',   // Texto secundario
+    muted: '#71717A',           // Metadatos y atajos
 
-    // Selection
+    // Selección interactiva:
     selectedBg: '#FF6122',
     selectedText: '#FFFFFF',
 
-    // Status & semantics
-    success: '#32D583',
-    error: '#F97066',
-    warning: '#FEC84B',
-    info: '#60A5FA', // Technical blue
-    cyan: '#00D2D3',
-    purple: '#A855F7',
+    // Semántica de estado:
+    success: '#32D583',         // Éxito
+    error: '#F97066',           // Error
+    warning: '#FEC84B',         // Advertencia
+    info: '#60A5FA',            // Información / Azul técnico
+    purple: '#A855F7',          // AI Models
+  },
+  symbols: {
+    arrow: '›',
+    bullet: '•',
+    dot: '●',
+    check: '✓',
+    cross: '✕',
+    info: 'ℹ',
+    sync: '↻',
+    sparkle: '✦',
+    book: '📖',
+    folder: '📁',
   },
   borders: {
     topLeft: '╭',
@@ -112,6 +154,7 @@ export const Theme = {
     warning: (text: string) => `\x1b[48;2;255;193;7m\x1b[38;2;0;0;0m\x1b[1m ${text} \x1b[0m`,
     error: (text: string) => `\x1b[48;2;249;112;102m\x1b[38;2;255;255;255m\x1b[1m ${text} \x1b[0m`,
     info: (text: string) => `\x1b[48;2;96;165;250m\x1b[38;2;0;0;0m\x1b[1m ${text} \x1b[0m`,
-    muted: (text: string) => `\x1b[48;2;39;39;42m\x1b[38;2;161;161;170m ${text} \x1b[0m`,
+    model: (text: string) => `\x1b[48;2;168;85;247m\x1b[38;2;255;255;255m\x1b[1m ${text} \x1b[0m`,
+    muted: (text: string) => `\x1b[48;2;33;38;45m\x1b[38;2;161;161;170m ${text} \x1b[0m`,
   },
 };

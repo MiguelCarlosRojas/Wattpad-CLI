@@ -7,7 +7,6 @@ import { CommandRouter } from '../../commands/command-router';
 import { CommandHistory } from '../../commands/history';
 import { TerminalRenderer } from '../terminal/renderer';
 import { CloudHeaderState } from '../terminal/components/header-bar';
-import { WelcomeHeroRenderer } from '../terminal/components/welcome-hero';
 import { SelectorItem } from '../terminal/focus-manager';
 import { Story, Chapter, WattpadUser } from '../../shared/types';
 import { getEnv } from '../../shared/env-validator';
@@ -435,6 +434,16 @@ export class Application {
       created: new Date().toISOString(),
     };
 
+    // Propagate state to modern AppShell
+    this.renderer.appShell.setState({
+      stories: this.cachedStories,
+      chapters: this.cachedChapters,
+      currentUser: this.currentUser,
+      serverOnline,
+      serverUrl: this.apiClient.getBaseUrl(),
+      version: '1.0.0',
+    });
+
     // Wire up command execution & interactive selector action
     this.renderer.setSubmitHandler(async (cmdStr: string) => {
       const res = await this.router.execute(this, cmdStr);
@@ -503,23 +512,6 @@ export class Application {
 
       return res;
     });
-
-    // Initial welcome block using WelcomeHero
-    const welcomeBlock = WelcomeHeroRenderer.getWelcomeBlock({
-      version: '1.0.0',
-      serverUrl: this.apiClient.getBaseUrl(),
-      serverOnline,
-      username: this.currentUser?.username,
-      isAuthenticated: Boolean(this.currentUser),
-      activeStory: null,
-      recentProjects: this.cachedStories.map((s) => ({
-        id: s.id,
-        title: s.title,
-        chaptersCount: this.cachedChapters.filter((c) => c.storyId === s.id).length,
-        syncStatus: s.status === 'synced' ? 'Al día' : s.status === 'published' ? 'Publicado' : 'Borrador',
-      })),
-    });
-    this.renderer.addBlocks([welcomeBlock]);
   }
 
   public getHeaderState(): CloudHeaderState {
