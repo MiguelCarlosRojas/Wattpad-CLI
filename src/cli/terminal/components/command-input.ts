@@ -17,7 +17,7 @@ export class CommandInput {
 
     let content: string;
     if (value.length === 0) {
-      content = Chalk.dim('Escribe un comando o describe lo que quieres hacer... (ej: /help, /stories, /models)');
+      content = Chalk.dim('Escribe una idea o utiliza / para comandos');
     } else {
       const before = value.slice(0, cursorIndex);
       const cursorChar = value.slice(cursorIndex, cursorIndex + 1) || ' ';

@@ -1,11 +1,19 @@
 {
   "name": "@wattpad/cli",
-  "version": "1.0.0",
-  "description": "Terminal User Interface (TUI) profesional y cloud para gestionar novelas, capítulos y sincronización en Wattpad",
+  "version": "1.1.0",
+  "description": "WATTPAD CLI — AI WRITING STUDIO: Terminal User Interface profesional e inteligente para novelas y sincronización cloud",
   "type": "module",
   "main": "src/cli/main.ts",
   "bin": {
-    "wattpad": "src/cli/main.ts"
+    "wattpad": "bin/wattpad.cjs"
+  },
+  "files": [
+    "bin",
+    "README.md",
+    "package.json"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
   },
   "repository": {
     "type": "git",

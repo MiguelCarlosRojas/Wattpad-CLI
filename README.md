@@ -1,58 +1,58 @@
-# Wattpad CLI — Arquitectura Cloud & TUI Interactiva Responsive
+# Wattpad CLI — AI Writing Studio (v1.1.0)
 
-> **Aplicación de terminal moderna y profesional de nueva generación construida con TypeScript, Bun y OpenTUI, conectada al backend cloud en Render (`https://wattpad-cli.onrender.com`), con persistencia remota en PostgreSQL y almacenamiento cloud de documentos.**
+> **Terminal User Interface (TUI) profesional y conversacional de nueva generación para escritores, construida con TypeScript estricto y Bun, conectada al backend cloud en Render (`https://wattpad-cli.onrender.com`), con persistencia remota en PostgreSQL y co-escritura con IA.**
 
-Backend cloud:
-https://wattpad-cli.onrender.com
+**Repositorio oficial:** https://github.com/MiguelCarlosRojas/Wattpad-CLI  
+**Backend cloud:** https://wattpad-cli.onrender.com  
 
-Inspirada directamente en la experiencia de usuario, diseño responsive, interacción por teclado y estética de **Grok CLI**, **Antigravity CLI**, **Claude CLI** y **ChatGPT CLI**.
+Inspirada directamente en la experiencia de usuario, interacción conversacional, diseño tipográfico y estética minimalista de **Google Antigravity CLI**, **Claude Code**, **Grok CLI** y **ChatGPT CLI**.
 
 ---
 
-## 📋 Resumen de Mejoras y Arquitectura
+## 🎨 Nuevo Concepto: AI Writing Studio
 
-1. **Diseño Visual & TrueColor**:
-   - Paleta oficial con **Naranja Wattpad (`#FF6122`)** de acento principal.
-   - Textos de alto contraste, bordes modernos redondeados (`╭`, `╮`, `╯`, `╰`), paneles informativos y badges cromáticos (`[PUBLICADO EN WATTPAD]`, `[SINCRONIZADO]`, `[BORRADOR LOCAL]`).
-   - Sin tablas de texto rústicas ni menús planos.
-2. **Navegación Interactiva por Teclado**:
-   - Navegación real con flechas **Arriba (↑)** y **Abajo (↓)** en listas interactivas (`/stories`, `/chapters`, etc.).
-   - Indicador visual inmediato: fondo naranja con texto en negrita blanco y flecha de foco `›`.
-   - `Enter` para abrir o seleccionar; `Esc` para regresar o cancelar; `Tab` para autocompletar o alternar el foco entre el selector y el campo de entrada.
-   - Desplazamiento automático (*auto-scroll*) en listas largas.
-3. **Diseño Responsive Automático**:
-   - Detección y adaptación en tiempo real ante cambios de dimensiones de la terminal (`process.stdout.on('resize')`).
-   - Soporte verificado en breakpoints: `60x20`, `80x24`, `100x30`, `120x40`, `160x50` y `200x60`.
-4. **Arquitectura 100% Cloud (Sin Localhost ni SQLite Local)**:
-   - Backend centralizado en Render: `https://wattpad-cli.onrender.com`.
-   - Base de datos cloud: **PostgreSQL** mediante `DATABASE_URL`.
-   - Almacenamiento de documentos en la nube: S3 / Object Storage.
-   - Flujo de autorización OAuth2 de Google Docs con redirección HTTPS oficial en la nube (**Cero servidores o puertos localhost**).
-5. **Configuración Centralizada en `.env`**:
-   - Todas las URLs, rutas de API y credenciales están centralizadas y validadas con **Zod**.
-   - Descubrimiento dinámico de configuración en `/cli/config`.
-   - Cambio de dominio cloud con solo modificar `WATTPAD_API_BASE_URL` en `.env`.
-6. **Mecanismos de Instalación**:
+1. **Diseño Minimalista y Elegante**:
+   - Paleta oficial con **Naranja Wattpad (`#FF6122`)** como acento elegante sobre superficies oscuras profundas (`#0D1117`, `#151A21`).
+   - Jerarquía visual limpia mediante espacios, contrastes y tipografía cuidada sin recuadros toscos ni dashboards sobrecargados.
+   - **Pantalla de Bienvenida Creativa**: Marca sutil, bienvenida inspiradora, acciones rápidas y proyectos recientes reales.
+2. **Flujo Conversacional & Comandos Slash**:
+   - Entrada de lenguaje natural directa o comandos contextuales con `/` (`/story`, `/chapters`, `/models`, `/sync`, `/publish`).
+   - Menú de sugerencias flotante con autocompletado en tiempo real (`Tab`) y selector fino (`›`).
+3. **Dos Modos de Renderizado**:
+   - **Modo Full Screen**: Experiencia inmersiva en el Alternate Screen Buffer (`\x1b[?1049h`), restaurando la consola limpiamente al salir (`/mode fullscreen`).
+   - **Modo Inline**: Conversación integrada fluidamente en el scrollback normal de la terminal (`/mode inline`).
+4. **Soporte Multitema**:
+   - `dark` (estudio nocturno por defecto).
+   - `light` (modo claro minimalista).
+   - `tokyo-night` (paleta moderna azul/naranja).
+   - `terminal` (fallback monocromático ANSI estándar).
+5. **Aislamiento Total de Entorno**:
+   - Ejecución transparente desde cualquier directorio (`C:\Users\...`, `Documents`, etc.) sin interferencia de archivos `.env` externos ni ruido de consola.
+   - Configuración oficial del usuario persistida de forma segura en `%USERPROFILE%/.wattpad-cli/config.json`.
 
-### Windows
+---
+
+## 🚀 Instalación Oficial
+
+### Método 1 — Windows (PowerShell 5.1 / 7+)
 
 ```powershell
 irm https://wattpad-cli.onrender.com/cli/install.ps1 | iex
 ```
 
-### Linux / macOS
+### Método 2 — Linux y macOS
 
 ```bash
 curl -fsSL https://wattpad-cli.onrender.com/cli/install.sh | bash
 ```
 
-### NPM
+### Método 3 — NPM (Multiplataforma)
 
 ```bash
 npm install -g @wattpad/cli
 ```
 
-El comando de ejecución continúa siendo:
+Después, inicia tu estudio creativo desde cualquier terminal:
 
 ```bash
 wattpad
@@ -64,40 +64,41 @@ wattpad
 
 ```text
 wattpad-cli/
+├── bin/
+│   ├── wattpad.cjs         # Runner global para distribución vía npm
+│   ├── wattpad             # Launcher para shells Unix/Linux
+│   └── wattpad.cmd         # Launcher para consola Windows
 ├── docs/
 │   └── MANUAL_RELEASE.md   # Guía oficial de compilación y publicación manual
 ├── installers/
 │   ├── install.ps1         # Instalador oficial para Windows PowerShell
-│   └── install.sh          # Instalador oficial para Linux/macOS
+│   └── install.sh          # Instalador oficial para Linux/macOS con SHA-256
 ├── scripts/
 │   ├── build-cli.ts        # Compilador nativo de CLI multiplataforma con Bun
 │   └── generate-checksums.ts # Generador de sumas de integridad SHA-256
 ├── src/
-│   ├── cli/                # Cliente Terminal TUI (OpenTUI)
-│   │   ├── main.ts         # Entrada principal del CLI (@wattpad/cli)
+│   ├── cli/                # Cliente Terminal TUI & AI Writing Studio
+│   │   ├── main.ts         # Punto de entrada principal
 │   │   ├── api/            # Cliente API REST HTTPS
-│   │   ├── app/            # Coordinador de aplicación TUI
+│   │   ├── app/            # Coordinador cloud de aplicación
 │   │   ├── integrations/   # Integraciones Cloud Word, Notepad y Google
-│   │   └── terminal/       # Motor OpenTUI, Theme, Responsive y SelectorList
+│   │   └── terminal/       # AppShell, WelcomeScreen, ThemeManager y adaptadores
 │   ├── api/                # Servidor Backend Cloud (Render)
-│   │   ├── server.ts       # Servidor REST HTTP con Bun.serve
+│   │   ├── server.ts       # Servidor REST HTTP Bun.serve
 │   │   ├── database/       # Conexión PostgreSQL y schema.sql
 │   │   ├── storage/        # Almacenamiento cloud S3 / Object Storage
 │   │   └── controllers/    # Controladores de API y descarga de instaladores
-│   ├── config/             # Configuración centralizada tipada (Zod)
-│   │   ├── env.ts          # Única lectura y validación de variables de entorno
-│   │   ├── env-schema.ts   # Esquema Zod exhaustivo de variables
-│   │   └── config.ts       # Configuración unificada de la aplicación
+│   ├── config/             # Configuración centralizada y validada con Zod
 │   ├── commands/           # Registro y enrutador de comandos '/'
 │   ├── security/           # Almacenamiento seguro de credenciales (AES-256-GCM)
 │   ├── sync/               # Motor de sincronización, respaldos y conflictos
 │   ├── types/              # Definiciones de modelos y tipos de datos
-│   ├── utils/              # Utilidades multiplataforma, formato e i18n
-│   └── shared/             # Tipos compartidos y adaptadores
+│   └── utils/              # Utilidades multiplataforma, formato e i18n
 ├── ENVIRONMENT.md          # Documentación oficial de variables de entorno
 ├── package.json            # Metadatos del paquete @wattpad/cli y scripts locales
 ├── tsconfig.json           # Configuración TypeScript estricta
 └── README.md               # Documentación general del proyecto
+```
 ```
 
 Para consultar el inventario completo de variables de entorno y guías de despliegue en Render, consulta [ENVIRONMENT.md](ENVIRONMENT.md). Para el proceso de compilación y publicación de releases, consulta [docs/MANUAL_RELEASE.md](docs/MANUAL_RELEASE.md).
@@ -213,10 +214,14 @@ Todos los comandos se ejecutan dentro de la aplicación comenzando con `/`:
 
 ## 🧪 Pruebas Automatizadas
 
-El proyecto cuenta con **49 pruebas automatizadas** que validan el 100% de los requisitos:
+El proyecto cuenta con **78 pruebas automatizadas** que validan el 100% de los requisitos:
 
-- **Theme & TrueColor**: Validación de códigos ANSI 24-bit (`#FF6122`), fondo naranja de selección y badges.
-- **Navegación Interactiva**: Control de flechas ↑/↓, indicador `›`, desplazamiento automático y prioridad de foco.
+- **AI Writing Studio & Welcome Screen**: Nueva pantalla de bienvenida minimalista, marca sutil y selector fino sin bordes pesados.
+- **ThemeManager & Multitema**: 4 temas oficiales (Dark, Light, Tokyo Night, Terminal) con paleta dinámica TrueColor.
+- **TerminalAdapter**: Alternancia limpia entre Modo Full Screen y Modo Inline con preservación y restauración del buffer de consola.
+- **Distribución Multiplataforma**: Validación de `bin/wattpad.cjs` para npm sin dependencia de Bun, validación SHA-256 en `install.sh` e `install.ps1`.
+- **Theme & TrueColor**: Validación de códigos ANSI 24-bit (`#FF6122`), fondo de selección y badges de estado.
+- **Navegación Interactiva**: Control de flechas ↑/↓, indicador `›`, desplazamiento y prioridad de foco.
 - **Responsive**: Verificación en dimensiones `60x20`, `80x24`, `100x30`, `120x40`, `160x50` y `200x60`.
 - **Cloud REST API & Discovery**: Endpoints `/cli/config`, `/cli/install.ps1`, `/cli/install.sh`, `/api/stories`, `/api/publish`, `/api/sync` y OAuth HTTPS sin localhost.
 - **Flujo End-to-End**: Creación, edición, sincronización y publicación sin base de datos SQLite local.

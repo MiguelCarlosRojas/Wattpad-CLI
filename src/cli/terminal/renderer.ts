@@ -4,8 +4,8 @@ import { HeaderBarRenderer, CloudHeaderState } from './components/header-bar';
 import { StatusBarRenderer } from './components/status-bar';
 import { BlockCardRenderer } from './components/block-card';
 import { SelectorList } from './components/selector-list';
-import { SuggestionListRenderer } from './components/suggestion-list';
 import { InputBoxRenderer } from './components/input-box';
+import { SuggestionsDropdown } from './components/suggestions';
 import { Theme, Chalk, padEndVisible, stripAnsi } from './theme';
 import { CommandRegistry } from '../../commands/command-registry';
 import { CommandHistory } from '../../commands/history';
@@ -139,7 +139,7 @@ export class TerminalRenderer {
     // 3. Suggestions List (if active)
     let sugLines: string[] = [];
     if (this.suggestions.length > 0) {
-      sugLines = SuggestionListRenderer.render(this.suggestions, this.selectedSuggestionIndex, config.cardWidth);
+      sugLines = SuggestionsDropdown.render(this.suggestions, this.selectedSuggestionIndex, config.cardWidth);
     }
 
     // 4. Middle Content Calculations

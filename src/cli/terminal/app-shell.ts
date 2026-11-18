@@ -1,12 +1,15 @@
 import readline from 'readline';
 import { ResponsiveManager, ResponsiveLayoutConfig } from './responsive';
 import { Theme, Chalk, padEndVisible, stripAnsi } from './theme';
+import { ThemeManager } from './theme-manager';
+import { TerminalAdapter, RenderMode } from './terminal-adapter';
 import { Header, HeaderProps } from './components/header';
 import { WorkspaceNavigation, NAV_ITEMS } from './components/workspace-navigation';
 import { ProjectContext } from './components/project-context';
 import { CommandInput } from './components/command-input';
 import { SuggestionsDropdown } from './components/suggestions';
 import { StatusBar } from './components/status-bar';
+import { WelcomeScreen } from './views/welcome-view';
 import { HomeView } from './views/home-view';
 import { LibraryView } from './views/library-view';
 import { ChapterView } from './views/chapter-view';
@@ -47,7 +50,7 @@ export class AppShell {
   private activeChapterId: string | null = null;
   private serverOnline: boolean = true;
   private serverUrl: string = 'https://wattpad-cli.onrender.com';
-  private version: string = '1.0.0';
+  private version: string = '1.1.0';
 
   private resizeUnsubscribe?: () => void;
   private exitResolver?: () => void;
@@ -146,8 +149,7 @@ export class AppShell {
 
     // Set up interactive raw terminal session
     try {
-      // Alternate screen buffer
-      process.stdout.write('\x1b[?1049h\x1b[H\x1b[?25h');
+      TerminalAdapter.enterSession();
 
       if (process.stdin.setRawMode) {
         process.stdin.setRawMode(true);
@@ -188,8 +190,8 @@ export class AppShell {
       process.stdin.pause();
     } catch {}
 
-    // Restore terminal normal screen buffer
-    process.stdout.write('\x1b[?1049l\x1b[?25h\n');
+    // Restore terminal session using adapter
+    TerminalAdapter.leaveSession();
 
     if (this.exitResolver) {
       this.exitResolver();
@@ -446,6 +448,46 @@ export class AppShell {
       return;
     }
 
+    if (trimmed.startsWith('/theme')) {
+      const parts = trimmed.split(' ');
+      const themeArg = parts[1] as any;
+      if (themeArg && ThemeManager.getAvailableThemes().includes(themeArg)) {
+        ThemeManager.setTheme(themeArg);
+        this.showNotification(`Tema activado: ${themeArg}`);
+      } else {
+        this.showNotification(`Temas: ${ThemeManager.getAvailableThemes().join(', ')}`);
+      }
+      return;
+    }
+
+    if (trimmed.startsWith('/mode')) {
+      const parts = trimmed.split(' ');
+      const modeArg = parts[1] as any;
+      if (modeArg === 'inline' || modeArg === 'fullscreen') {
+        TerminalAdapter.setMode(modeArg);
+        this.showNotification(`Modo de renderizado: ${modeArg}`);
+      } else {
+        this.showNotification(`Modos: fullscreen, inline`);
+      }
+      return;
+    }
+
+    if (!trimmed.startsWith('/')) {
+      this.addMessage('user', trimmed);
+      this.isThinking = true;
+      this.activeView = 'conversation';
+      this.render();
+
+      setTimeout(() => {
+        this.isThinking = false;
+        this.addMessage(
+          'assistant',
+          `Idea registrada en tu estudio literario:\n\n"${trimmed}"\n\n¿Deseas iniciar una historia con esta premisa (/story new) o explorar tu biblioteca (/library)?`
+        );
+      }, 300);
+      return;
+    }
+
     // Execute via command router
     if (this.onCommandExecute) {
       this.isThinking = true;
@@ -568,46 +610,8 @@ export class AppShell {
     }
     const finalViewLines = viewLines.slice(0, midHeight);
 
-    // 4. Combine Columns depending on Responsive Breakpoint
-    const sep = Chalk.hex(Theme.colors.divider, '│');
-
-    if (config.breakpoint === 'WIDE') {
-      // Sidebar (24) + Main
-      const isNavFocused = this.focusArea === 'navigation';
-      const navLines = this.navigation.render(config.sidebarWidth, midHeight, isNavFocused);
-      for (let i = 0; i < midHeight; i++) {
-        const left = padEndVisible(navLines[i] || '', config.sidebarWidth);
-        const center = padEndVisible(finalViewLines[i] || '', config.mainWidth);
-        output.push(`${left} ${sep} ${center}`);
-      }
-    } else if (config.breakpoint === 'ULTRA_WIDE') {
-      // Sidebar (24) + Main + Context Drawer (32)
-      const isNavFocused = this.focusArea === 'navigation';
-      const navLines = this.navigation.render(config.sidebarWidth, midHeight, isNavFocused);
-      const ctxLines = ProjectContext.render(
-        {
-          activeStoryTitle: activeStory ? activeStory.title : null,
-          activeStoryId: activeStory ? activeStory.id : null,
-          activeChapterTitle: activeChapter ? activeChapter.title : null,
-          activeChapterId: activeChapter ? activeChapter.id : null,
-          wordCount: activeChapter ? activeChapter.wordCount : 0,
-          editorPreference: activeStory ? activeStory.editorPreference : 'word',
-          syncState: 'Al día',
-        },
-        config.contextWidth,
-        midHeight
-      );
-
-      for (let i = 0; i < midHeight; i++) {
-        const left = padEndVisible(navLines[i] || '', config.sidebarWidth);
-        const center = padEndVisible(finalViewLines[i] || '', config.mainWidth);
-        const right = padEndVisible(ctxLines[i] || '', config.contextWidth);
-        output.push(`${left} ${sep} ${center} ${sep} ${right}`);
-      }
-    } else {
-      // Single column: COMPACT / STANDARD
-      output.push(...finalViewLines.map((l) => padEndVisible(l, config.width)));
-    }
+    // 4. Distraction-Free Focused Studio Layout (Single Canvas Experience)
+    output.push(...finalViewLines.map((l) => padEndVisible(l, config.width)));
 
     // 5. Suggestions Overlay (if user typing /...)
     if (this.suggestions.length > 0) {
@@ -624,7 +628,7 @@ export class AppShell {
     const statusLines = StatusBar.render(config, this.notificationMessage);
     output.push(...statusLines);
 
-    // Write full buffer to screen
-    process.stdout.write('\x1b[H\x1b[2J' + output.join('\n'));
+    // Write buffer using TerminalAdapter (Supports Fullscreen & Inline modes)
+    TerminalAdapter.renderBuffer(output.join('\n'));
   }
 }

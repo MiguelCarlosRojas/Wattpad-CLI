@@ -2,9 +2,8 @@
 # DIRECTORIES EXCLUDED FROM GITHUB
 # ==============================================
 
-/bin/
 /migrations/
-/tests/
+*.tgz
 
 # ==============================================
 # ENVIRONMENT FILES - NEVER UPLOAD
