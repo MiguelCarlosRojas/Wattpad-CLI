@@ -17,10 +17,15 @@
   "homepage": "https://github.com/MiguelCarlosRojas/Wattpad-CLI#readme",
   "scripts": {
     "dev": "bun run src/cli/main.ts",
-    "start": "bun run src/cli/main.ts",
+    "dev:api": "bun --watch src/api/server.ts",
+    "dev:cli": "bun run src/cli/main.ts",
+    "build": "bun run build:api",
+    "build:api": "bun run typecheck",
+    "start": "bun run start:api",
     "start:api": "bun run src/api/server.ts",
-    "test": "bun test",
-    "build": "bun build src/cli/main.ts --compile --outfile dist/wattpad.exe"
+    "build:cli": "bun run scripts/build-cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
   },
   "dependencies": {
     "@opentui/core": "^0.9.2",

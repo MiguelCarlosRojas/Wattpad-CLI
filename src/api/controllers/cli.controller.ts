@@ -53,4 +53,9 @@ export class CliController {
     }
     return '#!/usr/bin/env bash\necho "Instalador no encontrado."';
   }
+
+  public static getDownloadUrl(target: string): string {
+    const filename = target.includes('win') ? 'wattpad.exe' : `wattpad-${target}`;
+    return `https://github.com/MiguelCarlosRojas/Wattpad-CLI/releases/latest/download/${filename}`;
+  }
 }

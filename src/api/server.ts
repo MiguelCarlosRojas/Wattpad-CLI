@@ -1,4 +1,6 @@
-import { getEnv } from '../shared/env-validator';
+import fs from 'fs';
+import nodePath from 'path';
+import { getEnv } from '../config/env';
 import { PostgresDatabase } from './database/postgres';
 import { CloudStorageService } from './storage/cloud-storage';
 import { CliController } from './controllers/cli.controller';
@@ -62,6 +64,23 @@ export class WattpadCloudApiServer {
             return new Response(script, {
               headers: { 'Content-Type': 'text/plain; charset=utf-8' },
             });
+          }
+
+          if (path.startsWith('/cli/download/') && method === 'GET') {
+            const target = path.replace('/cli/download/', '');
+            const filename = target.includes('win') ? 'wattpad.exe' : `wattpad-${target}`;
+            const localFile = nodePath.resolve(process.cwd(), `dist/${filename}`);
+            if (fs.existsSync(localFile)) {
+              const fileBuffer = fs.readFileSync(localFile);
+              return new Response(fileBuffer, {
+                headers: {
+                  'Content-Type': 'application/octet-stream',
+                  'Content-Disposition': `attachment; filename="${nodePath.basename(localFile)}"`,
+                },
+              });
+            }
+            const releaseUrl = CliController.getDownloadUrl(target);
+            return Response.redirect(releaseUrl, 302);
           }
 
           // --- AUTHENTICATION ---

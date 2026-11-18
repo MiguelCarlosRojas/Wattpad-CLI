@@ -104,10 +104,16 @@ bun run start:api
 bun test
 ```
 
-### Compilar el Ejecutable Independiente
+### Compilar el Ejecutable CLI Multiplataforma
 
 ```bash
-bun run build
+bun run build:cli
+```
+
+### Compilar y Validar el Backend Cloud (Render)
+
+```bash
+bun run build:api
 ```
 
 ---

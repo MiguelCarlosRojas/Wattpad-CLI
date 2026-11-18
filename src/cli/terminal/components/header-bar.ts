@@ -53,11 +53,13 @@ export class HeaderBarRenderer {
     lines.push(Chalk.hex(Theme.colors.surfaceBorder, topBar));
 
     // Line 1: Logo, server, user
-    const serverLabel = Chalk.dim(state.serverUrl.replace('https://', ''));
+    const serverUrl = state.serverUrl || 'https://wattpad.onrender.com';
+    const syncState = state.syncState || 'listo';
+    const serverLabel = Chalk.dim(serverUrl.replace('https://', ''));
     const line1Left = ` ${logo} ${versionStr} │ ${statusDot} (${serverLabel})`;
-    const line1Right = `${userBadge} │ Sync: ${Chalk.hex(Theme.colors.cyan, state.syncState)} `;
-    const rawLen1Left = 14 + state.version.length + 3 + 7 + 2 + state.serverUrl.replace('https://', '').length + 1;
-    const rawLen1Right = state.user.length + 10 + state.syncState.length + 1;
+    const line1Right = `${userBadge} │ Sync: ${Chalk.hex(Theme.colors.cyan, syncState)} `;
+    const rawLen1Left = 14 + state.version.length + 3 + 7 + 2 + serverUrl.replace('https://', '').length + 1;
+    const rawLen1Right = state.user.length + 10 + syncState.length + 1;
     const pad1 = Math.max(1, width - 2 - rawLen1Left - rawLen1Right);
     lines.push(
       `${Chalk.hex(Theme.colors.surfaceBorder, b.vertical)}${line1Left}${' '.repeat(pad1)}${line1Right}${Chalk.hex(Theme.colors.surfaceBorder, b.vertical)}`
