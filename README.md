@@ -176,9 +176,11 @@ Todos los comandos se ejecutan dentro de la aplicación comenzando con `/`:
 ### ⚙️ Generales y Navegación
 - `/help`: Centro de ayuda con comandos agrupados por categoría.
 - `/version`: Especificaciones del entorno y versiones de la API y CLI.
+- `/models`: Catálogo de modelos de inteligencia artificial narrativa (Wattpad Writer Pro, Claude, Gemini).
+- `/update`: Verificación de versiones y comandos de actualización oficial en la nube.
 - `/status`: Estado en tiempo real del servidor, novela activa y sincronización.
 - `/language set es` / `/language set en`: Selector de idioma.
-- `/clear`: Restablece el área de contenido.
+- `/clear`: Restablece el área de contenido y despliega el Welcome Hero.
 - `/back`: Regresa al nivel superior.
 - `/exit`: Cierra la aplicación de forma segura.
 

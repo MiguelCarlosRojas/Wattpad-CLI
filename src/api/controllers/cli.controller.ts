@@ -25,8 +25,8 @@ export class CliController {
       binaries: {
         'win32-x64': {
           filename: 'wattpad.exe',
-          sha256: '8BFFDBE52F04E92374F084F32E940E8ABBB7095111D0AEF3D3269837EAE6B86C',
-          size: 132808192,
+          sha256: '1652450677C37C87B6865D80E551BACE227F53F2E2B48EB779398822C8F7BA49',
+          size: 132819456,
           downloadUrl: `${env.WATTPAD_API_BASE_URL}/cli/download/win32-x64`,
         },
       },

@@ -12,8 +12,27 @@ permissions:
   contents: write
 
 jobs:
+  test:
+    name: Automated Test Suite & Validation
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun Runtime
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+
+      - name: Install Dependencies
+        run: bun install
+
+      - name: Run Test Suite (100% Pass Required)
+        run: bun test
+
   build-binaries:
     name: Build (${{ matrix.target }})
+    needs: [test]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -22,7 +41,7 @@ jobs:
           - os: windows-latest
             target: windows-x64
             binary: wattpad.exe
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: linux-x64
             binary: wattpad-linux-x64
           - os: macos-latest
@@ -36,7 +55,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Bun
+      - name: Setup Bun Runtime
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
@@ -55,10 +74,10 @@ jobs:
           if-no-files-found: error
 
   publish-release:
-    name: Publish Release Assets
+    name: Publish Release Assets & Checksums
     needs: [build-binaries]
     if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'release'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -69,7 +88,13 @@ jobs:
           path: dist-release
           merge-multiple: true
 
-      - name: Attach Assets to Release
+      - name: Generate SHA-256 Checksums
+        run: |
+          cd dist-release
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Attach Assets & Checksums to Release
         uses: softprops/action-gh-release@v2
         with:
           files: dist-release/*

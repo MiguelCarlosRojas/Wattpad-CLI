@@ -7,6 +7,7 @@ import { CommandRouter } from '../../commands/command-router';
 import { CommandHistory } from '../../commands/history';
 import { TerminalRenderer } from '../terminal/renderer';
 import { CloudHeaderState } from '../terminal/components/header-bar';
+import { WelcomeHeroRenderer } from '../terminal/components/welcome-hero';
 import { SelectorItem } from '../terminal/focus-manager';
 import { Story, Chapter, WattpadUser } from '../../shared/types';
 import { getEnv } from '../../shared/env-validator';
@@ -503,21 +504,16 @@ export class Application {
       return res;
     });
 
-    // Initial welcome block
-    this.renderer.addBlocks([
-      {
-        type: 'card',
-        title: 'WATTPAD CLI — ESTUDIO DE TERMINAL CLOUD',
-        subtitle: `Conectado al backend: ${this.apiClient.getBaseUrl()}`,
-        statusBadge: serverOnline ? 'ONLINE' : 'CLOUD READY',
-        statusColor: '#28A745',
-        fields: [
-          { label: 'Navegación Interactiva', value: 'Usa ↑↓ para navegar en listas interactivas y Enter para seleccionar' },
-          { label: 'Comandos Rápidos', value: '/stories (Ver novelas) │ /chapters (Ver capítulos) │ /help (Ayuda)' },
-          { label: 'Almacenamiento', value: 'PostgreSQL Cloud + Object Storage (Sin SQLite local)' },
-        ],
-      },
-    ]);
+    // Initial welcome block using WelcomeHero
+    const welcomeBlock = WelcomeHeroRenderer.getWelcomeBlock({
+      version: '1.0.0',
+      serverUrl: this.apiClient.getBaseUrl(),
+      serverOnline,
+      username: this.currentUser?.username,
+      isAuthenticated: Boolean(this.currentUser),
+      activeStory: null,
+    });
+    this.renderer.addBlocks([welcomeBlock]);
   }
 
   public getHeaderState(): CloudHeaderState {

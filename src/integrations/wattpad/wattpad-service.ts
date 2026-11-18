@@ -51,6 +51,7 @@ export class WattpadService {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
         },
+        signal: AbortSignal.timeout(3000),
       });
 
       if (!res.ok) {

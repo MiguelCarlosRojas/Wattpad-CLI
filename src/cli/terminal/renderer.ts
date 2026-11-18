@@ -7,6 +7,8 @@ import { BlockCardRenderer } from './components/block-card';
 import { SelectorList } from './components/selector-list';
 import { SuggestionListRenderer } from './components/suggestion-list';
 import { InputBoxRenderer } from './components/input-box';
+import { WelcomeHeroRenderer } from './components/welcome-hero';
+import { Theme, Chalk } from './theme';
 import { CommandRegistry } from '../../commands/command-registry';
 import { CommandHistory } from '../../commands/history';
 import { CommandResult, RenderBlock, Suggestion } from '../../types/command.types';
@@ -285,7 +287,22 @@ export class TerminalRenderer {
         const result = await this.onCommandSubmit(cmdToExec);
         if (result.clearScreen) {
           this.clearContent();
+          this.addBlocks([
+            WelcomeHeroRenderer.getWelcomeBlock({
+              version: this.latestHeaderState.version,
+              serverUrl: this.latestHeaderState.serverUrl || 'https://wattpad-cli.onrender.com',
+              serverOnline: Boolean(this.latestHeaderState.serverOnline),
+              username: this.latestHeaderState.user,
+              isAuthenticated: Boolean(this.latestHeaderState.isAuthenticated),
+              activeStory: this.latestHeaderState.activeStory,
+            }),
+          ]);
+        } else {
+          this.contentLines.push(
+            Chalk.hex(Theme.colors.primary, ' ❯ ') + Chalk.bold(Chalk.hex(Theme.colors.white, cmdToExec))
+          );
         }
+
         if (result.blocks && result.blocks.length > 0) {
           this.addBlocks(result.blocks);
         } else if (result.message) {

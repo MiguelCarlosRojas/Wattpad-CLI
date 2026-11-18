@@ -48,7 +48,7 @@ export function createGeneralCommands(): CommandDefinition[] {
           'Perfil y Buzón': ['/profile', '/profile edit', '/inbox', '/inbox open [id]'],
           'Biblioteca': ['/library', '/library list', '/library search "texto"'],
           'Explorar y Buscar': ['/explore [género]', '/search "nombre de la novela"'],
-          'Generales': ['/help', '/version', '/status', '/settings', '/history', '/clear', '/back', '/exit'],
+          'Generales': ['/help', '/version', '/models', '/update', '/status', '/settings', '/history', '/clear', '/back', '/exit'],
         };
 
         const blocks: RenderBlock[] = [
@@ -101,6 +101,92 @@ export function createGeneralCommands(): CommandDefinition[] {
                 { label: 'Plataforma', value: `${process.platform} (${process.arch})` },
                 { label: 'Seguridad', value: 'AES-256-GCM + Almacenamiento OS Protegido' },
               ],
+            },
+          ],
+        };
+      },
+    },
+
+    {
+      name: '/models',
+      category: 'general',
+      description: 'Lista los modelos de inteligencia artificial narrativa disponibles en Wattpad Studio',
+      descriptionEn: 'Lists narrative AI models available in Wattpad Studio',
+      usage: '/models',
+      examples: ['/models'],
+      execute: (): CommandResult => {
+        return {
+          success: true,
+          blocks: [
+            {
+              type: 'card',
+              title: 'MODELOS DE ASISTENCIA NARRATIVA IA',
+              subtitle: 'Motores de lenguaje optimizados para creación literaria, worldbuilding y corrección',
+              statusBadge: 'WATTPAD AI SUITE',
+              statusColor: '#FF6122',
+              items: [
+                {
+                  primary: 'wattpad-writer-pro-v2 (Recomendado)',
+                  secondary: 'Especializado en generación de prosa literaria, arcos de personajes y giros dramáticos.',
+                  badge: 'DEFAULT',
+                },
+                {
+                  primary: 'wattpad-dialogue-turbo',
+                  secondary: 'Optimizado para ritmo de conversaciones, dialectos y naturalidad en diálogos de personajes.',
+                  badge: 'FAST',
+                },
+                {
+                  primary: 'wattpad-editor-lexicon',
+                  secondary: 'Revisión estilística, eliminación de redundancias, ortografía y fluidez de lectura.',
+                  badge: 'PRO',
+                },
+                {
+                  primary: 'claude-3-5-sonnet (Anthropic)',
+                  secondary: 'Análisis profundo de manuscritos extensos, consistencia de lore y coherencia de trama.',
+                  badge: 'CLOUD',
+                },
+                {
+                  primary: 'gemini-1-5-pro (Google DeepMind)',
+                  secondary: 'Procesamiento de contexto masivo de novelas completas y estructuración capitular.',
+                  badge: 'CLOUD',
+                },
+              ],
+            },
+          ],
+        };
+      },
+    },
+
+    {
+      name: '/update',
+      category: 'general',
+      description: 'Verifica y actualiza Wattpad CLI a la versión más reciente desde la nube',
+      descriptionEn: 'Checks and updates Wattpad CLI to the latest version from the cloud',
+      usage: '/update [--check]',
+      examples: ['/update', '/update --check'],
+      execute: (): CommandResult => {
+        return {
+          success: true,
+          blocks: [
+            {
+              type: 'card',
+              title: 'ACTUALIZACIÓN DE WATTPAD CLI',
+              subtitle: 'Distribución oficial y canales de instalación en la nube',
+              statusBadge: 'v1.0.0 (Actualizado)',
+              statusColor: '#28A745',
+              fields: [
+                { label: 'Versión Local', value: 'v1.0.0' },
+                { label: 'Versión Remota', value: 'v1.0.0 (Latest Release)' },
+                { label: 'Canal Cloud', value: 'https://wattpad-cli.onrender.com' },
+                { label: 'Repositorio', value: 'https://github.com/MiguelCarlosRojas/Wattpad-CLI' },
+              ],
+              content:
+                'Para reinstalar o actualizar en Windows (PowerShell):\n' +
+                '  irm https://wattpad-cli.onrender.com/cli/install.ps1 | iex\n\n' +
+                'En Linux o macOS:\n' +
+                '  curl -fsSL https://wattpad-cli.onrender.com/cli/install.sh | bash\n\n' +
+                'Mediante npm:\n' +
+                '  npm install -g @wattpad/cli',
             },
           ],
         };

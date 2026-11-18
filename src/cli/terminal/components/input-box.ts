@@ -7,20 +7,32 @@ export class InputBoxRenderer {
     const boxWidth = Math.max(30, width - 2);
     const borderColor = isFocused ? Theme.colors.primary : Theme.colors.surfaceBorder;
 
-    // Top border
-    lines.push(Chalk.hex(borderColor, `${b.topLeft}${b.horizontal.repeat(boxWidth)}${b.topRight}`));
+    // Top border with refined label and status pill
+    const titleTag = isFocused ? ' Comando ' : ' Input ';
+    const cloudTag = ' [Cloud Ready] ';
+    const rawTagLen = titleTag.length + cloudTag.length;
+    const remainingTop = Math.max(0, boxWidth - rawTagLen - 2);
 
-    // Input line
-    const promptPrefix = Chalk.hex(Theme.colors.primary, Chalk.bold(' › '));
+    const topBorder =
+      Chalk.hex(borderColor, `${b.topLeft}${b.horizontal}`) +
+      Chalk.hex(Theme.colors.primary, Chalk.bold(titleTag)) +
+      Chalk.hex(borderColor, b.horizontal.repeat(remainingTop)) +
+      Chalk.hex(Theme.colors.success, cloudTag) +
+      Chalk.hex(borderColor, `${b.horizontal}${b.topRight}`);
+
+    lines.push(topBorder);
+
+    // Input line: Wattpad Orange prompt ❯
+    const promptPrefix = Chalk.hex(Theme.colors.primary, Chalk.bold(' ❯ '));
     let contentDisplay = '';
 
     if (input.length === 0) {
-      contentDisplay = Chalk.dim('Escribe un comando (/help para consultar)...');
+      contentDisplay = Chalk.dim('Escribe un comando (/help para consultar sugerencias)...');
     } else {
       contentDisplay = Chalk.hex(Theme.colors.white, input);
     }
 
-    const rawLen = input.length === 0 ? 44 : 3 + input.length;
+    const rawLen = input.length === 0 ? 56 : 3 + input.length;
     const remaining = Math.max(0, boxWidth - rawLen);
 
     lines.push(
