@@ -64,9 +64,14 @@ wattpad
 
 ```text
 wattpad-cli/
+├── docs/
+│   └── MANUAL_RELEASE.md   # Guía oficial de compilación y publicación manual
 ├── installers/
 │   ├── install.ps1         # Instalador oficial para Windows PowerShell
 │   └── install.sh          # Instalador oficial para Linux/macOS
+├── scripts/
+│   ├── build-cli.ts        # Compilador nativo de CLI multiplataforma con Bun
+│   └── generate-checksums.ts # Generador de sumas de integridad SHA-256
 ├── src/
 │   ├── cli/                # Cliente Terminal TUI (OpenTUI)
 │   │   ├── main.ts         # Entrada principal del CLI (@wattpad/cli)
@@ -90,12 +95,12 @@ wattpad-cli/
 │   ├── utils/              # Utilidades multiplataforma, formato e i18n
 │   └── shared/             # Tipos compartidos y adaptadores
 ├── ENVIRONMENT.md          # Documentación oficial de variables de entorno
-├── package.json            # Metadatos del paquete @wattpad/cli
+├── package.json            # Metadatos del paquete @wattpad/cli y scripts locales
 ├── tsconfig.json           # Configuración TypeScript estricta
 └── README.md               # Documentación general del proyecto
 ```
 
-Para consultar el inventario completo de variables de entorno y guías de despliegue en Render, consulta [ENVIRONMENT.md](ENVIRONMENT.md).
+Para consultar el inventario completo de variables de entorno y guías de despliegue en Render, consulta [ENVIRONMENT.md](ENVIRONMENT.md). Para el proceso de compilación y publicación de releases, consulta [docs/MANUAL_RELEASE.md](docs/MANUAL_RELEASE.md).
 
 ---
 
@@ -121,23 +126,43 @@ bun run dev
 bun run start:api
 ```
 
-### Ejecutar la Suite de Pruebas
+### Comprobar Tipos y Suite de Pruebas
 
 ```bash
+bun run typecheck
 bun test
 ```
 
-### Compilar el Ejecutable CLI Multiplataforma
+### Compilar el Ejecutable CLI Local
 
 ```bash
 bun run build:cli
 ```
 
-### Compilar y Validar el Backend Cloud (Render)
+### Generar Sumas de Verificación SHA-256
+
+```bash
+bun run build:checksums
+```
+
+### Compilar el Backend Cloud (Render)
 
 ```bash
 bun run build:api
 ```
+
+---
+
+## 📦 Publicación y Distribución Manual (Cero GitHub Actions)
+
+Wattpad CLI ha desacoplado completamente sus procesos de compilación y publicación de GitHub Actions:
+
+- **Compilaciones 100% Locales:** Los binarios se construyen en el entorno local del desarrollador con `bun run build:cli`.
+- **Integridad Verificable:** Cada versión genera su propio archivo `SHA256SUMS.txt` con `bun run build:checksums`.
+- **Publicación Manual:** Los artefactos se adjuntan a GitHub Releases directamente mediante la herramienta de línea de comandos `gh` (`gh release create`) o a través de la interfaz web de GitHub.
+- **Backend Continuo en Render:** El despliegue del servidor API en `https://wattpad-cli.onrender.com` se gestiona directamente desde la integración de Git con Render al actualizar `main`, sin depender de pipelines externos de CI/CD.
+
+Para ver las instrucciones detalladas paso a paso, consulta [docs/MANUAL_RELEASE.md](docs/MANUAL_RELEASE.md).
 
 ---
 

@@ -24,6 +24,7 @@
     "start": "bun run start:api",
     "start:api": "bun run dist/server.js || bun run src/api/server.ts",
     "build:cli": "bun run scripts/build-cli.ts",
+    "build:checksums": "bun run scripts/generate-checksums.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },
