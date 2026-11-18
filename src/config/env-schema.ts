@@ -12,12 +12,12 @@ export const envSchema = z.object({
   // ==============================================
   // CLOUD URLs & DISCOVERY
   // ==============================================
-  PUBLIC_APP_URL: z.string().url().default('https://wattpad.onrender.com'),
-  WATTPAD_API_BASE_URL: z.string().url().default('https://wattpad.onrender.com'),
-  WATTPAD_BOOTSTRAP_URL: z.string().url().default('https://wattpad.onrender.com'),
-  WATTPAD_CLI_CONFIG_URL: z.string().default('https://wattpad.onrender.com/cli/config'),
-  WATTPAD_CLI_INSTALL_PS1_URL: z.string().default('https://wattpad.onrender.com/cli/install.ps1'),
-  WATTPAD_CLI_INSTALL_SH_URL: z.string().default('https://wattpad.onrender.com/cli/install.sh'),
+  PUBLIC_APP_URL: z.string().url().default('https://wattpad-cli.onrender.com'),
+  WATTPAD_API_BASE_URL: z.string().url().default('https://wattpad-cli.onrender.com'),
+  WATTPAD_BOOTSTRAP_URL: z.string().url().default('https://wattpad-cli.onrender.com'),
+  WATTPAD_CLI_CONFIG_URL: z.string().default('https://wattpad-cli.onrender.com/cli/config'),
+  WATTPAD_CLI_INSTALL_PS1_URL: z.string().default('https://wattpad-cli.onrender.com/cli/install.ps1'),
+  WATTPAD_CLI_INSTALL_SH_URL: z.string().default('https://wattpad-cli.onrender.com/cli/install.sh'),
   WATTPAD_CLI_NPM_PACKAGE: z.string().default('@wattpad/cli'),
 
   // ==============================================
@@ -54,7 +54,7 @@ export const envSchema = z.object({
   // ==============================================
   GOOGLE_CLIENT_ID: z.string().default('wattpad-cli-google-id.apps.googleusercontent.com'),
   GOOGLE_CLIENT_SECRET: z.string().default('wattpad_google_client_secret'),
-  GOOGLE_REDIRECT_URI: z.string().default('https://wattpad.onrender.com/api/integrations/google/callback'),
+  GOOGLE_REDIRECT_URI: z.string().default('https://wattpad-cli.onrender.com/api/integrations/google/callback'),
   GOOGLE_SCOPES: z.string().default('https://www.googleapis.com/auth/documents,https://www.googleapis.com/auth/drive.file'),
 
   // ==============================================
@@ -63,7 +63,7 @@ export const envSchema = z.object({
   MICROSOFT_CLIENT_ID: z.string().default('wattpad-cli-ms-client-id'),
   MICROSOFT_CLIENT_SECRET: z.string().default('wattpad_ms_client_secret'),
   MICROSOFT_TENANT_ID: z.string().default('common'),
-  MICROSOFT_REDIRECT_URI: z.string().default('https://wattpad.onrender.com/api/integrations/word/callback'),
+  MICROSOFT_REDIRECT_URI: z.string().default('https://wattpad-cli.onrender.com/api/integrations/word/callback'),
   MICROSOFT_SCOPES: z.string().default('Files.ReadWrite,offline_access'),
 
   // ==============================================

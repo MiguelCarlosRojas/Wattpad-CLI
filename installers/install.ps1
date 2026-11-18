@@ -1,6 +1,6 @@
 ﻿# ==============================================================================
 # Wattpad CLI - Official PowerShell Installer
-# Usage: irm https://wattpad.onrender.com/cli/install.ps1 | iex
+# Usage: irm https://wattpad-cli.onrender.com/cli/install.ps1 | iex
 # ==============================================================================
 
 $ErrorActionPreference = 'Stop'
@@ -23,7 +23,7 @@ Write-Host "$Bold$WattpadOrange    ╚══╝╚══╝ ╚═╝  ╚═╝
 Write-Host "                $Bold CLI — Instalador Oficial Windows $Reset"
 Write-Host ""
 
-$BaseUrl = if ($env:WATTPAD_API_BASE_URL) { $env:WATTPAD_API_BASE_URL } else { "https://wattpad.onrender.com" }
+$BaseUrl = if ($env:WATTPAD_API_BASE_URL) { $env:WATTPAD_API_BASE_URL } else { "https://wattpad-cli.onrender.com" }
 Write-Host "$Cyan▸ Conectando con servidor cloud:$Reset $BaseUrl"
 
 # Detect Architecture

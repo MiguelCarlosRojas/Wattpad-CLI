@@ -53,7 +53,7 @@ export class HeaderBarRenderer {
     lines.push(Chalk.hex(Theme.colors.surfaceBorder, topBar));
 
     // Line 1: Logo, server, user
-    const serverUrl = state.serverUrl || 'https://wattpad.onrender.com';
+    const serverUrl = state.serverUrl || 'https://wattpad-cli.onrender.com';
     const syncState = state.syncState || 'listo';
     const serverLabel = Chalk.dim(serverUrl.replace('https://', ''));
     const line1Left = ` ${logo} ${versionStr} │ ${statusDot} (${serverLabel})`;

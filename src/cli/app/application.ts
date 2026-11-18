@@ -176,7 +176,7 @@ export class Application {
         accountIdentifier: 'Cloud Active',
       }),
       getAll: () => [
-        { type: 'wattpad', name: 'Wattpad Cloud', isConnected: true, accountIdentifier: 'https://wattpad.onrender.com' },
+        { type: 'wattpad', name: 'Wattpad Cloud', isConnected: true, accountIdentifier: 'https://wattpad-cli.onrender.com' },
         { type: 'word', name: 'Microsoft Word (Cloud Cache)', isConnected: true, accountIdentifier: 'OneDrive/Office' },
         { type: 'notepad', name: 'Bloc de Notas (TXT UTF-8)', isConnected: true, accountIdentifier: 'Local Sync' },
         { type: 'google', name: 'Google Docs (OAuth Cloud)', isConnected: false, accountIdentifier: 'OAuth2 HTTPS' },

@@ -15,7 +15,7 @@
    - Queda terminantemente prohibido utilizar `os.hostname()`, `COMPUTERNAME`, `USERNAME` o información de la máquina para derivar claves criptográficas.
    - La seguridad se basa en generación criptográfica aleatoria segura (256-bit AES-GCM) y secretos inyectados en la nube.
 3. **Cero dependencias de Localhost**:
-   - Los servicios en la nube y el CLI se comunican exclusivamente vía HTTPS con el backend oficial `https://wattpad.onrender.com`.
+   - Los servicios en la nube y el CLI se comunican exclusivamente vía HTTPS con el backend oficial `https://wattpad-cli.onrender.com`.
 
 ---
 
@@ -34,12 +34,12 @@
 
 | Variable | Tipo | Valor Predeterminado (Dev) | Descripción |
 | :--- | :--- | :--- | :--- |
-| `PUBLIC_APP_URL` | `url` | `https://wattpad.onrender.com` | URL pública de la aplicación. |
-| `WATTPAD_API_BASE_URL` | `url` | `https://wattpad.onrender.com` | URL base del backend REST API consumido por el CLI. |
-| `WATTPAD_BOOTSTRAP_URL` | `url` | `https://wattpad.onrender.com` | URL inicial de arranque y resolución de configuración. |
-| `WATTPAD_CLI_CONFIG_URL` | `string` | `https://wattpad.onrender.com/cli/config` | Endpoint público de autodescubrimiento para el CLI. |
-| `WATTPAD_CLI_INSTALL_PS1_URL` | `string` | `https://wattpad.onrender.com/cli/install.ps1` | Endpoint para el script instalador de Windows PowerShell. |
-| `WATTPAD_CLI_INSTALL_SH_URL` | `string` | `https://wattpad.onrender.com/cli/install.sh` | Endpoint para el script instalador de Linux / macOS. |
+| `PUBLIC_APP_URL` | `url` | `https://wattpad-cli.onrender.com` | URL pública de la aplicación. |
+| `WATTPAD_API_BASE_URL` | `url` | `https://wattpad-cli.onrender.com` | URL base del backend REST API consumido por el CLI. |
+| `WATTPAD_BOOTSTRAP_URL` | `url` | `https://wattpad-cli.onrender.com` | URL inicial de arranque y resolución de configuración. |
+| `WATTPAD_CLI_CONFIG_URL` | `string` | `https://wattpad-cli.onrender.com/cli/config` | Endpoint público de autodescubrimiento para el CLI. |
+| `WATTPAD_CLI_INSTALL_PS1_URL` | `string` | `https://wattpad-cli.onrender.com/cli/install.ps1` | Endpoint para el script instalador de Windows PowerShell. |
+| `WATTPAD_CLI_INSTALL_SH_URL` | `string` | `https://wattpad-cli.onrender.com/cli/install.sh` | Endpoint para el script instalador de Linux / macOS. |
 | `WATTPAD_CLI_NPM_PACKAGE` | `string` | `@wattpad/cli` | Nombre del paquete en el registro oficial de NPM. |
 
 ### 3. Base de Datos Cloud (PostgreSQL)
@@ -79,12 +79,12 @@
 | :--- | :--- | :--- | :--- |
 | `GOOGLE_CLIENT_ID` | `string` | *(ID cliente Google OAuth)* | Client ID oficial de la consola de Google Cloud. |
 | `GOOGLE_CLIENT_SECRET` | `string` | *(Secret cliente Google OAuth)* | Client Secret de la API de Google Docs. |
-| `GOOGLE_REDIRECT_URI` | `string` | `https://wattpad.onrender.com/api/integrations/google/callback` | Callback HTTPS en Render (sin localhost). |
+| `GOOGLE_REDIRECT_URI` | `string` | `https://wattpad-cli.onrender.com/api/integrations/google/callback` | Callback HTTPS en Render (sin localhost). |
 | `GOOGLE_SCOPES` | `string` | `documents,drive.file` | Permisos solicitados a Google Docs y Drive. |
 | `MICROSOFT_CLIENT_ID` | `string` | *(ID cliente Microsoft)* | Client ID de Azure Active Directory para Office 365. |
 | `MICROSOFT_CLIENT_SECRET` | `string` | *(Secret cliente Microsoft)* | Client Secret de Microsoft Graph. |
 | `MICROSOFT_TENANT_ID` | `string` | `common` | Tenant ID de Azure AD. |
-| `MICROSOFT_REDIRECT_URI` | `string` | `https://wattpad.onrender.com/api/integrations/word/callback` | Callback HTTPS en Render para Word Cloud. |
+| `MICROSOFT_REDIRECT_URI` | `string` | `https://wattpad-cli.onrender.com/api/integrations/word/callback` | Callback HTTPS en Render para Word Cloud. |
 
 ### 7. Integración con Wattpad
 

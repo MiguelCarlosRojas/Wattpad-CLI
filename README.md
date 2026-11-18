@@ -1,6 +1,9 @@
 # Wattpad CLI — Arquitectura Cloud & TUI Interactiva Responsive
 
-> **Aplicación de terminal moderna y profesional de nueva generación construida con TypeScript, Bun y OpenTUI, conectada al backend cloud en Render (`https://wattpad.onrender.com`), con persistencia remota en PostgreSQL y almacenamiento cloud de documentos.**
+> **Aplicación de terminal moderna y profesional de nueva generación construida con TypeScript, Bun y OpenTUI, conectada al backend cloud en Render (`https://wattpad-cli.onrender.com`), con persistencia remota en PostgreSQL y almacenamiento cloud de documentos.**
+
+Backend cloud:
+https://wattpad-cli.onrender.com
 
 Inspirada directamente en la experiencia de usuario, diseño responsive, interacción por teclado y estética de **Grok CLI**, **Antigravity CLI**, **Claude CLI** y **ChatGPT CLI**.
 
@@ -21,7 +24,7 @@ Inspirada directamente en la experiencia de usuario, diseño responsive, interac
    - Detección y adaptación en tiempo real ante cambios de dimensiones de la terminal (`process.stdout.on('resize')`).
    - Soporte verificado en breakpoints: `60x20`, `80x24`, `100x30`, `120x40`, `160x50` y `200x60`.
 4. **Arquitectura 100% Cloud (Sin Localhost ni SQLite Local)**:
-   - Backend centralizado en Render: `https://wattpad.onrender.com`.
+   - Backend centralizado en Render: `https://wattpad-cli.onrender.com`.
    - Base de datos cloud: **PostgreSQL** mediante `DATABASE_URL`.
    - Almacenamiento de documentos en la nube: S3 / Object Storage.
    - Flujo de autorización OAuth2 de Google Docs con redirección HTTPS oficial en la nube (**Cero servidores o puertos localhost**).
@@ -30,10 +33,30 @@ Inspirada directamente en la experiencia de usuario, diseño responsive, interac
    - Descubrimiento dinámico de configuración en `/cli/config`.
    - Cambio de dominio cloud con solo modificar `WATTPAD_API_BASE_URL` en `.env`.
 6. **Mecanismos de Instalación**:
-   - **NPM Global**: `npm install -g @wattpad/cli`
-   - **PowerShell (Windows)**: `irm https://wattpad.onrender.com/cli/install.ps1 | iex`
-   - **Linux / macOS**: `curl -fsSL https://wattpad.onrender.com/cli/install.sh | bash`
-   - Comando único de ejecución: `wattpad`.
+
+### Windows
+
+```powershell
+irm https://wattpad-cli.onrender.com/cli/install.ps1 | iex
+```
+
+### Linux / macOS
+
+```bash
+curl -fsSL https://wattpad-cli.onrender.com/cli/install.sh | bash
+```
+
+### NPM
+
+```bash
+npm install -g @wattpad/cli
+```
+
+El comando de ejecución continúa siendo:
+
+```bash
+wattpad
+```
 
 ---
 

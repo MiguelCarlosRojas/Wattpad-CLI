@@ -29,7 +29,7 @@ export class TerminalRenderer {
     version: '1.0.0',
     user: 'Local',
     isAuthenticated: false,
-    serverUrl: 'https://wattpad.onrender.com',
+    serverUrl: 'https://wattpad-cli.onrender.com',
     serverOnline: true,
     syncState: 'Al día',
   };

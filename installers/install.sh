@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Wattpad CLI - Official Linux/macOS Installer
-# Usage: curl -fsSL https://wattpad.onrender.com/cli/install.sh | bash
+# Usage: curl -fsSL https://wattpad-cli.onrender.com/cli/install.sh | bash
 # ==============================================================================
 
 set -e
@@ -14,7 +14,7 @@ RESET='\033[0m'
 
 echo -e "\n${BOLD}${ORANGE}WATTPAD CLI — Instalador Oficial Linux/macOS${RESET}\n"
 
-BASE_URL="${WATTPAD_API_BASE_URL:-https://wattpad.onrender.com}"
+BASE_URL="${WATTPAD_API_BASE_URL:-https://wattpad-cli.onrender.com}"
 echo -e "${CYAN}▸ Conectando con:${RESET} $BASE_URL"
 
 # Detect OS & Architecture
