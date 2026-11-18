@@ -1,0 +1,39 @@
+{
+  "name": "@wattpad/cli",
+  "version": "1.0.0",
+  "description": "Terminal User Interface (TUI) profesional y cloud para gestionar novelas, capítulos y sincronización en Wattpad",
+  "type": "module",
+  "main": "src/cli/main.ts",
+  "bin": {
+    "wattpad": "src/cli/main.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MiguelCarlosRojas/wattpad-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MiguelCarlosRojas/wattpad-cli/issues"
+  },
+  "homepage": "https://github.com/MiguelCarlosRojas/wattpad-cli#readme",
+  "scripts": {
+    "dev": "bun run src/cli/main.ts",
+    "start": "bun run src/cli/main.ts",
+    "start:api": "bun run src/api/server.ts",
+    "test": "bun test",
+    "build": "bun build src/cli/main.ts --compile --outfile dist/wattpad.exe"
+  },
+  "dependencies": {
+    "@opentui/core": "^0.9.2",
+    "docx": "^9.15.4",
+    "dotenv": "^18.0.10",
+    "googleapis": "^190.0.0",
+    "mammoth": "^1.13.0",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1"
+  }
+}
