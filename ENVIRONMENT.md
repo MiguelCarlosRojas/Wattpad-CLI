@@ -110,7 +110,7 @@
 ## 🚀 Despliegue en Render (Producción)
 
 Para desplegar el backend en **Render**:
-1. Conecta el repositorio `https://github.com/MiguelCarlosRojas/wattpad-cli`.
+1. Conecta el repositorio `https://github.com/MiguelCarlosRojas/Wattpad-CLI`.
 2. Selecciona **Web Service** con entorno **Bun** o **Node/Bun Docker**.
 3. Comando de inicio: `bun run src/api/server.ts`.
 4. Añade un **PostgreSQL Database** en Render y vincula automáticamente la variable `DATABASE_URL`.
