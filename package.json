@@ -20,9 +20,9 @@
     "dev:api": "bun --watch src/api/server.ts",
     "dev:cli": "bun run src/cli/main.ts",
     "build": "bun run build:api",
-    "build:api": "bun run typecheck",
+    "build:api": "bun build src/api/server.ts --target=bun --outfile=dist/server.js",
     "start": "bun run start:api",
-    "start:api": "bun run src/api/server.ts",
+    "start:api": "bun run dist/server.js || bun run src/api/server.ts",
     "build:cli": "bun run scripts/build-cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
@@ -39,6 +39,7 @@
   "devDependencies": {
     "@types/bun": "^1.4.4",
     "@types/node": "^26.6.6",
-    "@types/pg": "^8.23.1"
+    "@types/pg": "^8.23.1",
+    "typescript": "^5.9.3"
   }
 }
