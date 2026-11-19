@@ -33,6 +33,7 @@
     "start:api": "bun run dist/server.js || bun run src/platform/distribution/server.ts",
     "build:cli": "bun run scripts/build-cli.ts",
     "build:checksums": "bun run scripts/generate-checksums.ts",
+    "verify:dist": "bun run scripts/verify-distribution.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test"
   },

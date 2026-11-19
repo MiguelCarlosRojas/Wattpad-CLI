@@ -52,7 +52,12 @@ export class WattpadCloudApiServer {
           // --- CLI PUBLIC CONFIG & DISCOVERY ---
           if (path === '/cli/config' && (method === 'GET' || method === 'HEAD')) {
             const config = CliController.getPublicConfig();
-            return new Response(method === 'HEAD' ? null : JSON.stringify(config), { headers });
+            return new Response(method === 'HEAD' ? null : JSON.stringify(config), {
+              headers: {
+                ...headers,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+              },
+            });
           }
 
           // --- POWERSHELL INSTALLER SCRIPT ---
@@ -88,11 +93,18 @@ export class WattpadCloudApiServer {
                 headers: {
                   'Content-Type': 'application/octet-stream',
                   'Content-Disposition': `attachment; filename="${nodePath.basename(localFile)}"`,
+                  'Cache-Control': 'no-cache, no-store, must-revalidate',
                 },
               });
             }
             const releaseUrl = CliController.getDownloadUrl(target);
-            return Response.redirect(releaseUrl, 302);
+            return new Response(null, {
+              status: 302,
+              headers: {
+                'Location': releaseUrl,
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+              },
+            });
           }
 
           return new Response(

@@ -1,5 +1,6 @@
 import path from 'path';
 import fs from 'fs';
+import { generateChecksumsAndManifest } from './generate-checksums';
 
 // Allowed target platforms
 export type SupportedPlatform =
@@ -115,8 +116,15 @@ async function main() {
   const sizeMB = (stats.size / (1024 * 1024)).toFixed(2);
 
   console.log(
-    `\x1b[32m✓ [Éxito]\x1b[0m Binario generado correctamente en ${elapsed}s (${sizeMB} MB): ${outfile}`
+    `\x1b[32m✓ [Éxito]\x1b[0m Binario generado correctamente en ${elapsed}s (${sizeMB} MB): ${outfile}\n`
   );
+
+  // Generar automáticamente sumas de verificación y manifiesto sincronizado
+  try {
+    generateChecksumsAndManifest();
+  } catch (checksumErr: any) {
+    console.warn(`[Aviso] No se pudieron actualizar los checksums automáticamente: ${checksumErr.message}`);
+  }
 }
 
 main().catch((err) => {

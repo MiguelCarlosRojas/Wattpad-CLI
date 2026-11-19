@@ -37,18 +37,35 @@ function Invoke-WattpadInstall {
 
         $Config = $null
         $ExpectedHash = $null
+        $ConfigVersion = "1.1.0"
+        $ConfigDownloadUrl = $null
         try {
             $ConfigResponse = Invoke-WebRequest -Uri "$BaseUrl/cli/config" -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop
             $Config = $ConfigResponse.Content | ConvertFrom-Json -ErrorAction SilentlyContinue
-            if ($Config -and $Config.binaries) {
-                $binProp = $Config.binaries.PSObject.Properties['win32-x64']
-                if ($binProp -and $binProp.Value) {
-                    $ExpectedHash = $binProp.Value.sha256
+            if ($Config) {
+                if ($Config.version) {
+                    $ConfigVersion = $Config.version
+                }
+                if ($Config.binaries) {
+                    $binProp = $Config.binaries.PSObject.Properties['win32-x64']
+                    if ($binProp -and $binProp.Value) {
+                        $ExpectedHash = $binProp.Value.sha256
+                        if ($binProp.Value.downloadUrl) {
+                            $ConfigDownloadUrl = $binProp.Value.downloadUrl
+                        }
+                    }
                 }
             }
             Write-Host "   $Check Conexion de distribucion verificada." -ForegroundColor Green
         } catch {
             Write-Host "   ! Advertencia: No se pudo verificar la configuracion remota ($($_.Exception.Message))." -ForegroundColor Yellow
+        }
+
+        # Verificación obligatoria de metadatos oficiales
+        if (-not $ExpectedHash) {
+            Write-Host "   $Cross Error critico: No se pudo obtener la suma SHA-256 esperada desde los metadatos oficiales." -ForegroundColor Red
+            Write-Host "     La instalacion no puede continuar sin comprobacion de integridad." -ForegroundColor Yellow
+            return
         }
 
         # 2. Operating system and architecture detection
@@ -80,10 +97,13 @@ function Invoke-WattpadInstall {
         Write-Host "   $Arrow Descargando binario oficial para Windows ($Arch)..." -ForegroundColor Cyan
 
         $TempFile = Join-Path $env:TEMP "wattpad-cli-$Arch-$([Guid]::NewGuid().ToString('N')).tmp"
-        $DownloadUrls = @(
-            "$BaseUrl/cli/download/win32-$Arch",
-            "https://github.com/MiguelCarlosRojas/Wattpad-CLI/releases/latest/download/wattpad.exe"
-        )
+        $DownloadUrls = @()
+        if ($ConfigDownloadUrl) {
+            $DownloadUrls += $ConfigDownloadUrl
+        }
+        $DownloadUrls += "$BaseUrl/cli/download/win32-$Arch"
+        $DownloadUrls += "https://github.com/MiguelCarlosRojas/Wattpad-CLI/releases/download/v$ConfigVersion/wattpad.exe"
+        $DownloadUrls += "https://github.com/MiguelCarlosRojas/Wattpad-CLI/releases/latest/download/wattpad.exe"
 
         $DownloadSuccess = $false
 
@@ -201,13 +221,15 @@ function Invoke-WattpadInstall {
 
         # 5.3 SHA-256 hash check
         $ComputedHash = (Get-FileHash -Path $TempFile -Algorithm SHA256).Hash.ToUpperInvariant()
-        if ($ExpectedHash) {
-            if ($ComputedHash -ne $ExpectedHash.ToUpperInvariant()) {
-                Write-Host "   $Cross Error: La comprobacion SHA-256 no coincide." -ForegroundColor Red
-                Write-Host "     Esperado: $ExpectedHash" -ForegroundColor Yellow
-                Write-Host "     Obtenido: $ComputedHash" -ForegroundColor Yellow
-                return
-            }
+        $CleanExpectedHash = $ExpectedHash.Trim().ToUpperInvariant()
+        if ($ComputedHash -ne $CleanExpectedHash) {
+            Write-Host "   $Cross Error: La comprobacion SHA-256 no coincide." -ForegroundColor Red
+            Write-Host "     El archivo descargado no paso la verificacion de seguridad." -ForegroundColor Red
+            Write-Host "     Esperado:" -ForegroundColor Yellow
+            Write-Host "     $CleanExpectedHash" -ForegroundColor Yellow
+            Write-Host "     Obtenido:" -ForegroundColor Yellow
+            Write-Host "     $ComputedHash" -ForegroundColor Yellow
+            return
         }
 
         Write-Host "   $Check Integridad comprobada (Encabezado PE 'MZ', SHA-256: $ComputedHash)." -ForegroundColor Green
@@ -296,7 +318,7 @@ function Invoke-WattpadInstall {
         Write-Host "   $Check Lanzador wattpad.cmd creado." -ForegroundColor Green
         Write-Host "   $Check PATH configurado." -ForegroundColor Green
         Write-Host ""
-        Write-Host "   Versión instalada: 1.1.0" -ForegroundColor White
+        Write-Host "   Versión instalada: $ConfigVersion" -ForegroundColor White
         Write-Host ""
         Write-Host "   Para iniciar Wattpad CLI:" -ForegroundColor White
         Write-Host "   wattpad" -ForegroundColor DarkYellow

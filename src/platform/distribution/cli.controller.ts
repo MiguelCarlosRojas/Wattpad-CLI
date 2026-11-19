@@ -4,10 +4,54 @@ import { getEnv } from '../../core/config/env';
 import { PublicCliConfig } from '../../core/types/distribution.types';
 
 export class CliController {
+  /**
+   * Obtiene el manifiesto de distribución generado automáticamente
+   */
+  public static getManifest(): any {
+    const candidates = [
+      path.resolve(process.cwd(), 'src/platform/distribution/distribution-manifest.json'),
+      path.resolve(process.cwd(), 'dist/distribution-manifest.json'),
+      path.resolve(__dirname, 'distribution-manifest.json'),
+    ];
+
+    for (const candidate of candidates) {
+      if (fs.existsSync(candidate)) {
+        try {
+          const raw = fs.readFileSync(candidate, 'utf8');
+          return JSON.parse(raw);
+        } catch {}
+      }
+    }
+    return null;
+  }
+
   public static getPublicConfig(): PublicCliConfig {
     const env = getEnv();
+    const manifest = this.getManifest();
+    const version = manifest?.version || '1.1.0';
+
+    const binaries: Record<string, any> = {};
+    if (manifest && manifest.binaries) {
+      for (const [targetKey, meta] of Object.entries<any>(manifest.binaries)) {
+        binaries[targetKey] = {
+          filename: meta.filename,
+          sha256: meta.sha256,
+          size: meta.size,
+          downloadUrl: `${env.WATTPAD_API_BASE_URL}/cli/download/${targetKey}`,
+        };
+      }
+    } else {
+      // Fallback seguro si aún no se ha compilado el manifiesto
+      binaries['win32-x64'] = {
+        filename: 'wattpad.exe',
+        sha256: '46667382cfb28aeaeac4f8eb2c48e1616063cc101adff6e71dfc9cd51e0f5bd3',
+        size: 156901376,
+        downloadUrl: `${env.WATTPAD_API_BASE_URL}/cli/download/win32-x64`,
+      };
+    }
+
     return {
-      version: '1.1.0',
+      version,
       minCliVersion: '1.0.0',
       apiBaseUrl: env.WATTPAD_API_BASE_URL,
       publicAppUrl: env.PUBLIC_APP_URL,
@@ -22,14 +66,7 @@ export class CliController {
         powershell: `${env.WATTPAD_API_BASE_URL}/cli/install.ps1`,
         linuxMac: `${env.WATTPAD_API_BASE_URL}/cli/install.sh`,
       },
-      binaries: {
-        'win32-x64': {
-          filename: 'wattpad.exe',
-          sha256: '46667382cfb28aeaeac4f8eb2c48e1616063cc101adff6e71dfc9cd51e0f5bd3',
-          size: 156901376,
-          downloadUrl: `${env.WATTPAD_API_BASE_URL}/cli/download/win32-x64`,
-        },
-      },
+      binaries,
       routes: {
         health: env.API_ROUTE_HEALTH,
         config: env.API_ROUTE_PUBLIC_CONFIG,
@@ -42,7 +79,7 @@ export class CliController {
         search: env.API_ROUTE_SEARCH,
         publish: env.API_ROUTE_PUBLISH,
       },
-      updatedAt: new Date().toISOString(),
+      updatedAt: manifest?.generatedAt || new Date().toISOString(),
     };
   }
 
@@ -71,7 +108,9 @@ export class CliController {
   }
 
   public static getDownloadUrl(target: string): string {
+    const manifest = this.getManifest();
+    const version = manifest?.version || '1.1.0';
     const filename = target.includes('win') ? 'wattpad.exe' : `wattpad-${target}`;
-    return `https://github.com/MiguelCarlosRojas/Wattpad-CLI/releases/latest/download/${filename}`;
+    return `https://github.com/MiguelCarlosRojas/Wattpad-CLI/releases/download/v${version}/${filename}`;
   }
 }
