@@ -4,7 +4,7 @@ import { CommandDefinition, CommandResult, ParsedCommand, RenderBlock } from '..
 import { defaultConfig } from '../../config/config';
 import { sha256 } from '../../security/crypto-utils';
 
-const INSTALLED_VERSION = '1.0.0';
+const INSTALLED_VERSION = '1.1.0';
 const GITHUB_REPO = 'MiguelCarlosRojas/Wattpad-CLI';
 
 interface ReleaseInfo {
@@ -34,12 +34,12 @@ async function fetchLatestRelease(): Promise<ReleaseInfo | null> {
   // En pruebas, simular respuesta rápida
   if (process.env.NODE_ENV === 'test') {
     return {
-      version: '1.0.0',
-      name: 'Wattpad CLI v1.0.0',
-      publishedAt: '2026-11-19T13:26:53Z',
-      body: 'Versión estable 1.0.0 con arquitectura soberana y gestión exclusiva de Wattpad.',
+      version: '1.1.0',
+      name: 'Wattpad CLI v1.1.0',
+      publishedAt: '2026-11-19T14:00:00Z',
+      body: 'Versión v1.1.0 con rediseño visual profesional, TUI soberano y ventana emergente de autenticación independiente.',
       assetName: 'wattpad.exe',
-      assetSize: 149465088,
+      assetSize: 156910080,
       downloadUrl: `https://github.com/${GITHUB_REPO}/releases/latest/download/wattpad.exe`,
     };
   }
@@ -124,7 +124,7 @@ export function createGeneralCommands(): CommandDefinition[] {
             type: 'card',
             title: 'WATTPAD CLI — CENTRO DE AYUDA Y COMANDOS',
             subtitle: 'Herramienta de terminal exclusivamente dedicada a Wattpad y manuscritos.',
-            statusBadge: 'WATTPAD CLI v1.0.0',
+            statusBadge: `WATTPAD CLI v${INSTALLED_VERSION}`,
             statusColor: '#FF6122',
           },
         ];
@@ -141,6 +141,22 @@ export function createGeneralCommands(): CommandDefinition[] {
           success: true,
           blocks,
         };
+      },
+    },
+
+    {
+      name: '/commands',
+      category: 'general',
+      description: 'Muestra la lista organizada de comandos disponibles',
+      descriptionEn: 'Displays the organized list of available commands',
+      usage: '/commands',
+      examples: ['/commands'],
+      execute: (app, parsed): CommandResult => {
+        const helpDef = app.registry.get('/help');
+        if (helpDef) {
+          return helpDef.execute(app, parsed) as any;
+        }
+        return { success: true, message: 'Ejecuta /help para consultar los comandos.' };
       },
     },
 

@@ -17,7 +17,7 @@ export class Header {
     const width = Math.max(50, config.width || 80);
 
     const brand = Chalk.bold(Chalk.hex(Theme.colors.primary, 'WATTPAD CLI'));
-    const version = Chalk.dim(`v${props.version || '1.0.0'}`);
+    const version = Chalk.dim(`v${props.version || '1.1.0'}`);
     const leftText = `${brand} ${version}`;
 
     // Estado superior sobrio especificado exactamente:

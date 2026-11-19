@@ -7,24 +7,20 @@ import { Header, HeaderProps } from './components/header';
 import { CommandInput } from './components/command-input';
 import { SuggestionsDropdown } from './components/suggestions';
 import { StatusBar } from './components/status-bar';
-import { AuthModal, AuthModalFocus, AuthModalProps } from './components/auth-modal';
 import { CommandOutput, OutputViewProps } from './components/command-output';
+import { HomeView } from './components/home-view';
 import { Story } from '../../types/story.types';
 import { Chapter } from '../../types/chapter.types';
 import { WattpadUser } from '../../types/auth.types';
 import { CommandRegistry } from '../../commands/command-registry';
 import { CommandHistory } from '../../commands/history';
 import { CommandResult, Suggestion } from '../../types/command.types';
-import { openUrlInBrowser } from '../../utils/browser';
 
 export class AppShell {
   private inputValue: string = '';
   private cursorIndex: number = 0;
   private suggestions: Suggestion[] = [];
   private selectedSuggestionIndex: number = 0;
-
-  private selectedStoryIndex: number = 0;
-  private selectedChapterIndex: number = 0;
 
   private latestOutput: OutputViewProps | null = null;
   private notificationMessage: string | null = null;
@@ -37,15 +33,7 @@ export class AppShell {
   private activeChapterId: string | null = null;
   private serverOnline: boolean = true;
   private serverUrl: string = 'https://wattpad-cli.onrender.com';
-  private version: string = '1.0.0';
-
-  // Authorization Modal State
-  private isAuthModalOpen: boolean = false;
-  private modalTokenInput: string = '';
-  private modalFocus: AuthModalFocus = 'token';
-  private modalStatus: 'waiting' | 'verifying' | 'success' | 'error' = 'waiting';
-  private modalErrorMessage?: string;
-  private onTokenSubmit?: (token: string) => Promise<{ success: boolean; user?: WattpadUser; error?: string }>;
+  private version: string = '1.1.0';
 
   private resizeUnsubscribe?: () => void;
   private exitResolver?: () => void;
@@ -62,24 +50,27 @@ export class AppShell {
     this.onCommandExecute = executor;
   }
 
-  public setTokenSubmitHandler(handler: (token: string) => Promise<{ success: boolean; user?: WattpadUser; error?: string }>): void {
-    this.onTokenSubmit = handler;
-  }
+  // Compatibilidad hacia atrás
+  public setTokenSubmitHandler(_handler: any): void {}
+  public openAuthModal(_onTokenSubmit?: any): void {}
+  public closeAuthModal(): void {}
 
-  public openAuthModal(onTokenSubmit?: (token: string) => Promise<{ success: boolean; user?: WattpadUser; error?: string }>): void {
-    this.isAuthModalOpen = true;
-    this.modalTokenInput = '';
-    this.modalFocus = 'token';
-    this.modalStatus = 'waiting';
-    this.modalErrorMessage = undefined;
-    if (onTokenSubmit) this.onTokenSubmit = onTokenSubmit;
+  public switchView(_viewName?: string): void {
     if (this.isRunning) this.render();
   }
 
-  public closeAuthModal(): void {
-    this.isAuthModalOpen = false;
-    this.modalTokenInput = '';
-    this.modalErrorMessage = undefined;
+  public setNotification(msg: string | null): void {
+    this.notificationMessage = msg;
+    if (this.notificationTimer) {
+      clearTimeout(this.notificationTimer);
+      this.notificationTimer = undefined;
+    }
+    if (msg) {
+      this.notificationTimer = setTimeout(() => {
+        this.notificationMessage = null;
+        if (this.isRunning) this.render();
+      }, 5000);
+    }
     if (this.isRunning) this.render();
   }
 
@@ -99,74 +90,32 @@ export class AppShell {
     if (props.activeStoryId !== undefined) this.activeStoryId = props.activeStoryId;
     if (props.activeChapterId !== undefined) this.activeChapterId = props.activeChapterId;
     if (props.serverOnline !== undefined) this.serverOnline = props.serverOnline;
-    if (props.serverUrl) this.serverUrl = props.serverUrl;
-    if (props.version) this.version = props.version;
+    if (props.serverUrl !== undefined) this.serverUrl = props.serverUrl;
+    if (props.version !== undefined) this.version = props.version;
 
     if (this.isRunning) {
       this.render();
     }
   }
 
-  public showNotification(msg: string, durationMs: number = 3000): void {
-    this.notificationMessage = msg;
-    if (this.notificationTimer) clearTimeout(this.notificationTimer);
-    this.notificationTimer = setTimeout(() => {
-      this.notificationMessage = null;
-      if (this.isRunning) this.render();
-    }, durationMs);
-    if (this.isRunning) this.render();
-  }
-
-  public addMessage(sender: 'user' | 'assistant' | 'system', content: string): void {
-    this.latestOutput = {
-      command: sender === 'user' ? content : 'Wattpad CLI',
-      result: {
-        success: true,
-        message: content,
-      },
-    };
-    if (this.isRunning) this.render();
-  }
-
-  public switchView(view?: string): void {
-    if (this.isRunning) this.render();
-  }
-
-  public getChaptersCountMap(): Record<string, number> {
-    const map: Record<string, number> = {};
-    for (const c of this.chapters) {
-      map[c.storyId] = (map[c.storyId] || 0) + 1;
-    }
-    return map;
-  }
-
   public async start(): Promise<void> {
     this.isRunning = true;
 
-    // Listen for terminal resize
+    // Configurar adaptador de terminal e inicializar sesión limpia
+    TerminalAdapter.enterSession();
+
+    // Suscribir eventos de redimensionamiento
     this.resizeUnsubscribe = ResponsiveManager.onResize(() => {
-      if (this.isRunning) this.render();
+      this.render();
     });
 
-    const isTTY = Boolean(process.stdin && process.stdin.isTTY);
-
-    if (!isTTY) {
-      // Non-interactive fallback: render once and exit cleanly
-      this.render();
-      return;
-    }
-
-    // Set up interactive raw terminal session
     try {
-      TerminalAdapter.enterSession();
-
-      if (process.stdin.setRawMode) {
+      readline.emitKeypressEvents(process.stdin);
+      if (process.stdin.isTTY) {
         process.stdin.setRawMode(true);
       }
       process.stdin.resume();
-      process.stdin.setEncoding('utf8');
 
-      readline.emitKeypressEvents(process.stdin);
       process.stdin.on('keypress', (str: string, key: readline.Key) => {
         this.handleKeyPress(str, key);
       });
@@ -209,98 +158,30 @@ export class AppShell {
   private handleKeyPress(str: string, key?: readline.Key): void {
     if (!key) return;
 
-    // Exit shortcuts: Ctrl+C or Ctrl+D
+    // Salir de forma segura con Ctrl+C o Ctrl+D
     if ((key.ctrl && key.name === 'c') || (key.ctrl && key.name === 'd')) {
+      if (this.inputValue.length > 0) {
+        // Si hay texto escrito, cancelar el comando actual limpiando la caja
+        this.inputValue = '';
+        this.cursorIndex = 0;
+        this.suggestions = [];
+        this.render();
+        return;
+      }
       this.exit();
       process.exit(0);
       return;
     }
 
-    // --- MODAL INTERACTION ---
-    if (this.isAuthModalOpen) {
-      if (key.name === 'escape') {
-        this.closeAuthModal();
-        return;
-      }
-
-      if (key.name === 'tab') {
-        if (this.modalFocus === 'token') this.modalFocus = 'connect';
-        else if (this.modalFocus === 'connect') this.modalFocus = 'cancel';
-        else this.modalFocus = 'token';
-        this.render();
-        return;
-      }
-
-      if (key.name === 'left' || key.name === 'right') {
-        if (this.modalFocus === 'connect') this.modalFocus = 'cancel';
-        else if (this.modalFocus === 'cancel') this.modalFocus = 'connect';
-        this.render();
-        return;
-      }
-
-      if (key.name === 'return') {
-        if (this.modalFocus === 'cancel') {
-          this.closeAuthModal();
-          return;
-        }
-
-        const token = this.modalTokenInput.trim();
-        if (!token) {
-          this.modalErrorMessage = 'Introduce un token autorizado.';
-          this.modalStatus = 'error';
-          this.render();
-          return;
-        }
-
-        this.modalStatus = 'verifying';
-        this.render();
-
-        if (this.onTokenSubmit) {
-          this.onTokenSubmit(token)
-            .then((res) => {
-              if (res.success && res.user) {
-                this.currentUser = res.user;
-                this.modalStatus = 'success';
-                this.render();
-                setTimeout(() => {
-                  this.closeAuthModal();
-                }, 1400);
-              } else {
-                this.modalStatus = 'error';
-                this.modalErrorMessage = res.error || 'Credencial no autorizada por Wattpad';
-                this.render();
-              }
-            })
-            .catch((err) => {
-              this.modalStatus = 'error';
-              this.modalErrorMessage = err?.message || 'Error de verificación';
-              this.render();
-            });
-        }
-        return;
-      }
-
-      if (key.name === 'backspace') {
-        if (this.modalTokenInput.length > 0) {
-          this.modalTokenInput = this.modalTokenInput.slice(0, -1);
-          this.modalStatus = 'waiting';
-          this.render();
-        }
-        return;
-      }
-
-      if (str && !key.ctrl && !key.meta && str.length === 1) {
-        this.modalTokenInput += str;
-        this.modalStatus = 'waiting';
-        this.render();
-      }
-      return;
-    }
-
-    // --- MAIN SCREEN INTERACTION ---
+    // Escape para cerrar sugerencias
     if (key.name === 'escape') {
       if (this.suggestions.length > 0) {
         this.suggestions = [];
+        this.render();
+        return;
+      }
+      if (this.latestOutput) {
+        this.latestOutput = null;
         this.render();
         return;
       }
@@ -308,6 +189,7 @@ export class AppShell {
       return;
     }
 
+    // Tab para autocompletar sugerencia
     if (key.name === 'tab') {
       if (this.suggestions.length > 0) {
         const picked = this.suggestions[this.selectedSuggestionIndex];
@@ -322,6 +204,7 @@ export class AppShell {
       return;
     }
 
+    // Flecha Arriba
     if (key.name === 'up') {
       if (this.suggestions.length > 0) {
         if (this.selectedSuggestionIndex > 0) this.selectedSuggestionIndex--;
@@ -337,6 +220,7 @@ export class AppShell {
       return;
     }
 
+    // Flecha Abajo
     if (key.name === 'down') {
       if (this.suggestions.length > 0) {
         if (this.selectedSuggestionIndex < this.suggestions.length - 1) this.selectedSuggestionIndex++;
@@ -352,6 +236,7 @@ export class AppShell {
       return;
     }
 
+    // Enter para ejecutar comando o seleccionar sugerencia
     if (key.name === 'return') {
       if (this.suggestions.length > 0) {
         const picked = this.suggestions[this.selectedSuggestionIndex];
@@ -375,6 +260,7 @@ export class AppShell {
       return;
     }
 
+    // Backspace
     if (key.name === 'backspace') {
       if (this.cursorIndex > 0) {
         this.inputValue = this.inputValue.slice(0, this.cursorIndex - 1) + this.inputValue.slice(this.cursorIndex);
@@ -385,6 +271,7 @@ export class AppShell {
       return;
     }
 
+    // Flecha Izquierda
     if (key.name === 'left') {
       if (this.cursorIndex > 0) {
         this.cursorIndex--;
@@ -393,6 +280,7 @@ export class AppShell {
       return;
     }
 
+    // Flecha Derecha
     if (key.name === 'right') {
       if (this.cursorIndex < this.inputValue.length) {
         this.cursorIndex++;
@@ -401,6 +289,7 @@ export class AppShell {
       return;
     }
 
+    // Caracteres regulares
     if (str && !key.ctrl && !key.meta) {
       this.inputValue = this.inputValue.slice(0, this.cursorIndex) + str + this.inputValue.slice(this.cursorIndex);
       this.cursorIndex += str.length;
@@ -428,42 +317,17 @@ export class AppShell {
 
   private async executeCommandString(raw: string): Promise<void> {
     const trimmed = raw.trim();
-    if (!trimmed) return;
 
-    if (trimmed === '/exit') {
-      this.exit();
-      process.exit(0);
-      return;
-    }
-
-    if (trimmed === '/clear' || trimmed === '/home') {
+    // Comandos especiales de sesión
+    if (trimmed === '/clear' || trimmed === '/cls') {
       this.latestOutput = null;
       this.render();
       return;
     }
 
-    // Modal trigger: se delega a onCommandExecute para usar el navegador oficial Playwright
-    if (trimmed.startsWith('/theme')) {
-      const parts = trimmed.split(' ');
-      const themeArg = parts[1] as any;
-      if (themeArg && ThemeManager.getAvailableThemes().includes(themeArg)) {
-        ThemeManager.setTheme(themeArg);
-        this.showNotification(`Tema activado: ${themeArg}`);
-      } else {
-        this.showNotification(`Temas: ${ThemeManager.getAvailableThemes().join(', ')}`);
-      }
-      return;
-    }
-
-    if (trimmed.startsWith('/mode')) {
-      const parts = trimmed.split(' ');
-      const modeArg = parts[1] as any;
-      if (modeArg === 'inline' || modeArg === 'fullscreen') {
-        TerminalAdapter.setMode(modeArg);
-        this.showNotification(`Modo de renderizado: ${modeArg}`);
-      } else {
-        this.showNotification(`Modos: fullscreen, inline`);
-      }
+    if (trimmed === '/exit' || trimmed === '/quit') {
+      this.exit();
+      process.exit(0);
       return;
     }
 
@@ -479,7 +343,7 @@ export class AppShell {
       return;
     }
 
-    // Execute via command router
+    // Ejecutar mediante router
     if (this.onCommandExecute) {
       try {
         const res = await this.onCommandExecute(trimmed);
@@ -510,7 +374,7 @@ export class AppShell {
 
     // 1. Compact Brand Header
     const headerProps: HeaderProps = {
-      version: this.version || '1.0.0',
+      version: this.version || '1.1.0',
       user: this.currentUser ? this.currentUser.username : 'Sin conectar',
       isAuthenticated: Boolean(this.currentUser),
       serverUrl: this.serverUrl,
@@ -521,41 +385,26 @@ export class AppShell {
     const headerLines = Header.render(headerProps, config);
     output.push(...headerLines);
 
-    // 2. Middle Content Area (Output or Modal or Clean Greeting)
+    // 2. Middle Content Area: Command Output o HomeView moderno
     const inputHeight = 5;
-    const suggestionsHeight = this.suggestions.length > 0 && !this.isAuthModalOpen ? this.suggestions.slice(0, 5).length + 2 : 0;
-    const reservedVertical = headerLines.length + inputHeight + suggestionsHeight;
-    const midHeight = Math.max(6, config.height - reservedVertical);
+    const suggestionsHeight = this.suggestions.length > 0 ? this.suggestions.slice(0, 5).length + 2 : 0;
+    const reservedVertical = headerLines.length + inputHeight + suggestionsHeight + 1;
+    const midHeight = Math.max(7, config.height - reservedVertical);
 
     let viewLines: string[] = [];
 
-    if (this.isAuthModalOpen) {
-      viewLines = AuthModal.render(
-        {
-          isOpen: true,
-          tokenValue: this.modalTokenInput,
-          focus: this.modalFocus,
-          status: this.modalStatus,
-          errorMessage: this.modalErrorMessage,
-          authenticatedUser: this.currentUser,
-        },
-        config.width
-      );
-    } else if (this.latestOutput) {
+    if (this.latestOutput) {
       viewLines = CommandOutput.render(this.latestOutput, config.width);
     } else {
-      viewLines.push('');
-      viewLines.push(Chalk.bold(Chalk.hex(Theme.colors.primary, '  WATTPAD')));
-      viewLines.push(Chalk.dim('  ❯ ~ Wattpad CLI'));
-      viewLines.push('');
-      viewLines.push(Chalk.dim('  Escribe un comando o selecciona una operación.'));
-      viewLines.push(
-        Chalk.dim('  Usa ') +
-          Chalk.hex(Theme.colors.primary, '/login') +
-          Chalk.dim(' para conectar tu cuenta o ') +
-          Chalk.hex(Theme.colors.primary, '/help') +
-          Chalk.dim(' para ver todos los comandos.')
-      );
+      viewLines = HomeView.render({
+        user: this.currentUser,
+        isAuthenticated: Boolean(this.currentUser),
+        stories: this.stories,
+        chapters: this.chapters,
+        activeStoryId: this.activeStoryId,
+        recentCommands: this.history.getAll(),
+        width: config.width,
+      });
     }
 
     while (viewLines.length < midHeight) {
@@ -564,19 +413,17 @@ export class AppShell {
     const finalViewLines = viewLines.slice(Math.max(0, viewLines.length - midHeight));
     output.push(...finalViewLines.map((l) => padEndVisible(l, config.width)));
 
-    // 3. Suggestions Dropdown (if user typing /...)
-    if (this.suggestions.length > 0 && !this.isAuthModalOpen) {
+    // 3. Suggestions Dropdown (si el usuario está escribiendo /...)
+    if (this.suggestions.length > 0) {
       const sugLines = SuggestionsDropdown.render(this.suggestions, this.selectedSuggestionIndex, config.width);
       output.push(...sugLines);
     }
 
     // 4. Command Input Box
-    const isInputFocused = !this.isAuthModalOpen;
-    const inputLines = CommandInput.render(this.inputValue, this.cursorIndex, config.width, isInputFocused);
+    const inputLines = CommandInput.render(this.inputValue, this.cursorIndex, config.width, true);
     output.push(...inputLines);
 
     // Write buffer using TerminalAdapter
     TerminalAdapter.renderBuffer(output.join('\n'));
   }
 }
-

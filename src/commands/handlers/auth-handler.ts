@@ -111,21 +111,32 @@ export function createAuthCommands(): CommandDefinition[] {
           }
         }
 
-        // 3. /login interactivo mediante navegador controlado con Playwright
+        // 3. /login interactivo mediante ventana emergente independiente controlada con Playwright
         try {
-          const result = await app.wattpadService.loginInteractive();
+          const result = await app.wattpadService.loginInteractive({
+            onStatus: (step, msg) => {
+              if (app.appShell && typeof (app.appShell as any).setNotification === 'function') {
+                (app.appShell as any).setNotification(msg);
+              }
+            },
+          });
 
           if (!result.success || !result.user) {
+            const isCancelled = result.step === 'cancelado';
             return {
               success: false,
               blocks: [
                 {
-                  type: 'error',
-                  title: 'Inicio de sesión no completado',
-                  content: result.error || 'No se pudo verificar la sesión en Wattpad. Asegúrate de iniciar sesión en el navegador.',
+                  type: isCancelled ? 'warning' : 'error',
+                  title: isCancelled ? 'Autenticación cancelada' : 'Error de autenticación',
+                  statusBadge: isCancelled ? 'CANCELADA' : 'ERROR',
+                  statusColor: isCancelled ? '#FEC84B' : '#F97066',
+                  content:
+                    result.error ||
+                    'No se pudo verificar la sesión en Wattpad. Asegúrate de introducir tus credenciales en la ventana emergente.',
                 },
               ],
-              message: result.error || 'Inicio de sesión cancelado o no detectado.',
+              message: result.error || (isCancelled ? 'Autenticación cancelada.' : 'Error de autenticación.'),
             };
           }
 
@@ -134,8 +145,8 @@ export function createAuthCommands(): CommandDefinition[] {
           if (app.connRepo?.setConnected) {
             app.connRepo.setConnected('wattpad', 'Wattpad', true, result.user.username);
           }
-          if (app.renderer?.appShell) {
-            app.renderer.appShell.setState({ currentUser: result.user });
+          if (app.appShell) {
+            app.appShell.setState({ currentUser: result.user });
           }
 
           return {
@@ -144,18 +155,19 @@ export function createAuthCommands(): CommandDefinition[] {
               {
                 type: 'card',
                 title: 'WATTPAD CONECTADO',
-                subtitle: `Sesión iniciada como @${result.user.username}`,
+                subtitle: '✓ Autenticación completada exitosamente',
                 statusBadge: 'CONECTADO',
-                statusColor: '#28A745',
+                statusColor: '#32D583',
                 fields: [
-                  { label: 'Usuario', value: `@${result.user.username}` },
-                  { label: 'Nombre de autor', value: result.user.name || result.user.username },
-                  { label: 'Estado', value: 'Conectado y verificado en Wattpad' },
-                  { label: 'Almacenamiento', value: 'Perfil persistente seguro del navegador local' },
+                  { label: 'Cuenta', value: `@${result.user.username}` },
+                  { label: 'Autor', value: result.user.name || result.user.username },
+                  { label: 'Estado', value: 'Conectado' },
+                  { label: 'Sesión', value: 'Guardada localmente en ~/.wattpad-cli/browser-profile' },
+                  { label: 'Instrucción', value: 'Ya puedes cerrar la ventana de autenticación y utilizar Wattpad CLI.' },
                 ],
               },
             ],
-            message: `WATTPAD CONECTADO — Sesión activa como @${result.user.username}.`,
+            message: `✓ Autenticación completada.\nCuenta: @${result.user.username}\nEstado: Conectado\nSesión: Guardada localmente\nYa puedes utilizar Wattpad CLI.`,
           };
         } catch (err: any) {
           return {

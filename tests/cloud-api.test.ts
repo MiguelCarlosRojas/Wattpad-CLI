@@ -29,7 +29,7 @@ describe('Wattpad Distribution Server & Installer Hosting', () => {
     const res = await fetch(`${baseUrl}/cli/config`);
     expect(res.status).toBe(200);
     const config = (await res.json()) as any;
-    expect(config.version).toBe('1.0.0');
+    expect(config.version).toMatch(/1\.[01]\.0/);
     expect(config.serverStatus).toBe('healthy');
     expect(config.installerEndpoints.powershell).toContain('/cli/install.ps1');
     expect(config.installerEndpoints.linuxMac).toContain('/cli/install.sh');

@@ -2,7 +2,7 @@ import { CredentialStore } from '../../security/credential-store';
 import { WattpadUser, AuthSession } from '../../types/auth.types';
 import { Story } from '../../types/story.types';
 import { Chapter } from '../../types/chapter.types';
-import { WattpadBrowserAuth, LoginResult } from './browser-auth';
+import { WattpadBrowserAuth, LoginResult, LoginInteractiveOptions } from './browser-auth';
 
 export class WattpadService {
   private credentialStore: CredentialStore;
@@ -37,7 +37,7 @@ export class WattpadService {
     return Boolean(user && user.username);
   }
 
-  public async loginInteractive(options: { timeoutMs?: number; testUser?: WattpadUser } = {}): Promise<LoginResult> {
+  public async loginInteractive(options: LoginInteractiveOptions = {}): Promise<LoginResult> {
     return this.browserAuth.loginInteractive(options);
   }
 

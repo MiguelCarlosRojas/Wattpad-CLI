@@ -1,4 +1,4 @@
-# Wattpad CLI (v1.0.0)
+# Wattpad CLI (v1.1.0)
 
 > **Herramienta oficial de terminal exclusivamente dedicada a gestionar una cuenta de Wattpad, novelas, capítulos, documentos (Microsoft Word, Bloc de notas, Google Docs) y publicaciones.**
 

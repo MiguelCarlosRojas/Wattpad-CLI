@@ -9,7 +9,7 @@ export class CommandInput {
   ): string[] {
     const lines: string[] = [];
     const boxWidth = Math.max(40, width);
-    const borderColor = isFocused ? Theme.colors.primary : Theme.colors.divider;
+    const borderColor = isFocused ? Theme.colors.primary : Theme.colors.surfaceBorder;
 
     // Line 1: ╭─ Wattpad CLI ────────────────────────────────────────╮
     const titleText = ' Wattpad CLI ';
@@ -56,8 +56,11 @@ export class CommandInput {
     // Padding line 2
     lines.push(padRow(' '));
 
-    // Bottom border: ╰─ ? Ayuda · / Comandos · Ctrl+C Salir ──────────╯
-    const footerText = ' ? Ayuda · / Comandos · Ctrl+C Salir ';
+    // Bottom border: ╰─ ? Ayuda · / Comandos · ↑↓ Historial · Tab Autocompletar · Ctrl+C Salir ──╯
+    let footerText = ' ? Ayuda · / Comandos · ↑↓ Historial · Tab Autocompletar · Ctrl+C Salir ';
+    if (boxWidth < 78) {
+      footerText = ' ? Ayuda · / Comandos · Ctrl+C Salir ';
+    }
     const bottomBarLength = Math.max(2, boxWidth - 3 - footerText.length);
     const line5 =
       Chalk.hex(borderColor, Theme.borders.bottomLeft + Theme.borders.horizontal) +

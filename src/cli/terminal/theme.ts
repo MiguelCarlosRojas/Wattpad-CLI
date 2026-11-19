@@ -100,17 +100,17 @@ export class Chalk {
 
 export const Theme = {
   colors: {
-    // Exact official palette:
-    primary: '#FF6122',         // Wattpad Orange (Accento elegante)
+    // Exact official Wattpad CLI palette:
+    primary: '#FF6122',         // Naranja Wattpad (Acento visual elegante)
     orangeSecondary: '#FF7849',
-    background: '#0D1117',      // Fondo oscuro studio
-    surface: '#151A21',         // Superficies limpias
-    surfaceBorder: '#21262D',   // Separadores ultra sutiles
-    divider: '#30363D',
+    background: '#0D0D0F',      // Fondo principal oscuro profesional
+    surface: '#17171B',         // Superficie secundaria
+    surfaceBorder: '#29292F',   // Bordes sutiles
+    divider: '#29292F',
 
     // Tipografía terminal legible y contrastada:
     white: '#FFFFFF',
-    text: '#F3F4F6',            // Texto principal
+    text: '#F5F5F5',            // Texto principal de alto contraste
     textSecondary: '#A1A1AA',   // Texto secundario
     muted: '#71717A',           // Metadatos y atajos
 
@@ -119,11 +119,11 @@ export const Theme = {
     selectedText: '#FFFFFF',
 
     // Semántica de estado:
-    success: '#32D583',         // Éxito
-    error: '#F97066',           // Error
-    warning: '#FEC84B',         // Advertencia
+    success: '#32D583',         // Verde (Operaciones exitosas)
+    error: '#F97066',           // Rojo (Errores)
+    warning: '#FEC84B',         // Amarillo (Advertencias)
     info: '#60A5FA',            // Información / Azul técnico
-    purple: '#A855F7',          // Secondary / Accents
+    purple: '#A855F7',          // Acentos secundarios
   },
   symbols: {
     arrow: '›',

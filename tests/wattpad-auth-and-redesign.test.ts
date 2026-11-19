@@ -103,7 +103,9 @@ describe('WATTPAD CLI — Login Real, Navegador Controlado, Gestión Documental 
       expect(text).toContain('❯');
       expect(text).toContain('Escribe un comando o selecciona una operación');
       expect(text).toContain('╰');
-      expect(text).toContain('? Ayuda · / Comandos · Ctrl+C Salir');
+      expect(text).toContain('Ayuda');
+      expect(text).toContain('/ Comandos');
+      expect(text).toContain('Ctrl+C Salir');
     });
   });
 

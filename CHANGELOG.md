@@ -6,6 +6,30 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/
 
 ---
 
+## [1.1.0] — 2026-11-19
+
+### 🎨 Rediseño Visual Profesional y Ventana de Autenticación Emergente v1.1.0
+- **Nueva Experiencia Visual TUI**: Interfaz minimalista inspirada en herramientas CLI profesionales de referencia (Antigravity CLI, Claude CLI) con identidad visual propia de Wattpad (`#FF6122`, `#0D0D0F`, `#17171B`, `#29292F`, `#F5F5F5`).
+- **HomeView Dinámico**:
+  - **Estado Desconectado**: Bienvenida elegante, estado `○ Sin conexión`, guía de inicio rápido con `/login`, `/register`, `/connect` y últimos comandos ejecutados.
+  - **Estado Conectado**: Tarjeta de autor `@usuario`, métricas del catálogo local (obras y capítulos), estado de manuscritos vinculados (Word, Notepad, Google Docs) y accesos directos a operaciones principales.
+- **Autenticación con Ventana Emergente Independiente**:
+  - Reemplazo completo de modales de consola por una ventana gráfica dedicada controlada por Playwright.
+  - Apertura centrada (1120x820) sin barras superfluas, permitiendo redimensionamiento libre, resolución de CAPTCHA y verificaciones oficiales de Wattpad.
+  - Reporte de estados en tiempo real: `preparando`, `abriendo`, `esperando`, `verificando`, `guardando`, `conectado`, `cancelado`.
+  - Cierre automático y limpio de la ventana emergente tras la verificación exitosa.
+  - Prevención de ventanas duplicadas concurrentes.
+- **Persistencia de Sesión en Segundo Plano**:
+  - Estructuración de directorios en `~/.wattpad-cli/`: `browser-profile/`, `database/`, `cache/`, `logs/`, `config/`.
+  - Reutilización de sesión entre reinicios de la CLI sin re-autenticación obligatoria.
+  - Cierre seguro con `/logout --confirm` que elimina credenciales y el perfil local.
+- **Comandos y Usabilidad**:
+  - Alias `/commands` añadido como acceso directo a la ayuda clasificada.
+  - Preservación completa de títulos con múltiples palabras y espacios en argumentos posicionales.
+  - Búsqueda case-insensitive (`COLLATE NOCASE`) de identificadores en base de datos SQLite (`NOV-xxxx`, `CAP-xxxx`).
+
+---
+
 ## [1.0.0] — 2026-11-19
 
 ### 🚀 Reconstrucción Funcional y Auditoría Integral v1.0.0

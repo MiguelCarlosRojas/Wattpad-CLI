@@ -180,7 +180,7 @@ export class Application {
       stories,
       chapters: allChapters,
       currentUser: this.currentUser,
-      version: '1.0.0',
+      version: '1.1.0',
     });
 
     // 5. Conectar router de comandos con la terminal interactiva
@@ -194,7 +194,7 @@ export class Application {
     const activeChapter = this.currentChapterId ? this.chapterRepo.findById(this.currentChapterId) : null;
 
     return {
-      version: '1.0.0',
+      version: '1.1.0',
       user: this.currentUser ? this.currentUser.username : 'Sin conectar',
       isAuthenticated: Boolean(this.currentUser),
       activeStory: activeStory ? `${activeStory.title} [${activeStory.id}]` : null,

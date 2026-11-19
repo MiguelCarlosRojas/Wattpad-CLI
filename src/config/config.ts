@@ -6,6 +6,11 @@ import { env } from './env';
 export interface AppConfig {
   appDir: string;
   dbPath: string;
+  browserProfileDir: string;
+  databaseDir: string;
+  cacheDir: string;
+  logsDir: string;
+  configDir: string;
   docsDir: string;
   backupDir: string;
   language: 'es' | 'en';
@@ -28,25 +33,48 @@ export interface AppConfig {
 
 const homeDir = os.homedir();
 const appDir = env.WATTPAD_APP_DIR || path.join(homeDir, '.wattpad-cli');
+const browserProfileDir = path.join(appDir, 'browser-profile');
+const databaseDir = path.join(appDir, 'database');
+const cacheDir = path.join(appDir, 'cache');
+const logsDir = path.join(appDir, 'logs');
+const configDir = path.join(appDir, 'config');
 const docsDir = env.WATTPAD_DOCS_DIR || path.join(homeDir, 'Documents', 'Wattpad', 'Novelas');
 const backupDir = path.join(appDir, 'backups');
-const dbPath = env.WATTPAD_DB_PATH || path.join(appDir, 'wattpad.db');
+
+// Database path: check legacy root db first, otherwise store in database/
+const legacyDbPath = path.join(appDir, 'wattpad.db');
+const standardDbPath = path.join(databaseDir, 'wattpad.db');
+const dbPath = env.WATTPAD_DB_PATH || (fs.existsSync(legacyDbPath) ? legacyDbPath : standardDbPath);
 
 export function ensureDirectories(): void {
-  if (!fs.existsSync(appDir)) {
-    fs.mkdirSync(appDir, { recursive: true });
-  }
-  if (!fs.existsSync(docsDir)) {
-    fs.mkdirSync(docsDir, { recursive: true });
-  }
-  if (!fs.existsSync(backupDir)) {
-    fs.mkdirSync(backupDir, { recursive: true });
+  const dirs = [
+    appDir,
+    browserProfileDir,
+    databaseDir,
+    cacheDir,
+    logsDir,
+    configDir,
+    docsDir,
+    backupDir,
+  ];
+
+  for (const dir of dirs) {
+    if (!fs.existsSync(dir)) {
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+      } catch {}
+    }
   }
 }
 
 export const defaultConfig: AppConfig = {
   appDir,
   dbPath,
+  browserProfileDir,
+  databaseDir,
+  cacheDir,
+  logsDir,
+  configDir,
   docsDir,
   backupDir,
   language: 'es',

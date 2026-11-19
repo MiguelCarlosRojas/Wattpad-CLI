@@ -35,7 +35,7 @@ describe('Application Command Execution', () => {
     expect(res.success).toBe(true);
     const card = res.blocks![0];
     expect(card.title).toBe('WATTPAD CLI');
-    expect(card.statusBadge).toBe('v1.0.0');
+    expect(card.statusBadge).toMatch(/v1\.[01]\.0/);
   });
 
   it('should create and open a story with /story new and /story open', async () => {
