@@ -181,7 +181,7 @@ export function createGeneralCommands(): CommandDefinition[] {
                 { label: 'Versión', value: `v${INSTALLED_VERSION}` },
                 { label: 'Arquitectura', value: 'Terminal Soberana (Directa con Wattpad y Archivos Locales)' },
                 { label: 'Runtime', value: `Bun v${Bun.version}` },
-                { label: 'Base de Datos Local', value: 'SQLite Nativo (bun:sqlite)' },
+                { label: 'Persistencia', value: 'Soberana sin Base de Datos (Memoria, Archivos Locales y JSON)' },
                 { label: 'Navegador Integrado', value: 'Playwright (Automatización de Sesión Oficial)' },
                 { label: 'Plataforma', value: `${process.platform} (${process.arch})` },
                 { label: 'Repositorio', value: `https://github.com/${GITHUB_REPO}` },

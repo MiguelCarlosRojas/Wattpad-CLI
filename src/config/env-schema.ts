@@ -122,7 +122,6 @@ export const envSchema = z.object({
   // ==============================================
   WATTPAD_APP_DIR: z.string().optional(),
   WATTPAD_DOCS_DIR: z.string().optional(),
-  WATTPAD_DB_PATH: z.string().optional(),
 });
 
 export type EnvConfig = z.infer<typeof envSchema>;

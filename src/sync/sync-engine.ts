@@ -1,7 +1,7 @@
-import { StoryRepository } from '../database/repositories/story-repository';
-import { ChapterRepository } from '../database/repositories/chapter-repository';
-import { DocumentRepository } from '../database/repositories/document-repository';
-import { SyncRepository } from '../database/repositories/sync-repository';
+import { StoryManager } from '../workspace/story-manager';
+import { ChapterManager } from '../workspace/chapter-manager';
+import { DocumentManager } from '../workspace/document-manager';
+import { SyncManager } from '../workspace/sync-manager';
 import { WordService } from '../integrations/word/word-service';
 import { NotepadService } from '../integrations/notepad/notepad-service';
 import { GoogleService } from '../integrations/google/google-service';
@@ -15,10 +15,10 @@ import { Chapter } from '../types/chapter.types';
 
 export class SyncEngine {
   constructor(
-    private storyRepo: StoryRepository,
-    private chapterRepo: ChapterRepository,
-    private docRepo: DocumentRepository,
-    private syncRepo: SyncRepository,
+    private storyRepo: StoryManager,
+    private chapterRepo: ChapterManager,
+    private docRepo: DocumentManager,
+    private syncRepo: SyncManager,
     private wordService: WordService,
     private notepadService: NotepadService,
     private googleService: GoogleService,
@@ -81,10 +81,10 @@ export class SyncEngine {
     }
 
     // Read current Word file content
-    const external = await this.wordService.readChapterFromDocx(docRecord.filePath);
+    const external = await this.wordService.readChapterFromDocx(docRecord.filePath!);
     const localHash = sha256(chapter.content || '');
     const externalHash = external.hash;
-    const lastSyncedHash = docRecord.lastSyncedHash;
+    const lastSyncedHash = docRecord.lastSyncedHash || '';
 
     const { state, diff } = ConflictDetector.compare(
       chapter.content || '',
@@ -143,7 +143,7 @@ export class SyncEngine {
       };
     } else {
       // Export from CLI to Word
-      this.backupManager.backupFile(docRecord.filePath, chapter.id);
+      this.backupManager.backupFile(docRecord.filePath!, chapter.id);
       const exported = await this.wordService.exportChapterToDocx(story, chapter);
       this.docRepo.upsert({
         ...docRecord,
@@ -195,10 +195,10 @@ export class SyncEngine {
       };
     }
 
-    const external = this.notepadService.readChapterFromTxt(docRecord.filePath);
+    const external = this.notepadService.readChapterFromTxt(docRecord.filePath!);
     const localHash = sha256(chapter.content || '');
     const externalHash = external.hash;
-    const lastSyncedHash = docRecord.lastSyncedHash;
+    const lastSyncedHash = docRecord.lastSyncedHash || '';
 
     const { state, diff } = ConflictDetector.compare(
       chapter.content || '',
@@ -254,7 +254,7 @@ export class SyncEngine {
         diff,
       };
     } else {
-      this.backupManager.backupFile(docRecord.filePath, chapter.id);
+      this.backupManager.backupFile(docRecord.filePath!, chapter.id);
       const exported = this.notepadService.exportChapterToTxt(story, chapter);
       this.docRepo.upsert({
         ...docRecord,
@@ -315,7 +315,7 @@ export class SyncEngine {
     const external = await this.googleService.importChapterFromGoogleDoc(existingDocId);
     const localHash = sha256(chapter.content || '');
     const externalHash = external.hash;
-    const lastSyncedHash = docRecord.lastSyncedHash;
+    const lastSyncedHash = docRecord.lastSyncedHash || '';
 
     const { state, diff } = ConflictDetector.compare(
       chapter.content || '',

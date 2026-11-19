@@ -54,7 +54,7 @@ export interface CommandResult {
 
 // Forward reference for Application context
 export interface IAppContext {
-  database: unknown;
+  workspace: unknown;
   services: unknown;
   currentStoryId: string | null;
   currentChapterId: string | null;

@@ -19,13 +19,14 @@ import { createPublishCommands } from '../../commands/handlers/publish-handler';
 import { CommandResult } from '../../types/command.types';
 import { CredentialStore } from '../../security/credential-store';
 import { FileSystemManager } from '../../utils/file-system';
-import { getDatabase } from '../../database/db';
-import { StoryRepository } from '../../database/repositories/story-repository';
-import { ChapterRepository } from '../../database/repositories/chapter-repository';
-import { DocumentRepository } from '../../database/repositories/document-repository';
-import { ConnectionRepository } from '../../database/repositories/connection-repository';
-import { SyncRepository } from '../../database/repositories/sync-repository';
-import { SettingsRepository } from '../../database/repositories/settings-repository';
+import {
+  StoryManager,
+  ChapterManager,
+  DocumentManager,
+  ConnectionManager,
+  SyncManager,
+  SettingsManager,
+} from '../../workspace';
 import { BackupManager } from '../../sync/backup-manager';
 import { SyncEngine } from '../../sync/sync-engine';
 
@@ -82,19 +83,17 @@ export class Application {
   public currentStoryId: string | null = null;
   public currentChapterId: string | null = null;
 
-  // Real SQLite Repositories
-  public storyRepo: StoryRepository;
-  public chapterRepo: ChapterRepository;
-  public docRepo: DocumentRepository;
-  public connRepo: ConnectionRepository;
-  public syncRepo: SyncRepository;
-  public settingsRepo: SettingsRepository;
+  // In-Memory and JSON-backed sovereign workspace managers (No Database)
+  public storyRepo: StoryManager;
+  public chapterRepo: ChapterManager;
+  public docRepo: DocumentManager;
+  public connRepo: ConnectionManager;
+  public syncRepo: SyncManager;
+  public settingsRepo: SettingsManager;
   public syncEngine: SyncEngine;
   public backupManager: BackupManager;
 
-  constructor(customDbPath?: string, customCredentialStore?: CredentialStore) {
-    const db = getDatabase(customDbPath);
-
+  constructor(customConfigDir?: string, customCredentialStore?: CredentialStore) {
     this.credentialStore = customCredentialStore || new CredentialStore();
     this.fsManager = new FileSystemManager();
 
@@ -103,13 +102,13 @@ export class Application {
     this.googleService = new GoogleService(this.credentialStore);
     this.wattpadService = new WattpadService(this.credentialStore);
 
-    // Initializing real SQLite persistence repositories
-    this.storyRepo = new StoryRepository(db);
-    this.chapterRepo = new ChapterRepository(db);
-    this.docRepo = new DocumentRepository(db);
-    this.connRepo = new ConnectionRepository(db);
-    this.syncRepo = new SyncRepository(db);
-    this.settingsRepo = new SettingsRepository(db);
+    // Initializing sovereign workspace managers (no database engine)
+    this.storyRepo = new StoryManager();
+    this.chapterRepo = new ChapterManager();
+    this.docRepo = new DocumentManager();
+    this.connRepo = new ConnectionManager();
+    this.syncRepo = new SyncManager();
+    this.settingsRepo = new SettingsManager(customConfigDir);
     this.backupManager = new BackupManager();
 
     this.syncEngine = new SyncEngine(
@@ -158,7 +157,7 @@ export class Application {
       this.connRepo.setConnected('wattpad', 'Wattpad', true, this.currentUser.username);
     }
 
-    // 2. Cargar historias y capítulos reales desde SQLite
+    // 2. Cargar historias y capítulos desde el workspace en memoria / local
     const stories = this.storyRepo.findAll();
     const allChapters = this.chapterRepo.findAll();
 

@@ -3,23 +3,20 @@ import path from 'path';
 import os from 'os';
 import fs from 'fs';
 import { Application } from '../src/cli/app/application';
-import { closeDatabase } from '../src/database/db';
 
 describe('Application Command Execution', () => {
   let app: Application;
-  let testDbPath: string;
+  let testConfigDir: string;
 
   beforeEach(async () => {
-    closeDatabase();
-    testDbPath = path.join(os.tmpdir(), `wattpad_app_test_${Date.now()}_${Math.random().toString(36).slice(2)}.db`);
-    app = new Application(testDbPath);
+    testConfigDir = path.join(os.tmpdir(), `wattpad_app_test_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+    app = new Application(testConfigDir);
     await app.init();
   });
 
   afterEach(() => {
-    closeDatabase();
     try {
-      if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+      if (fs.existsSync(testConfigDir)) fs.rmSync(testConfigDir, { recursive: true, force: true });
     } catch {}
   });
 

@@ -8,6 +8,16 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/
 
 ## [1.1.0] — 2026-11-19
 
+### 🔧 Corrección Crítica del Instalador de Windows (`install.ps1`)
+- **Sesión de Terminal Preservada**: Encapsulación de todo el flujo en `Invoke-WattpadInstall` con captura segura de errores mediante `try/catch/finally` y retornos limpios.
+- **Eliminación Total de Cierres de Proceso Anfitrión**: Eliminadas de raíz todas las llamadas a `exit`, `[Environment]::Exit()`, `$host.SetShouldExit()` o terminación forzada del shell. PowerShell, Windows Terminal y CMD permanecen completamente abiertos e interactivos tras la instalación.
+- **Mensaje de Instalación Oficial**: Presentación clara con confirmación de descarga, verificación SHA-256, instalación de ejecutable, lanzador `wattpad.cmd` y PATH configurado.
+
+### 🚫 Eliminación Total y Definitiva de Bases de Datos
+- **Cero Motores de Base de Datos**: Eliminado completamente SQLite (`bun:sqlite`), el archivo `wattpad.db` y el directorio `src/database/`.
+- **Arquitectura Soberana sin Base de Datos**: Sustituida por gestión ligera en memoria en tiempo de ejecución (`src/workspace/`: `StoryManager`, `ChapterManager`, `ConnectionManager`, `DocumentManager`, `SyncManager`, `SettingsManager`), documentos locales y archivos JSON estándar para configuraciones e historial.
+- **Compatibilidad Total**: Búsqueda case-insensitive para historias y capítulos (`NOV-xxxx`, `CAP-xxxx`), manteniendo intactas todas las operaciones sin dependencias SQL.
+
 ### 🎨 Rediseño Visual Profesional y Ventana de Autenticación Emergente v1.1.0
 - **Nueva Experiencia Visual TUI**: Interfaz minimalista inspirada en herramientas CLI profesionales de referencia (Antigravity CLI, Claude CLI) con identidad visual propia de Wattpad (`#FF6122`, `#0D0D0F`, `#17171B`, `#29292F`, `#F5F5F5`).
 - **HomeView Dinámico**:

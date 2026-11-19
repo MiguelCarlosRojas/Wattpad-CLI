@@ -32,7 +32,7 @@ Wattpad CLI está diseñada exclusivamente para gestionar tus novelas, manuscrit
 - **Sin IA ni asistentes conversacionales**: Dedicada 100% a tus obras y tu cuenta.
 - **Sin Render como backend de aplicación**: Eliminada la dependencia de bases de datos remotas PostgreSQL, APIs duplicadas y telemetría innecesaria.
 - **Sin datos ficticios**: No existen novelas ni usuarios falsos. Muestra información auténtica o estados vacíos claros.
-- **Arquitectura Soberana**: Base de datos SQLite local (`wattpad.db`) y archivos personales en tu equipo.
+- **Sin bases de datos**: Eliminada la necesidad de SQLite, PostgreSQL u otros motores. Arquitectura ligera y soberana con memoria en tiempo de ejecución, documentos locales y configuración JSON.
 
 ---
 

@@ -13,15 +13,13 @@ describe('WATTPAD CLI — Login Real, Navegador Controlado, Gestión Documental 
   let app: Application;
   let testVaultDir: string;
   let credStore: CredentialStore;
-  let testDbPath: string;
 
   beforeEach(async () => {
     testVaultDir = path.join(os.tmpdir(), `wattpad_auth_test_${Date.now()}_${Math.random().toString(36).slice(2)}`);
     fs.mkdirSync(testVaultDir, { recursive: true });
     credStore = new CredentialStore(path.join(testVaultDir, 'vault.enc'));
-    testDbPath = path.join(testVaultDir, 'test_wattpad.db');
 
-    app = new Application(testDbPath, credStore);
+    app = new Application(testVaultDir, credStore);
     await app.init();
   });
 
