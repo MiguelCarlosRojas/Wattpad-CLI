@@ -6,12 +6,12 @@ export function createStoryCommands(): CommandDefinition[] {
   return [
     {
       name: '/stories',
-      subcommands: ['search', 'drafts', 'published'],
+      subcommands: ['search', 'drafts', 'published', 'borradores', 'publicadas'],
       category: 'stories',
       description: 'Muestra todas las novelas de tu cuenta o busca entre tus obras',
       descriptionEn: 'Shows all stories in your account or searches your works',
-      usage: '/stories [search <término> | drafts | published]',
-      examples: ['/stories', '/stories search "fantasía"', '/stories drafts', '/stories published'],
+      usage: '/stories [search <término> | drafts | published | borradores | publicadas]',
+      examples: ['/stories', '/stories search "fantasía"', '/stories drafts', '/stories published', '/stories publicadas'],
       execute: (app, parsed: ParsedCommand): CommandResult => {
         let stories = app.storyRepo.findAll();
 
