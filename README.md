@@ -103,6 +103,44 @@ Inspirada en herramientas CLI modernas con bordes limpios, acentos de Wattpad y 
 
 ---
 
+## 🏛️ Arquitectura Modular (3 Carpetas Principales)
+
+El código fuente en `src/` está estrictamente organizado en 3 capas de responsabilidad:
+
+```text
+src/
+├── core/                  # Núcleo y componentes compartidos
+│   ├── bootstrap/         # Inicialización, ciclo de vida (lifecycle) y arranque CLI
+│   ├── config/            # Configuración JSON, esquemas Zod y gestor de configuración
+│   ├── errors/            # Clases de error estructuradas (AppError, ValidationError, etc.)
+│   ├── logging/           # Sistema de logging seguro sin exposición de credenciales
+│   ├── security/          # Criptografía AES-256-GCM, almacén de credenciales y SHA-256
+│   ├── types/             # Tipos globales, contratos y definiciones comunes
+│   └── utils/             # Formateadores de texto, fechas y conteo de palabras
+│
+├── features/              # Funcionalidades de dominio de Wattpad CLI
+│   ├── account/           # Gestión de cuentas, sesión de usuario y perfil
+│   ├── chapters/          # Gestión de capítulos, versiones y conteo de palabras
+│   ├── commands/          # Parser de comandos, router, historial y handlers generales
+│   ├── connections/       # Integraciones activas con Word, Notepad y Google Docs
+│   ├── documents/         # Gestión de documentos locales y vinculación
+│   ├── manuscripts/       # Parsers inteligentes de manuscritos (.docx, .txt, .gdoc)
+│   ├── publishing/        # Preparación, validación y confirmación de publicación
+│   ├── stories/           # Catálogo de novelas, metadatos y búsqueda
+│   └── updates/           # Comprobación de versiones y actualización con GitHub Releases
+│
+└── platform/              # Implementaciones técnicas e integraciones externas
+    ├── browser/           # Playwright, automatización de login y navegador emergente
+    ├── distribution/      # Servidor ligero de distribución de instaladores (/cli/install.ps1)
+    ├── filesystem/        # Acceso al sistema de archivos local, servicios Word y Notepad
+    ├── google/            # Integración con Google Docs API y OAuth 2.0
+    ├── sync/              # Motor de sincronización, detección de conflictos y respaldos
+    ├── terminal/          # Terminal interactiva TUI, componentes, temas y renderizadores
+    └── wattpad/           # Cliente técnico y comunicación con la plataforma oficial
+```
+
+---
+
 ## ⌨️ Referencia Rápida de Comandos
 
 | Comando | Acción |

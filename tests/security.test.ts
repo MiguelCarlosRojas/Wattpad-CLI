@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import crypto from 'crypto';
-import { sha256, encryptAES, decryptAES, formatId } from '../src/security/crypto-utils';
-import { CredentialStore } from '../src/security/credential-store';
+import { sha256, encryptAES, decryptAES, formatId } from '../src/core/security/crypto-utils';
+import { CredentialStore } from '../src/core/security/credential-store';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { SuggestionsDropdown } from '../src/cli/terminal/components/suggestions';
-import { CommandHistory } from '../src/commands/history';
-import { stripAnsi } from '../src/cli/terminal/theme';
+import { SuggestionsDropdown } from '../src/platform/terminal/components/suggestions';
+import { CommandHistory } from '../src/features/commands/history';
+import { stripAnsi } from '../src/platform/terminal/theme';
 
 describe('Interactive Keyboard Navigation & Selection', () => {
   it('should navigate up and down through command history', () => {

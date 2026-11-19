@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { Theme, Chalk, hexToRgb } from '../src/cli/terminal/theme';
+import { Theme, Chalk, hexToRgb } from '../src/platform/terminal/theme';
 
 describe('Theme & TrueColor Visual Engine', () => {
   it('should parse hex to RGB correctly', () => {

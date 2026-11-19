@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
-import { ThemeManager, THEMES } from '../src/cli/terminal/theme-manager';
-import { TerminalAdapter } from '../src/cli/terminal/terminal-adapter';
-import { Theme } from '../src/cli/terminal/theme';
+import { ThemeManager, THEMES } from '../src/platform/terminal/theme-manager';
+import { TerminalAdapter } from '../src/platform/terminal/terminal-adapter';
+import { Theme } from '../src/platform/terminal/theme';
 import fs from 'fs';
 import path from 'path';
 

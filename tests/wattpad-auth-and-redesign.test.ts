@@ -2,12 +2,12 @@ import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
-import { Application } from '../src/cli/app/application';
-import { Header } from '../src/cli/terminal/components/header';
-import { CommandInput } from '../src/cli/terminal/components/command-input';
-import { CredentialStore } from '../src/security/credential-store';
-import { stripAnsi } from '../src/cli/terminal/theme';
-import { DocumentParser } from '../src/integrations/document-parser';
+import { Application } from '../src/platform/terminal/application';
+import { Header } from '../src/platform/terminal/components/header';
+import { CommandInput } from '../src/platform/terminal/components/command-input';
+import { CredentialStore } from '../src/core/security/credential-store';
+import { stripAnsi } from '../src/platform/terminal/theme';
+import { DocumentParser } from '../src/features/manuscripts/parsers/document-parser';
 
 describe('WATTPAD CLI — Login Real, Navegador Controlado, Gestión Documental y Rediseño Total', () => {
   let app: Application;

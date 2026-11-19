@@ -2,15 +2,13 @@ import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
-import {
-  StoryManager,
-  ChapterManager,
-  ConnectionManager,
-  DocumentManager,
-  SyncManager,
-  SettingsManager,
-} from '../src/workspace';
-import { Application } from '../src/cli/app/application';
+import { StoryManager } from '../src/features/stories/managers/story-manager';
+import { ChapterManager } from '../src/features/chapters/managers/chapter-manager';
+import { ConnectionManager } from '../src/features/connections/managers/connection-manager';
+import { DocumentManager } from '../src/features/documents/managers/document-manager';
+import { SyncManager } from '../src/platform/sync/sync-manager';
+import { SettingsManager } from '../src/core/config/settings-manager';
+import { Application } from '../src/platform/terminal/application';
 
 describe('Sovereign Architecture Without Database Engine', () => {
   let tempDir: string;

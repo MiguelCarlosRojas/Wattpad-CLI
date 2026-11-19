@@ -8,6 +8,14 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/
 
 ## [1.1.0] — 2026-11-19
 
+### 🏗️ Refactorización Arquitectónica Integral (3 Carpetas Principales)
+- **Consolidación Estricta de `src/`**: Reorganización completa de las 12 carpetas dispersas anteriores en exactamente 3 carpetas de responsabilidad:
+  - `core/`: Núcleo, bootstrap, configuración JSON, seguridad criptográfica, tipos compartidos, clases de error, logging y utilidades.
+  - `features/`: Módulos de dominio de Wattpad CLI (`account/`, `stories/`, `chapters/`, `manuscripts/`, `documents/`, `connections/`, `publishing/`, `updates/`, `commands/`).
+  - `platform/`: Adaptadores técnicos e integraciones externas (`terminal/`, `wattpad/`, `browser/`, `google/`, `filesystem/`, `sync/`, `distribution/`).
+- **Cero Carpetas Residuales**: Eliminadas `api/`, `app/`, `cli/`, `commands/`, `config/`, `integrations/`, `security/`, `shared/`, `sync/`, `types/`, `utils/`, `workspace/` del nivel raíz de `src/`.
+- **Configuración y Build**: Actualizado `package.json`, `tsconfig.json` con alias `@core/*`, `@features/*`, `@platform/*`, y `scripts/build-cli.ts` compilando directamente desde `src/core/bootstrap/main.ts`.
+
 ### 🔧 Corrección Crítica del Instalador de Windows (`install.ps1`)
 - **Sesión de Terminal Preservada**: Encapsulación de todo el flujo en `Invoke-WattpadInstall` con captura segura de errores mediante `try/catch/finally` y retornos limpios.
 - **Eliminación Total de Cierres de Proceso Anfitrión**: Eliminadas de raíz todas las llamadas a `exit`, `[Environment]::Exit()`, `$host.SetShouldExit()` o terminación forzada del shell. PowerShell, Windows Terminal y CMD permanecen completamente abiertos e interactivos tras la instalación.

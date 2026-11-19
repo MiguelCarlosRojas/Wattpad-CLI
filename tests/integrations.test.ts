@@ -2,11 +2,11 @@ import { describe, expect, it } from 'bun:test';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
-import { WordService } from '../src/integrations/word/word-service';
-import { NotepadService } from '../src/integrations/notepad/notepad-service';
-import { FileSystemManager } from '../src/utils/file-system';
-import { Story } from '../src/types/story.types';
-import { Chapter } from '../src/types/chapter.types';
+import { WordService } from '../src/platform/filesystem/word-service';
+import { NotepadService } from '../src/platform/filesystem/notepad-service';
+import { FileSystemManager } from '../src/platform/filesystem/file-system';
+import { Story } from '../src/features/stories/types/story.types';
+import { Chapter } from '../src/features/chapters/types/chapter.types';
 
 describe('Document Integrations (Word & Notepad)', () => {
   const tmpDir = path.join(os.tmpdir(), `wattpad_docs_test_${Date.now()}`);

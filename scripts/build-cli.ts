@@ -85,7 +85,7 @@ async function main() {
   }
 
   const outfile = outfileArg || defaultOutfile;
-  console.log(`▸ Entrypoint:  src/cli/main.ts`);
+  console.log(`▸ Entrypoint:  src/core/bootstrap/main.ts`);
   console.log(`▸ Outfile:     ${outfile}`);
   console.log(`▸ Target:      ${compileTarget}`);
   if (Object.keys(define).length > 0) {
@@ -94,7 +94,7 @@ async function main() {
 
   const startTime = Date.now();
   const result = await Bun.build({
-    entrypoints: ['src/cli/main.ts'],
+    entrypoints: ['src/core/bootstrap/main.ts'],
     compile: {
       target: compileTarget,
       outfile,

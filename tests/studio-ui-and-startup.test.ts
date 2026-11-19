@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'bun:test';
-import { AppShell } from '../src/cli/terminal/app-shell';
-import { Header } from '../src/cli/terminal/components/header';
-import { CommandInput } from '../src/cli/terminal/components/command-input';
-import { SuggestionsDropdown } from '../src/cli/terminal/components/suggestions';
-import { StatusBar } from '../src/cli/terminal/components/status-bar';
-import { CommandOutput } from '../src/cli/terminal/components/command-output';
-import { ResponsiveManager, ResponsiveLayoutConfig } from '../src/cli/terminal/responsive';
-import { CommandRegistry } from '../src/commands/command-registry';
-import { CommandHistory } from '../src/commands/history';
-import { loadAndValidateEnv, getEnv } from '../src/config/env';
-import { Application } from '../src/cli/app/application';
+import { AppShell } from '../src/platform/terminal/app-shell';
+import { Header } from '../src/platform/terminal/components/header';
+import { CommandInput } from '../src/platform/terminal/components/command-input';
+import { SuggestionsDropdown } from '../src/platform/terminal/components/suggestions';
+import { StatusBar } from '../src/platform/terminal/components/status-bar';
+import { CommandOutput } from '../src/platform/terminal/components/command-output';
+import { ResponsiveManager, ResponsiveLayoutConfig } from '../src/platform/terminal/responsive';
+import { CommandRegistry } from '../src/features/commands/command-registry';
+import { CommandHistory } from '../src/features/commands/history';
+import { loadAndValidateEnv, getEnv } from '../src/core/config/env';
+import { Application } from '../src/platform/terminal/application';
 
 describe('Wattpad CLI — Componentes TUI y Ejecución Oficial v1.0.0', () => {
   // 1. Dotenv Isolation & Configuration

@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
-import { Application } from '../src/cli/app/application';
+import { Application } from '../src/platform/terminal/application';
 
 describe('Application Command Execution', () => {
   let app: Application;

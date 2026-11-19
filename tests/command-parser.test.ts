@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { CommandParser } from '../src/commands/command-parser';
+import { CommandParser } from '../src/features/commands/command-parser';
 
 describe('CommandParser', () => {
   it('should ignore input not starting with /', () => {

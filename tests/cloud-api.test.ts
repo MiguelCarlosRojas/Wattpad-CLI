@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeAll, afterAll } from 'bun:test';
-import { WattpadCloudApiServer } from '../src/api/server';
+import { WattpadCloudApiServer } from '../src/platform/distribution/server';
 
 describe('Wattpad Distribution Server & Installer Hosting', () => {
   let server: WattpadCloudApiServer;

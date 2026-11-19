@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
-import { ResponsiveManager, ResponsiveLayoutConfig } from '../src/cli/terminal/responsive';
-import { Header, HeaderProps } from '../src/cli/terminal/components/header';
-import { InputBoxRenderer } from '../src/cli/terminal/components/input-box';
-import { BlockCardRenderer } from '../src/cli/terminal/components/block-card';
-import { StatusBar } from '../src/cli/terminal/components/status-bar';
+import { ResponsiveManager, ResponsiveLayoutConfig } from '../src/platform/terminal/responsive';
+import { Header, HeaderProps } from '../src/platform/terminal/components/header';
+import { InputBoxRenderer } from '../src/platform/terminal/components/input-box';
+import { BlockCardRenderer } from '../src/platform/terminal/components/block-card';
+import { StatusBar } from '../src/platform/terminal/components/status-bar';
 
 describe('Responsive Layout & Dimension Adaptation', () => {
   const testDimensions = [

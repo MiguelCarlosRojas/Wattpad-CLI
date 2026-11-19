@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { ConflictDetector } from '../src/sync/conflict-detector';
-import { BackupManager } from '../src/sync/backup-manager';
+import { ConflictDetector } from '../src/platform/sync/conflict-detector';
+import { BackupManager } from '../src/platform/sync/backup-manager';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
