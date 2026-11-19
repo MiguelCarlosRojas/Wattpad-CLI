@@ -69,7 +69,7 @@ export class CommandParser {
     for (let i = 0; i < str.length; i++) {
       const char = str[i];
 
-      if (char === '\\' && i + 1 < str.length) {
+      if (char === '\\' && i + 1 < str.length && (str[i + 1] === '"' || str[i + 1] === "'")) {
         current += str[i + 1];
         i++;
         continue;

@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { CommandDefinition, CommandResult, ParsedCommand, RenderBlock } from '../../types/command.types';
 import { defaultConfig } from '../../config/config';
 import { env } from '../../config/env';
@@ -6,12 +8,12 @@ export function createConnectCommands(): CommandDefinition[] {
   return [
     {
       name: '/connect',
-      subcommands: ['word', 'notepad', 'google'],
+      subcommands: ['word', 'notepad', 'google', 'docs'],
       category: 'connections',
-      description: 'Muestra y administra las conexiones externas con Word, Bloc de Notas y Google Docs',
-      descriptionEn: 'View and manage external connections with Word, Notepad, and Google Docs',
-      usage: '/connect [word | notepad | google]',
-      examples: ['/connect', '/connect word', '/connect notepad', '/connect google'],
+      description: 'Administrador de documentos reales e integraciones (Word, Bloc de Notas, Google Docs)',
+      descriptionEn: 'Real document manager and integrations (Word, Notepad, Google Docs)',
+      usage: '/connect [word | notepad | google | docs]',
+      examples: ['/connect', '/connect word', '/connect notepad', '/connect google', '/connect docs'],
       execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
         const target = parsed.subcommand;
 
@@ -23,18 +25,19 @@ export function createConnectCommands(): CommandDefinition[] {
             blocks: [
               {
                 type: 'card',
-                title: 'CONEXIÓN: MICROSOFT WORD',
-                subtitle: 'Integración DOCX activa',
-                statusBadge: 'CONECTADO',
+                title: 'ADMINISTRADOR DOCUMENTAL: MICROSOFT WORD (.DOCX)',
+                subtitle: 'Motor nativo de importación y exportación DOCX activado',
+                statusBadge: 'ACTIVO',
                 statusColor: '#28A745',
                 fields: [
-                  { label: 'Estado', value: 'Activo y verificado' },
-                  { label: 'Directorio de Novelas', value: defaultConfig.docsDir },
-                  { label: 'Compatibilidad', value: 'Word 2016+, Office 365, LibreOffice' },
-                  { label: 'Detección de cambios', value: 'Hash SHA-256 automático' },
+                  { label: 'Formato', value: 'Microsoft Word (.docx)' },
+                  { label: 'Directorio de Manuscritos', value: defaultConfig.docsDir },
+                  { label: 'Capacidades', value: 'Lectura de párrafos, detección de títulos y capítulos, preservación del texto' },
+                  { label: 'Uso recomendado', value: 'Usa /chapter import <archivo.docx> para importar' },
                 ],
               },
             ],
+            message: 'Integración de Microsoft Word (.docx) lista para procesar manuscritos.',
           };
         }
 
@@ -46,28 +49,67 @@ export function createConnectCommands(): CommandDefinition[] {
             blocks: [
               {
                 type: 'card',
-                title: 'CONEXIÓN: BLOC DE NOTAS',
-                subtitle: 'Integración TXT UTF-8 activa',
-                statusBadge: 'CONECTADO',
+                title: 'ADMINISTRADOR DOCUMENTAL: BLOC DE NOTAS (.TXT)',
+                subtitle: 'Lector y estructurador UTF-8 activo',
+                statusBadge: 'ACTIVO',
                 statusColor: '#28A745',
                 fields: [
-                  { label: 'Estado', value: 'Activo y verificado' },
-                  { label: 'Codificación', value: 'UTF-8 sin BOM' },
-                  { label: 'Directorio de Novelas', value: defaultConfig.docsDir },
+                  { label: 'Formato', value: 'Texto plano (.txt) codificado en UTF-8' },
+                  { label: 'Directorio de Manuscritos', value: defaultConfig.docsDir },
+                  { label: 'Capacidades', value: 'Detección automática de separaciones de capítulos (Capítulo X, líneas de corte)' },
+                  { label: 'Uso recomendado', value: 'Usa /chapter import <archivo.txt> para importar' },
                 ],
               },
             ],
+            message: 'Integración de Bloc de Notas (.txt) lista para procesar manuscritos.',
           };
         }
 
         // /connect google
         if (target === 'google') {
           try {
-            const { authUrl, sessionId } = await app.googleIntegration.startAuth();
+            const isConnected = await app.googleService.isConnected();
+            if (isConnected) {
+              const files = await app.googleService.listDocuments(5).catch(() => []);
+              return {
+                success: true,
+                blocks: [
+                  {
+                    type: 'card',
+                    title: 'GOOGLE DOCS / DRIVE (OAUTH 2.0)',
+                    subtitle: 'Conexión oficial autorizada con permisos mínimos de lectura',
+                    statusBadge: 'CONECTADO',
+                    statusColor: '#28A745',
+                    fields: [
+                      { label: 'Estado', value: 'Autorizado y conectado' },
+                      { label: 'Permisos', value: 'Solo lectura de documentos y metadatos de Drive' },
+                      { label: 'Documentos recientes', value: files.length > 0 ? files.map((f: any) => f.name).join(', ') : 'Sin documentos recientes' },
+                      { label: 'Importación', value: 'Ejecuta /chapter import google:<docId> para importar un documento' },
+                    ],
+                  },
+                ],
+                message: 'Google Docs está conectado y listo para importar novelas y capítulos.',
+              };
+            }
 
-            // Open browser only in interactive non-test environment
+            const { authUrl, waitForAuth } = await app.googleService.initiateAuth();
+
+            // Abrir navegador si no estamos en entorno de prueba
             if (env.NODE_ENV !== 'test') {
-              Bun.spawn(['cmd', '/c', 'start', '""', authUrl], { detached: true });
+              if (process.platform === 'win32') {
+                Bun.spawn(['cmd', '/c', 'start', '""', authUrl], { detached: true });
+              } else if (process.platform === 'darwin') {
+                Bun.spawn(['open', authUrl], { detached: true });
+              } else {
+                Bun.spawn(['xdg-open', authUrl], { detached: true });
+              }
+
+              // Esperar en segundo plano
+              waitForAuth().then((success) => {
+                if (success) {
+                  app.connRepo.setConnected('google', 'Google Docs / Drive', true, 'Cuenta Google Autorizada');
+                }
+              }).catch(() => {});
             }
 
             return {
@@ -75,19 +117,18 @@ export function createConnectCommands(): CommandDefinition[] {
               blocks: [
                 {
                   type: 'card',
-                  title: 'AUTORIZACIÓN CLOUD DE GOOGLE DOCS',
-                  subtitle: 'Flujo oficial OAuth 2.0 HTTPS (Sin servidores localhost)',
-                  statusBadge: 'AUTORIZACIÓN REQUERIDA',
-                  statusColor: '#FFC107',
+                  title: 'AUTORIZACIÓN DE GOOGLE DOCS (OAUTH 2.0)',
+                  subtitle: 'Permisos mínimos necesarios para seleccionar e importar documentos',
+                  statusBadge: 'AUTORIZACIÓN PENDIENTE',
+                  statusColor: '#FF6122',
                   fields: [
                     { label: 'URL de Autorización', value: authUrl },
-                    { label: 'Callback Cloud', value: env.GOOGLE_REDIRECT_URI },
-                    { label: 'ID Sesión', value: sessionId },
-                    { label: 'Seguridad', value: 'OAuth 2.0 Oficial de Google con almacenamiento seguro en la nube' },
+                    { label: 'Alcance', value: 'documents.readonly, drive.readonly' },
+                    { label: 'Instrucciones', value: 'Inicia sesión en Google y autoriza la lectura de documentos.' },
                   ],
                 },
               ],
-              message: 'Autoriza el acceso en tu navegador en la nube. Al regresar ejecuta /connect para verificar.',
+              message: 'Se ha abierto la página de autorización de Google Docs en tu navegador.',
             };
           } catch (err: any) {
             return {
@@ -96,69 +137,126 @@ export function createConnectCommands(): CommandDefinition[] {
                 {
                   type: 'error',
                   title: 'Error al conectar Google Docs',
-                  content: `No se pudo iniciar el flujo de OAuth de Google en la nube: ${err.message}`,
+                  content: `No se pudo iniciar el flujo de autorización OAuth: ${err.message}`,
                 },
               ],
             };
           }
         }
 
-        // /connect (General status overview)
-        const connections = app.connRepo.getAll();
-        const blocks: RenderBlock[] = [
-          {
-            type: 'card',
-            title: 'ADMINISTRADOR DE CONEXIONES EXTERNAS',
-            subtitle: 'Estado en tiempo real de cada integración documental y en la nube',
-            statusBadge: 'CENTRO DE CONEXIONES',
-            statusColor: '#FF6122',
-          },
-        ];
+        // /connect docs: Explorar manuscritos disponibles en disco y Google Drive
+        if (target === 'docs') {
+          const docsDir = defaultConfig.docsDir;
+          const localFiles: string[] = [];
 
-        for (const conn of connections) {
-          blocks.push({
-            type: 'card',
-            title: conn.name,
-            statusBadge: conn.isConnected ? 'CONECTADO' : 'DESCONECTADO',
-            statusColor: conn.isConnected ? '#28A745' : '#808080',
-            fields: [
-              { label: 'Identificador / Cuenta', value: conn.accountIdentifier || 'No configurado' },
-              { label: 'Ruta Base', value: conn.basePath || 'Por defecto' },
-              { label: 'Última Sincronización', value: conn.lastSyncAt ? conn.lastSyncAt.slice(0, 16).replace('T', ' ') : 'Nunca' },
+          if (fs.existsSync(docsDir)) {
+            const entries = fs.readdirSync(docsDir, { recursive: true }) as string[];
+            for (const entry of entries) {
+              const fullPath = path.join(docsDir, String(entry));
+              if (fs.statSync(fullPath).isFile() && (fullPath.endsWith('.docx') || fullPath.endsWith('.txt'))) {
+                localFiles.push(path.relative(docsDir, fullPath));
+              }
+            }
+          }
+
+          let googleDocsList: any[] = [];
+          const isGoogleConnected = await app.googleService.isConnected().catch(() => false);
+          if (isGoogleConnected) {
+            googleDocsList = await app.googleService.listDocuments(10).catch(() => []);
+          }
+
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: 'ADMINISTRADOR DE DOCUMENTOS — MANUSCRITOS DISPONIBLES',
+                subtitle: `Directorio local: ${docsDir}`,
+                statusBadge: `${localFiles.length + googleDocsList.length} DOCUMENTOS`,
+                statusColor: '#17A2B8',
+                fields: [
+                  {
+                    label: 'Documentos Locales (.docx / .txt)',
+                    value: localFiles.length > 0 ? localFiles.slice(0, 10).join('\n') : 'No hay documentos en la carpeta local de novelas.',
+                  },
+                  {
+                    label: 'Documentos en Google Drive',
+                    value: isGoogleConnected
+                      ? (googleDocsList.length > 0 ? googleDocsList.map((g) => `${g.name} [ID: ${g.id}]`).join('\n') : 'No se encontraron documentos en Google Drive.')
+                      : 'Google Docs no conectado (usa /connect google).',
+                  },
+                  {
+                    label: 'Cómo importar',
+                    value: 'Usa /chapter import <ruta_archivo> o /chapter import google:<id>',
+                  },
+                ],
+              },
             ],
-          });
+          };
         }
+
+        // /connect (Resumen general del Administrador de Documentos)
+        const isGoogleConnected = await app.googleService.isConnected().catch(() => false);
+        const wattpadUser = await app.wattpadService.getProfile();
+        const docsDir = defaultConfig.docsDir;
 
         return {
           success: true,
-          blocks,
+          blocks: [
+            {
+              type: 'card',
+              title: 'ADMINISTRADOR DE DOCUMENTOS Y CUENTA WATTPAD',
+              subtitle: 'Gestión exclusiva de novelas, capítulos, documentos y publicaciones',
+              statusBadge: wattpadUser ? `@${wattpadUser.username}` : 'MODO LOCAL',
+              statusColor: wattpadUser ? '#28A745' : '#808080',
+              fields: [
+                {
+                  label: 'Cuenta Wattpad',
+                  value: wattpadUser ? `@${wattpadUser.username} (Conectada)` : 'Sin conectar (Usa /login)',
+                },
+                {
+                  label: 'Microsoft Word (.docx)',
+                  value: `Activo · Directorio: ${docsDir}`,
+                },
+                {
+                  label: 'Bloc de Notas (.txt)',
+                  value: `Activo · Codificación UTF-8 · Directorio: ${docsDir}`,
+                },
+                {
+                  label: 'Google Docs / Drive',
+                  value: isGoogleConnected ? 'Conectado (OAuth 2.0 Lectura)' : 'Desconectado (Usa /connect google)',
+                },
+              ],
+            },
+          ],
         };
       },
     },
 
     {
       name: '/disconnect',
-      subcommands: ['word', 'notepad', 'google'],
+      subcommands: ['google', 'word', 'notepad'],
       category: 'connections',
       description: 'Desconecta una integración externa',
       descriptionEn: 'Disconnects an external integration',
-      usage: '/disconnect [word | notepad | google]',
-      examples: ['/disconnect word', '/disconnect google'],
+      usage: '/disconnect [google | word | notepad]',
+      examples: ['/disconnect google'],
       execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
-        const target = parsed.subcommand as 'word' | 'notepad' | 'google';
+        const target = parsed.subcommand as 'google' | 'word' | 'notepad';
 
-        if (!target || !['word', 'notepad', 'google'].includes(target)) {
+        if (!target || !['google', 'word', 'notepad'].includes(target)) {
           return {
             success: false,
-            blocks: [{ type: 'error', title: 'Objetivo requerido', content: 'Uso: /disconnect [word | notepad | google]' }],
+            blocks: [{ type: 'error', title: 'Objetivo requerido', content: 'Uso: /disconnect [google | word | notepad]' }],
           };
         }
 
         if (target === 'google') {
           await app.googleService.disconnect();
+          app.connRepo.setConnected('google', 'Google Docs / Drive', false);
+        } else {
+          app.connRepo.setConnected(target, target, false);
         }
-
-        app.connRepo.setConnected(target, target, false);
 
         return {
           success: true,
@@ -197,7 +295,7 @@ export function createConnectCommands(): CommandDefinition[] {
                 subtitle: 'Mis novelas / Documentos',
                 statusBadge: '0 DOCUMENTOS',
                 statusColor: '#808080',
-                content: 'No hay documentos asociados aún. Usa /story new y /chapter new para generar tu biblioteca estructurada.',
+                content: 'No tienes novelas disponibles en esta cuenta.\nUsa /story new para crear tu primera novela.',
               },
             ],
           };
@@ -206,40 +304,27 @@ export function createConnectCommands(): CommandDefinition[] {
         const blocks: RenderBlock[] = [
           {
             type: 'card',
-            title: 'ORGANIZACIÓN DE DOCUMENTOS POR NOVELA',
-            subtitle: 'Estructura organizada de archivos Microsoft Word (.docx), Bloc de notas (.txt) y Google Docs',
-            statusBadge: `${stories.length} NOVELAS`,
+            title: 'ORGANIZACIÓN DE NOVELAS Y DOCUMENTOS',
+            subtitle: `${stories.length} obra(s) catalogada(s)`,
+            statusBadge: 'BIBLIOTECA DOCUMENTAL',
             statusColor: '#FF6122',
           },
         ];
 
         for (const story of stories) {
-          if (!story) continue;
           const chapters = app.chapterRepo.findByStoryId(story.id);
-          const fields: { label: string; value: string }[] = [
-            { label: 'Ruta local', value: `Mis novelas/${story.title}/` },
-            { label: 'Vínculo ID Interno', value: story.id },
-            { label: 'Vínculo ID Wattpad', value: story.wattpadId ? story.wattpadId : 'Pendiente de publicación' },
-            { label: 'Editor Preferido', value: story.editorPreference.toUpperCase() },
-            { label: 'Información', value: `Informacion/sinopsis.txt, Informacion/metadatos.json` },
-          ];
-
-          for (const ch of chapters) {
-            const ext = story.editorPreference === 'notepad' ? '.txt' : '.docx';
-            const numStr = String(ch.chapterNumber).padStart(3, '0');
-            fields.push({
-              label: `Capítulo ${ch.chapterNumber}`,
-              value: `Capitulos/${numStr} - ${ch.title}${ext} [ID: ${ch.id} · ${ch.status.toUpperCase()}]`,
-            });
-          }
-
           blocks.push({
             type: 'card',
             title: `${story.title} [${story.id}]`,
-            subtitle: `${chapters.length} capítulo(s) organizados jerárquicamente`,
-            statusBadge: story.editorPreference.toUpperCase(),
-            statusColor: '#FF6122',
-            fields,
+            subtitle: `Editor preferido: ${story.editorPreference.toUpperCase()} | Género: ${story.genre}`,
+            statusBadge: `${chapters.length} CAPÍTULOS`,
+            statusColor: '#17A2B8',
+            fields: [
+              {
+                label: 'Capítulos detectados',
+                value: chapters.length > 0 ? chapters.map((c: any) => `Cap. ${c.chapterNumber}: ${c.title}`).join('\n') : 'Sin capítulos aún',
+              },
+            ],
           });
         }
 

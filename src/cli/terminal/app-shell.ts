@@ -9,7 +9,9 @@ import { SuggestionsDropdown } from './components/suggestions';
 import { StatusBar } from './components/status-bar';
 import { AuthModal, AuthModalFocus, AuthModalProps } from './components/auth-modal';
 import { CommandOutput, OutputViewProps } from './components/command-output';
-import { Story, Chapter, WattpadUser } from '../../shared/types';
+import { Story } from '../../types/story.types';
+import { Chapter } from '../../types/chapter.types';
+import { WattpadUser } from '../../types/auth.types';
 import { CommandRegistry } from '../../commands/command-registry';
 import { CommandHistory } from '../../commands/history';
 import { CommandResult, Suggestion } from '../../types/command.types';
@@ -440,13 +442,7 @@ export class AppShell {
       return;
     }
 
-    // Modal trigger: /login without arguments opens modal in interactive mode
-    if (trimmed === '/login') {
-      openUrlInBrowser('https://www.wattpad.com/login').catch(() => {});
-      this.openAuthModal();
-      return;
-    }
-
+    // Modal trigger: se delega a onCommandExecute para usar el navegador oficial Playwright
     if (trimmed.startsWith('/theme')) {
       const parts = trimmed.split(' ');
       const themeArg = parts[1] as any;
@@ -549,13 +545,16 @@ export class AppShell {
       viewLines = CommandOutput.render(this.latestOutput, config.width);
     } else {
       viewLines.push('');
-      viewLines.push(Chalk.dim('  Bienvenido a Wattpad CLI. Administra tus novelas, capítulos y publicaciones.'));
+      viewLines.push(Chalk.bold(Chalk.hex(Theme.colors.primary, '  WATTPAD')));
+      viewLines.push(Chalk.dim('  ❯ ~ Wattpad CLI'));
+      viewLines.push('');
+      viewLines.push(Chalk.dim('  Escribe un comando o selecciona una operación.'));
       viewLines.push(
-        Chalk.dim('  Escribe ') +
-          Chalk.hex(Theme.colors.primary, '/') +
-          Chalk.dim(' para ver los comandos disponibles o ') +
+        Chalk.dim('  Usa ') +
           Chalk.hex(Theme.colors.primary, '/login') +
-          Chalk.dim(' para conectar tu cuenta.')
+          Chalk.dim(' para conectar tu cuenta o ') +
+          Chalk.hex(Theme.colors.primary, '/help') +
+          Chalk.dim(' para ver todos los comandos.')
       );
     }
 

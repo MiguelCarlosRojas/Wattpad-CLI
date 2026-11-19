@@ -14,9 +14,9 @@ export class CliController {
       serverStatus: 'healthy',
       features: {
         googleDocsOAuth: true,
-        wordCloudSync: true,
-        cloudPostgres: true,
-        s3Storage: true,
+        wordImport: true,
+        notepadImport: true,
+        browserAuth: true,
       },
       installerEndpoints: {
         powershell: `${env.WATTPAD_API_BASE_URL}/cli/install.ps1`,
@@ -25,8 +25,8 @@ export class CliController {
       binaries: {
         'win32-x64': {
           filename: 'wattpad.exe',
-          sha256: '37e1673071d1285157c296e71117d09eaec4a466b1cc13d2d37a7f1d2a83ba6d',
-          size: 149465088,
+          sha256: '8d82e28829e22a31e78e1c38c6cabdbe34b12cb61bf47714e5e303e282a923a5',
+          size: 156910080,
           downloadUrl: `${env.WATTPAD_API_BASE_URL}/cli/download/win32-x64`,
         },
       },

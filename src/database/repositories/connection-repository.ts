@@ -8,7 +8,7 @@ export class ConnectionRepository {
 
   private ensureDefaults(): void {
     const defaultTypes: Array<{ type: IntegrationType; name: string }> = [
-      { type: 'wattpad', name: 'Wattpad Cloud' },
+      { type: 'wattpad', name: 'Wattpad' },
       { type: 'word', name: 'Microsoft Word (.docx)' },
       { type: 'notepad', name: 'Bloc de Notas (.txt)' },
       { type: 'google', name: 'Google Docs / Drive' },

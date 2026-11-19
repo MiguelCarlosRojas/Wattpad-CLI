@@ -3,7 +3,7 @@ import { Theme, Chalk, padEndVisible, stripAnsi } from '../theme';
 
 export interface HeaderProps {
   version: string;
-  user: string;
+  user?: string | null;
   isAuthenticated: boolean;
   serverUrl?: string;
   serverOnline?: boolean;
@@ -14,40 +14,51 @@ export interface HeaderProps {
 export class Header {
   public static render(props: HeaderProps, config: ResponsiveLayoutConfig): string[] {
     const lines: string[] = [];
-    const width = config.width || 80;
+    const width = Math.max(50, config.width || 80);
 
-    // Line 1: WATTPAD CLI v1.0.0                                  ◉
     const brand = Chalk.bold(Chalk.hex(Theme.colors.primary, 'WATTPAD CLI'));
     const version = Chalk.dim(`v${props.version || '1.0.0'}`);
-    const leftTitle = `${brand} ${version}`;
-    const statusDot = props.isAuthenticated
-      ? Chalk.hex(Theme.colors.success, '◉')
-      : Chalk.dim('◉');
+    const leftText = `${brand} ${version}`;
 
-    const spaceCount = Math.max(1, width - stripAnsi(leftTitle).length - stripAnsi(statusDot).length);
-    lines.push(`${leftTitle}${' '.repeat(spaceCount)}${statusDot}`);
-
-    // Line 2: Account Status
-    let accountStatusLine: string;
+    // Estado superior sobrio especificado exactamente:
+    // `WATTPAD CLI v1.0.0     ● @usuario     Conectado`
+    // Si no hay sesión:
+    // `WATTPAD CLI v1.0.0     ○ Sin conexión`
+    let rightStatus: string;
     if (props.isAuthenticated && props.user && props.user !== 'Desconectado' && props.user !== 'Sin conectar') {
       const username = props.user.startsWith('@') ? props.user : `@${props.user}`;
-      accountStatusLine = `Cuenta: ${Chalk.hex(Theme.colors.primary, Chalk.bold(username))} · ${Chalk.hex(Theme.colors.success, 'Wattpad conectado')}`;
+      const dot = Chalk.hex(Theme.colors.success, '●');
+      const userStyled = Chalk.bold(Chalk.hex(Theme.colors.primary, username));
+      const connectedWord = Chalk.hex(Theme.colors.success, 'Conectado');
+      rightStatus = `${dot} ${userStyled}     ${connectedWord}`;
     } else {
-      accountStatusLine = `Cuenta: ${Chalk.dim('Sin conectar')}`;
+      const emptyDot = Chalk.dim('○');
+      const disconnectedWord = Chalk.dim('Sin conexión');
+      rightStatus = `${emptyDot} ${disconnectedWord}`;
     }
 
-    lines.push(padEndVisible(accountStatusLine, width));
+    const leftLen = stripAnsi(leftText).length;
+    const rightLen = stripAnsi(rightStatus).length;
+    const spacing = Math.max(4, width - leftLen - rightLen);
 
-    // Optional active context
+    lines.push(`${leftText}${' '.repeat(spacing)}${rightStatus}`);
+
+    // Si se especifica servidor o entorno de pruebas
+    if (props.serverOnline && props.user && props.isAuthenticated) {
+      const subInfo = Chalk.dim(`Cuenta: ${props.user.startsWith('@') ? props.user : '@' + props.user} · Wattpad conectado ◉`);
+      lines.push(padEndVisible(subInfo, width));
+    }
+
+    // Contexto activo si existe (novela y capítulo)
     if (props.activeStory) {
-      const storyInfo =
-        Chalk.dim('Novela activa: ') +
+      const activeCtx =
+        Chalk.dim('Novela: ') +
         Chalk.hex(Theme.colors.primary, props.activeStory) +
-        (props.activeChapter ? Chalk.dim(' · Capítulo: ') + Chalk.hex(Theme.colors.text, props.activeChapter) : '');
-      lines.push(padEndVisible(storyInfo, width));
+        (props.activeChapter ? Chalk.dim(' · Cap: ') + Chalk.hex(Theme.colors.text, props.activeChapter) : '');
+      lines.push(padEndVisible(activeCtx, width));
     }
 
-    // Divider
+    // Línea separadora sutil
     lines.push(Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(width)));
     return lines;
   }

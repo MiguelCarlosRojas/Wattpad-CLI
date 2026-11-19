@@ -1,23 +1,38 @@
 # Wattpad CLI (v1.0.0)
 
-> **Herramienta oficial de terminal dedicada exclusivamente a la gestión de novelas, capítulos, manuscritos locales (Microsoft Word, Bloc de notas, Google Docs) y administración soberana de tu cuenta de Wattpad.**
+> **Herramienta oficial de terminal exclusivamente dedicada a gestionar una cuenta de Wattpad, novelas, capítulos, documentos (Microsoft Word, Bloc de notas, Google Docs) y publicaciones.**
 
 **Repositorio oficial:** https://github.com/MiguelCarlosRojas/Wattpad-CLI  
-**Backend cloud:** https://wattpad-cli.onrender.com  
+**Alojamiento de instaladores:** https://wattpad-cli.onrender.com  
 
 ---
 
-## 🎯 Propósito de Wattpad CLI
+## 🎯 Funcionalidades Exclusivas
 
-Wattpad CLI está diseñada exclusivamente para autores y administradores literarios:
+Wattpad CLI está diseñada exclusivamente para gestionar tus novelas, manuscritos y cuenta de Wattpad de forma soberana, rápida y segura:
 
-1. **Gestión de Cuenta Wattpad**: Conecta tu cuenta oficial con `/login` mediante navegador y modal seguro en terminal, consulta tu perfil con `/account` o cierra sesión con `/logout --confirm`.
-2. **Administración de Novelas**: Crea, organiza, edita y busca tus historias (`/stories`, `/stories search`, `/story new`, `/story open`, `/story info`, `/story edit`, `/story delete --confirm`).
-3. **Capítulos y Manuscritos**: Administra capítulos por novela, reordena episodios, importa y exporta borradores con cálculo de palabras y hashes criptográficos (`/chapters`, `/chapter new`, `/chapter open`, `/chapter edit`, `/chapter delete --confirm`, `/chapter publish`, `/chapter unpublish`).
-4. **Integración con Procesadores de Texto**: Escribe cómodamente en **Microsoft Word (.docx)** o **Bloc de notas (.txt UTF-8)** con asociación automática por novela y capítulo (`/connect word`, `/connect notepad`, `/connect`).
-5. **Conexión Cloud con Google Docs**: Vincula tus documentos de Google Docs de forma segura con OAuth2 HTTPS (**cero localhost**) mediante `/connect google`.
-6. **Publicación Oficial Asistida**: Consulta el estado de borradores y publicaciones con `/publish status`, y gestiona la preparación y apertura del portal oficial de Wattpad con `/publish story` y `/publish chapter`.
-7. **Cero Datos Ficticios**: La CLI opera únicamente con tu cuenta real y tus documentos reales.
+1. **Iniciar sesión en Wattpad (`/login`)**: Abre una ventana de navegador controlado mediante Playwright directo a `https://www.wattpad.com/login` para completar tus credenciales y verificaciones oficiales de seguridad. Conserva la sesión en un perfil de navegación seguro y persistente.
+2. **Crear una cuenta de Wattpad (`/register`)**: Abre el registro oficial de Wattpad.
+3. **Cerrar sesión y volver a conectar (`/logout`, `/login`)**: Invalida la sesión local, elimina el perfil de navegación persistente con confirmación y permite cambiar de cuenta.
+4. **Consultar perfil de usuario (`/profile` o `/account`)**: Información real de tu perfil de Wattpad, seguidores, obras y biografía.
+5. **Consultar novelas de la cuenta (`/stories`)**: Catálogo real de obras en borrador o públicas. Si no hay novelas, muestra estado vacío honesto sin datos ficticios.
+6. **Buscar y seleccionar novelas (`/stories search`, `/story open`)**: Búsqueda en tu catálogo y selección de contexto de trabajo.
+7. **Importar documentos de novelas (`/chapter import`)**: Importa archivos `.docx`, `.txt` o Google Docs detectando capítulos automáticamente, con vista previa y confirmación previa sin publicar automáticamente.
+8. **Organizar documentos y capítulos (`/chapters`, `/story`)**: Visualiza episodios, conteo de palabras y fechas de modificación.
+9. **Crear, editar y eliminar capítulos (`/chapter create`, `/chapter edit`, `/chapter delete`)**: Gestión completa de capítulos con confirmación obligatoria para operaciones destructivas.
+10. **Publicar novelas y capítulos (`/story create`, `/chapter publish`)**: Flujo de publicación formal con confirmación explícita (`--confirm`).
+11. **Cambiar la privacidad (`/story privacy [public|private]`)**: Alterna entre novela pública y borrador privado.
+12. **Consultar el estado de publicación (`/chapter status`, `/publish`)**: Distingue claramente qué capítulos son borradores privados y cuáles están públicos.
+13. **Actualizar Wattpad CLI (`/update`, `/config update`)**: Comprobación real contra GitHub Releases, descarga del binario con verificación SHA-256 e instalación consentida.
+
+---
+
+## 🚫 Cero Funcionalidades Ajenas y Cero Datos Falsos
+
+- **Sin IA ni asistentes conversacionales**: Dedicada 100% a tus obras y tu cuenta.
+- **Sin Render como backend de aplicación**: Eliminada la dependencia de bases de datos remotas PostgreSQL, APIs duplicadas y telemetría innecesaria.
+- **Sin datos ficticios**: No existen novelas ni usuarios falsos. Muestra información auténtica o estados vacíos claros.
+- **Arquitectura Soberana**: Base de datos SQLite local (`wattpad.db`) y archivos personales en tu equipo.
 
 ---
 
@@ -25,7 +40,7 @@ Wattpad CLI está diseñada exclusivamente para autores y administradores litera
 
 ### Método 1 — Windows (PowerShell 5.1 / 7+)
 
-Ejecuta en tu consola de PowerShell:
+Ejecuta en tu terminal de PowerShell (con barra de progreso real en tiempo de descarga):
 
 ```powershell
 irm https://wattpad-cli.onrender.com/cli/install.ps1 | iex
@@ -43,7 +58,7 @@ curl -fsSL https://wattpad-cli.onrender.com/cli/install.sh | bash
 npm install -g @wattpad/cli
 ```
 
-Una vez instalado, escribe en cualquier terminal:
+Una vez instalado, ejecuta en tu terminal:
 
 ```bash
 wattpad
@@ -51,115 +66,94 @@ wattpad
 
 ---
 
-## 📂 Organización de Documentos
+## 🎨 Nueva Interfaz de Usuario
 
-Tus manuscritos personales se organizan de forma local en la carpeta raíz del autor:
+Inspirada en herramientas CLI modernas con bordes limpios, acentos de Wattpad y minimalismo:
 
 ```text
-Mis novelas/
-  ├── <Título Novela 1>/
-  │     ├── Capitulos/
-  │     │     ├── 001 - Capitulo_1.docx (o .txt)
-  │     │     └── 002 - Capitulo_2.docx (o .txt)
-  │     └── Informacion/
-  │           ├── metadatos.json
-  │           └── sinopsis.txt
-  └── <Título Novela 2>/
-        ├── Capitulos/
-        └── Informacion/
+    WATTPAD CLI v1.0.0     ● @usuario     Conectado
+
+    WATTPAD
+    ❯ ~ Wattpad CLI
+
+    ╭───────────────────────────────────────────────────────────────╮
+    │                                                               │
+    │  ❯ Escribe un comando o selecciona una operación              │
+    │                                                               │
+    ╰───────────────────────────────────────────────────────────────╯
+      ? Ayuda · / Comandos · Ctrl+C Salir
 ```
 
-- **Microsoft Word**: Archivos nativos `.docx` con formato enriquecido.
-- **Bloc de notas**: Archivos `.txt` con codificación UTF-8 pura.
-- **Google Docs**: Sincronización oficial con Google Drive / Docs.
-- **Protección Git**: La carpeta `Mis novelas/` se encuentra ignorada por Git en `.gitignore` para salvaguardar tu privacidad y derechos de autor.
+---
+
+## 📂 Administrador Documental e Importaciones
+
+### Microsoft Word (.docx)
+- Importa archivos `.docx` preservando el texto original.
+- Identifica encabezados y cortes de capítulos automáticamente.
+- Exporta manuscritos estructurados para escribir en Word o LibreOffice.
+
+### Bloc de Notas (.txt)
+- Lectura en UTF-8 nativo.
+- Detección inteligente de capítulos por palabras clave (`Capítulo X`, `Chapter X`, separadores).
+
+### Google Docs (OAuth 2.0 y Drive API)
+- Selección de documentos reales desde Google Drive con permisos mínimos de lectura (`documents.readonly`, `drive.readonly`).
+- Importación y segmentación directa a capítulos locales.
 
 ---
 
-## ⌨️ Comandos Disponibles dentro de Wattpad CLI
+## ⌨️ Referencia Rápida de Comandos
 
-Todos los comandos se introducen con el prefijo `/`:
-
-### 👤 Cuenta Wattpad
-- `/login [token]`: Abre el portal oficial de Wattpad en tu navegador (`https://www.wattpad.com/login`) y despliega la ventana emergente para vincular tu token oficial verificado directamente contra la API de Wattpad.
-- `/account`: Consulta y muestra los datos reales de tu cuenta de Wattpad. Si no estás autenticado, indica `Wattpad: Desconectado`.
-- `/logout`: Solicita confirmación (`/logout --confirm`), revoca y elimina las credenciales del vault cifrado local y cierra la sesión en memoria.
-
-### 📚 Administración de Novelas
-- `/stories`: Lista tus novelas locales registradas.
-- `/stories search <término>`: Busca localmente en tus novelas por título, género o etiquetas.
-- `/story new "Título" [--genre=Género]`: Crea una nueva novela en tu catálogo local.
-- `/story open NOV-xxxx`: Selecciona una novela como contexto activo de trabajo.
-- `/story info NOV-xxxx`: Consulta los metadatos completos y sinopsis de la novela.
-- `/story edit NOV-xxxx`: Modifica el título, sinopsis, género o editor preferido.
-- `/story delete NOV-xxxx --confirm`: Elimina una novela tras confirmación explícita obligatoria.
-
-### 📝 Capítulos y Manuscritos
-- `/chapters [NOV-xxxx]`: Lista todos los capítulos de la novela seleccionada con estado y conteo de palabras.
-- `/chapter new "Título"`: Crea un nuevo capítulo en la novela activa.
-- `/chapter open NOV-xxxx CAP-xxxx`: Abre el capítulo directamente en tu editor configurado (Word o Notepad).
-- `/chapter edit NOV-xxxx CAP-xxxx`: Modifica el título o contenido de un capítulo.
-- `/chapter delete NOV-xxxx CAP-xxxx --confirm`: Elimina un capítulo tras confirmación obligatoria.
-- `/chapter publish NOV-xxxx CAP-xxxx --confirm`: Prepara el manuscrito, abre el portal oficial de autor de Wattpad y confirma la publicación.
-- `/chapter unpublish NOV-xxxx CAP-xxxx`: Reinvierte el capítulo a estado de borrador local.
-
-### 🔌 Conexiones Externas
-- `/connect`: Muestra el estado de las integraciones activas (Word, Notepad, Google Docs, Wattpad).
-- `/connect word`: Vincula Microsoft Word (`.docx`) como editor de manuscritos.
-- `/connect notepad`: Vincula Bloc de notas (`.txt UTF-8`) como editor de manuscritos.
-- `/connect google`: Inicia la autorización con Google Docs mediante flujo seguro OAuth2 HTTPS.
-- `/disconnect [word|notepad|google]`: Desconecta una integración.
-
-### 🚀 Publicación y Sincronización
-- `/publish`: Panel general del estado de publicación.
-- `/publish status`: Distingue cuáles obras son borradores locales y cuáles están publicadas en Wattpad.
-- `/publish story NOV-xxxx --confirm`: Prepara la novela y asiste la publicación formal.
-- `/publish chapter NOV-xxxx CAP-xxxx --confirm`: Asiste la publicación de un capítulo individual.
-- `/sync`: Resumen de sincronización con la base de datos cloud.
-- `/sync story NOV-xxxx`: Sincroniza la novela con la nube.
-- `/sync chapter NOV-xxxx CAP-xxxx`: Sincroniza un capítulo individual.
-
-### ⚙️ Sistema y Terminal
-- `/theme [dark|light|tokyo-night|terminal]`: Cambia el tema visual en tiempo real.
-- `/mode [fullscreen|inline]`: Alterna entre pantalla completa (alternate buffer) y modo inline.
-- `/help`: Despliega la ayuda organizada por categorías.
-- `/version`: Muestra la versión oficial `v1.0.0` y las especificaciones técnicas del entorno.
-- `/status`: Estado general del sistema y contexto de trabajo.
-- `/clear`: Limpia la pantalla de la terminal.
-- `/exit`: Finaliza la sesión restaurando la terminal limpiamente.
+| Comando | Acción |
+| :--- | :--- |
+| `/login` | Inicia sesión en Wattpad en el navegador oficial Playwright |
+| `/register` | Abre la página de registro oficial de Wattpad |
+| `/logout [--confirm]` | Cierra la sesión y elimina el perfil de forma segura |
+| `/profile` | Consulta tu perfil de autor conectado en Wattpad |
+| `/stories` | Lista las novelas de tu cuenta |
+| `/stories search <término>` | Busca novelas por título o etiqueta |
+| `/story create <título>` | Crea una nueva novela en tu cuenta |
+| `/story open NOV-xxxx` | Selecciona una novela como contexto activo |
+| `/story info NOV-xxxx` | Consulta información y metadatos de la novela |
+| `/story edit NOV-xxxx` | Modifica título, sinopsis, género o etiquetas |
+| `/story delete NOV-xxxx --confirm` | Elimina una novela (requiere confirmación) |
+| `/story privacy NOV-xxxx [public\|private]` | Modifica la visibilidad de la novela |
+| `/chapters` | Lista los capítulos de la novela activa |
+| `/chapter create <título>` | Añade un nuevo capítulo a la novela activa |
+| `/chapter edit CAP-xxxx` | Edita título o contenido del capítulo |
+| `/chapter delete CAP-xxxx --confirm` | Elimina un capítulo con confirmación |
+| `/chapter import <archivo>` | Vista previa de importación de capítulos |
+| `/chapter import <archivo> --confirm` | Confirma e incorpora los capítulos a tu novela |
+| `/chapter publish CAP-xxxx --confirm` | Publica el capítulo en Wattpad |
+| `/chapter status CAP-xxxx` | Consulta el estado de publicación |
+| `/connect` | Administrador de documentos (Word, Notepad, Google Docs) |
+| `/connect google` | Inicia la autorización con Google Docs |
+| `/update` | Comprobación real de versiones con GitHub Releases |
+| `/update --install` | Descarga, verifica SHA-256 e instala la actualización |
+| `/config update` | Configura preferencias de comprobación y actualización |
+| `/help` | Lista detallada de comandos |
+| `/version` | Versión y especificaciones del entorno |
+| `/exit` | Cierra y sale limpiamente de la terminal |
 
 ---
 
-## 🛠️ Desarrollo y Compilación Local
+## 🛠️ Pruebas y Compilación
 
 ```bash
-# Instalar dependencias
-bun install
-
-# Comprobación de tipos TypeScript
+# Comprobación de tipos estricta (TypeScript 5.x)
 bun run typecheck
 
-# Ejecución de la suite completa de pruebas (83 pruebas)
+# Suite completa de pruebas automatizadas
 bun test
 
-# Compilación de la CLI nativa
+# Compilación de binario ejecutable para Windows
 bun run build:cli
 
-# Generación de sumas de integridad SHA-256
+# Generación de sumas criptográficas SHA-256
 bun run build:checksums
-
-# Compilación del servidor backend
-bun run build:api
 ```
 
 ---
 
-## 🛡️ Seguridad de Credenciales
-
-- **Cifrado Fuerte Local**: Todas las credenciales sensibles se custodian en `vault.enc` utilizando el estándar criptográfico **AES-256-GCM**.
-- **Aislamiento Total**: Las credenciales de Wattpad nunca se comparten con servidores de terceros ni se transmiten a Render.
-- **Protección de Datos Personales**: Manuscritos, capítulos y borradores se conservan de forma soberana en tu disco local.
-
----
-
-© 2026 Wattpad CLI — Herramienta Oficial de Terminal para Autores y Escritores.
+© 2026 Wattpad CLI — Herramienta Oficial de Terminal.

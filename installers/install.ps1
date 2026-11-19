@@ -25,7 +25,7 @@ Write-Host "   $Sep" -ForegroundColor DarkGray
 
 # 1. Cloud discovery & connectivity check
 $BaseUrl = if ($env:WATTPAD_API_BASE_URL) { $env:WATTPAD_API_BASE_URL } else { "https://wattpad-cli.onrender.com" }
-Write-Host "   $Arrow Conectando con servidor cloud: $BaseUrl" -ForegroundColor Cyan
+Write-Host "   $Arrow Conectando con servidor de distribucion: $BaseUrl" -ForegroundColor Cyan
 
 $Config = $null
 $ExpectedHash = $null
@@ -38,9 +38,9 @@ try {
             $ExpectedHash = $binProp.Value.sha256
         }
     }
-    Write-Host "   $Check Conexion cloud verificada." -ForegroundColor Green
+    Write-Host "   $Check Conexion de distribucion verificada." -ForegroundColor Green
 } catch {
-    Write-Host "   ! Advertencia: No se pudo verificar la configuracion cloud ($($_.Exception.Message))." -ForegroundColor Yellow
+    Write-Host "   ! Advertencia: No se pudo verificar la configuracion remota ($($_.Exception.Message))." -ForegroundColor Yellow
 }
 
 # 2. Operating system and architecture detection
@@ -68,11 +68,10 @@ if (-not (Test-Path $InstallDir)) {
 $ExePath = Join-Path $InstallDir "wattpad.exe"
 $CmdPath = Join-Path $InstallDir "wattpad.cmd"
 
-# 4. Binary download
+# 4. Binary download with REAL progress bar
 Write-Host "   $Arrow Descargando binario oficial para Windows ($Arch)..." -ForegroundColor Cyan
 
 $TempFile = Join-Path $env:TEMP "wattpad-cli-$Arch-$([Guid]::NewGuid().ToString('N')).tmp"
-$ProgressPreference = 'SilentlyContinue'
 
 $DownloadUrls = @(
     "$BaseUrl/cli/download/win32-$Arch",
@@ -81,45 +80,80 @@ $DownloadUrls = @(
 
 $DownloadSuccess = $false
 
-function Invoke-BinaryDownload {
+function Invoke-StreamingDownload {
     param([string]$SourceUrl, [string]$DestinationFile)
 
-    # Engine 1: curl.exe (built-in Windows 10/11, highly efficient for large binaries)
-    $curlCmd = Get-Command curl.exe -ErrorAction SilentlyContinue
-    if ($curlCmd) {
-        try {
-            & curl.exe -f -s -S -L "$SourceUrl" -o "$DestinationFile" --connect-timeout 30 --max-time 600
-            if ((Test-Path $DestinationFile) -and ((Get-Item $DestinationFile).Length -gt 1048576)) {
-                return $true
+    try {
+        $Request = [System.Net.HttpWebRequest]::Create($SourceUrl)
+        $Request.Method = "GET"
+        $Request.UserAgent = "Wattpad-CLI-Installer"
+        $Request.Timeout = 600000
+        $Request.AllowAutoRedirect = $true
+
+        $Response = $Request.GetResponse()
+        $TotalBytes = $Response.ContentLength
+        $Stream = $Response.GetResponseStream()
+        $FileStream = [System.IO.File]::Create($DestinationFile)
+
+        $Buffer = New-Object byte[] 65536
+        $TotalRead = 0
+        $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+        $LastRenderTime = [System.Diagnostics.Stopwatch]::StartNew()
+
+        Write-Host ""
+        Write-Host "   Descargando Wattpad CLI..." -ForegroundColor White
+
+        $BarWidth = 24
+        while (($BytesRead = $Stream.Read($Buffer, 0, $Buffer.Length)) -gt 0) {
+            $FileStream.Write($Buffer, 0, $BytesRead)
+            $TotalRead += $BytesRead
+
+            # Actualizar barra visual cada 100ms o al completar
+            if ($LastRenderTime.ElapsedMilliseconds -gt 100 -or $TotalRead -eq $TotalBytes) {
+                $LastRenderTime.Restart()
+
+                $Percent = if ($TotalBytes -gt 0) { [math]::Floor(($TotalRead / $TotalBytes) * 100) } else { 0 }
+                # No mostrar 100% hasta completar la descarga total
+                if ($Percent -ge 100 -and $TotalRead -lt $TotalBytes) { $Percent = 99 }
+
+                $FilledChars = if ($TotalBytes -gt 0) { [math]::Floor(($TotalRead / $TotalBytes) * $BarWidth) } else { 0 }
+                if ($FilledChars -gt $BarWidth) { $FilledChars = $BarWidth }
+                $EmptyChars = [math]::Max(0, $BarWidth - $FilledChars)
+
+                $BarBlock = ([string]([char]0x2588) * $FilledChars) + ([string]([char]0x2591) * $EmptyChars)
+
+                $ElapsedSec = [math]::Max(0.001, $Stopwatch.Elapsed.TotalSeconds)
+                $SpeedMBs = [math]::Round(($TotalRead / 1MB) / $ElapsedSec, 1)
+                $DownloadedMB = [math]::Round($TotalRead / 1MB, 1)
+                $TotalMB = if ($TotalBytes -gt 0) { [math]::Round($TotalBytes / 1MB, 1) } else { 0 }
+
+                $ProgressLine = "`r   $BarBlock  $Percent%  |  $DownloadedMB MB / $TotalMB MB  |  Velocidad: $SpeedMBs MB/s"
+                Write-Host $ProgressLine -NoNewline
             }
-        } catch {}
-    }
-
-    # Engine 2: System.Net.WebClient (.NET framework direct stream)
-    try {
-        $wc = New-Object System.Net.WebClient
-        $wc.Headers.Add("User-Agent", "Wattpad-CLI-Installer")
-        $wc.DownloadFile($SourceUrl, $DestinationFile)
-        if ((Test-Path $DestinationFile) -and ((Get-Item $DestinationFile).Length -gt 1048576)) {
-            return $true
         }
-    } catch {}
 
-    # Engine 3: Invoke-WebRequest (standard PowerShell fallback)
-    try {
-        Invoke-WebRequest -Uri $SourceUrl -OutFile $DestinationFile -UseBasicParsing -TimeoutSec 600 -ErrorAction Stop
+        $FileStream.Flush()
+        $FileStream.Close()
+        $Stream.Close()
+        $Response.Close()
+        Write-Host ""
+        Write-Host ""
+
         if ((Test-Path $DestinationFile) -and ((Get-Item $DestinationFile).Length -gt 1048576)) {
             return $true
         }
     } catch {
-        return $false
+        Write-Host ""
+        Write-Host "   ! Error durante la descarga: $($_.Exception.Message)" -ForegroundColor Yellow
+        if (Test-Path $DestinationFile) {
+            Remove-Item -Path $DestinationFile -Force -ErrorAction SilentlyContinue
+        }
     }
-
     return $false
 }
 
 foreach ($Url in $DownloadUrls) {
-    if (Invoke-BinaryDownload -SourceUrl $Url -DestinationFile $TempFile) {
+    if (Invoke-StreamingDownload -SourceUrl $Url -DestinationFile $TempFile) {
         $DownloadSuccess = $true
         break
     }

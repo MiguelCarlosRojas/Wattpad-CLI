@@ -67,6 +67,11 @@ export class ChapterRepository {
     return row ? this.mapRowToChapter(row) : null;
   }
 
+  public findAll(): Chapter[] {
+    const rows = this.db.query('SELECT * FROM chapters ORDER BY chapter_number ASC').all() as Array<Record<string, any>>;
+    return rows.map((r) => this.mapRowToChapter(r));
+  }
+
   public findByStoryId(storyId: string): Chapter[] {
     const rows = this.db.query('SELECT * FROM chapters WHERE story_id = ? ORDER BY chapter_number ASC').all(storyId) as Array<Record<string, any>>;
     return rows.map((r) => this.mapRowToChapter(r));

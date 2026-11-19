@@ -1,13 +1,15 @@
+import path from 'path';
 import { CommandDefinition, CommandResult, ParsedCommand, RenderBlock } from '../../types/command.types';
 import { formatStatusBadge } from '../../utils/formatter';
+import { DocumentParser, DocumentParseResult } from '../../integrations/document-parser';
 
 export function createChapterCommands(): CommandDefinition[] {
   return [
     {
       name: '/chapters',
       category: 'chapters',
-      description: 'Lista todos los capítulos de una novela con su estado, palabras y versiones',
-      descriptionEn: 'Lists all chapters of a story with their status, word count, and versions',
+      description: 'Lista todos los capítulos de la novela activa con su estado, palabras y versiones',
+      descriptionEn: 'Lists all chapters of the active story with their status, word count, and versions',
       usage: '/chapters [NOV-xxxx]',
       examples: ['/chapters', '/chapters NOV-0001'],
       execute: (app, parsed: ParsedCommand): CommandResult => {
@@ -21,10 +23,11 @@ export function createChapterCommands(): CommandDefinition[] {
                 type: 'error',
                 title: 'Novela no especificada',
                 content:
-                  'Debes abrir una novela con /story open NOV-xxxx o especificar el ID.\n' +
+                  'Debes abrir una novela con /story open NOV-xxxx o especificar el identificador.\n' +
                   'Ejemplo: /chapters NOV-0001',
               },
             ],
+            message: 'Abre una novela con /story open NOV-xxxx para listar sus capítulos.',
           };
         }
 
@@ -32,7 +35,7 @@ export function createChapterCommands(): CommandDefinition[] {
         if (!story) {
           return {
             success: false,
-            blocks: [{ type: 'error', title: 'No encontrada', content: `No existe la novela "${storyId}".` }],
+            blocks: [{ type: 'error', title: 'Novela no encontrada', content: `No existe la novela "${storyId}".` }],
           };
         }
 
@@ -48,9 +51,10 @@ export function createChapterCommands(): CommandDefinition[] {
                 subtitle: `ID: ${story.id}`,
                 statusBadge: '0 CAPÍTULOS',
                 statusColor: '#808080',
-                content: 'Esta novela aún no tiene capítulos creados.\nUsa /chapter new para escribir el primer capítulo.',
+                content: 'Esta novela aún no tiene capítulos creados.\nUsa /chapter create "Título" o /chapter import <archivo> para incorporar capítulos.',
               },
             ],
+            message: 'Esta novela no tiene capítulos creados aún.',
           };
         }
 
@@ -58,7 +62,7 @@ export function createChapterCommands(): CommandDefinition[] {
           {
             type: 'card',
             title: `CAPÍTULOS: ${story.title} [${story.id}]`,
-            subtitle: `Total: ${chapters.length} capítulo(s)`,
+            subtitle: `Total: ${chapters.length} capítulo(s) registrados`,
             statusBadge: `${chapters.length} CAPÍTULOS`,
             statusColor: '#FF6122',
           },
@@ -66,19 +70,18 @@ export function createChapterCommands(): CommandDefinition[] {
 
         for (const ch of chapters) {
           const badge = formatStatusBadge(ch.status);
-          const versions = app.chapterRepo.getVersions(ch.id);
 
           blocks.push({
             type: 'card',
             title: `Capítulo ${ch.chapterNumber}: ${ch.title} [${ch.id}]`,
-            subtitle: ch.content ? ch.content.slice(0, 80) + '...' : '(Sin contenido redactado aún)',
+            subtitle: ch.content ? ch.content.slice(0, 80) + '...' : '(Sin contenido redactado)',
             statusBadge: badge.text,
             statusColor: badge.color,
             fields: [
               { label: 'Palabras', value: `${ch.wordCount.toLocaleString()} palabras` },
-              { label: 'Versión actual', value: `v${versions.length}` },
-              { label: 'Hash SHA-256', value: ch.contentHash.slice(0, 16) + '...' },
-              { label: 'Última actualización', value: ch.updatedAt.slice(0, 16).replace('T', ' ') },
+              { label: 'Estado de publicación', value: ch.status === 'published' ? 'Publicado en Wattpad' : 'Borrador Privado' },
+              { label: 'Identificador Wattpad', value: ch.wattpadId || 'Pendiente' },
+              { label: 'Última modificación', value: ch.updatedAt ? ch.updatedAt.slice(0, 16).replace('T', ' ') : 'Reciente' },
             ],
           });
         }
@@ -92,27 +95,60 @@ export function createChapterCommands(): CommandDefinition[] {
 
     {
       name: '/chapter',
-      subcommands: ['new', 'open', 'edit', 'import', 'export', 'delete', 'reorder', 'publish', 'unpublish'],
+      subcommands: ['create', 'new', 'open', 'edit', 'delete', 'import', 'publish', 'status'],
       category: 'chapters',
-      description: 'Crea, abre, edita, importa, exporta, reordena, publica o despublica un capítulo',
-      descriptionEn: 'Create, open, edit, import, export, reorder, publish or unpublish a chapter',
-      usage: '/chapter [new | open | edit | import | export | delete | reorder | publish | unpublish]',
+      description: 'Crea, edita, elimina, importa desde documentos, consulta estado y publica capítulos',
+      descriptionEn: 'Create, edit, delete, import from documents, check status and publish chapters',
+      usage: '/chapter [create <título> | edit CAP-xxxx | delete CAP-xxxx | import <ruta> | publish CAP-xxxx | status CAP-xxxx]',
       examples: [
-        '/chapter new "Capítulo 1: El Despertar"',
-        '/chapter new NOV-0001 "Capítulo 2: El Encuentro"',
-        '/chapter open NOV-0001 CAP-0001',
-        '/chapter import NOV-0001 CAP-0001',
-        '/chapter export NOV-0001 CAP-0001',
-        '/chapter reorder NOV-0001 CAP-0001 --order=2',
-        '/chapter publish NOV-0001 CAP-0001',
-        '/chapter unpublish NOV-0001 CAP-0001',
-        '/chapter delete NOV-0001 CAP-0001',
+        '/chapter create "Capítulo 1: El Despertar"',
+        '/chapter edit CAP-0001 --title="Nuevo Título"',
+        '/chapter delete CAP-0001 --confirm',
+        '/chapter import ./manuscrito.docx',
+        '/chapter import ./manuscrito.docx --confirm',
+        '/chapter publish CAP-0001 --confirm',
+        '/chapter status CAP-0001',
       ],
       execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
-        const sub = parsed.subcommand;
+        let sub = parsed.subcommand;
+        let targetArg = parsed.args[0];
 
-        // /chapter new
-        if (sub === 'new') {
+        // Si el usuario escribe `/chapter CAP-0001`, tratarlo como `/chapter status CAP-0001`
+        if (sub && sub.startsWith('CAP-')) {
+          targetArg = sub;
+          sub = 'status';
+        }
+
+        // Si no hay subcomando pero hay capítulo activo, mostrar status
+        if (!sub && app.currentChapterId) {
+          sub = 'status';
+          targetArg = app.currentChapterId;
+        } else if (!sub) {
+          return {
+            success: false,
+            blocks: [
+              {
+                type: 'card',
+                title: 'GESTIÓN DE CAPÍTULOS',
+                subtitle: 'Comandos disponibles',
+                statusBadge: 'AYUDA',
+                statusColor: '#FF6122',
+                content:
+                  'Comandos disponibles para gestionar capítulos:\n' +
+                  '› /chapter create <título>        Crea un nuevo capítulo\n' +
+                  '› /chapter edit CAP-xxxx          Modifica el título o contenido\n' +
+                  '› /chapter delete CAP-xxxx        Elimina el capítulo con confirmación\n' +
+                  '› /chapter import <archivo>       Importa y segmenta documentos (.docx, .txt, Google Docs)\n' +
+                  '› /chapter publish CAP-xxxx       Publica el capítulo en Wattpad con confirmación\n' +
+                  '› /chapter status CAP-xxxx        Consulta el estado de publicación real\n' +
+                  '› /chapters                       Lista todos los capítulos de la novela activa',
+              },
+            ],
+          };
+        }
+
+        // /chapter create o /chapter new
+        if (sub === 'create' || sub === 'new') {
           let storyId = app.currentStoryId;
           let title = '';
 
@@ -132,7 +168,7 @@ export function createChapterCommands(): CommandDefinition[] {
                   title: 'Novela no seleccionada',
                   content:
                     'Debes abrir una novela con /story open NOV-xxxx antes de crear capítulos,\n' +
-                    'o indicar el ID: /chapter new NOV-0001 "Título del capítulo"',
+                    'o indicar el ID: /chapter create NOV-0001 "Título del capítulo"',
                 },
               ],
             };
@@ -145,7 +181,7 @@ export function createChapterCommands(): CommandDefinition[] {
                 {
                   type: 'error',
                   title: 'Título requerido',
-                  content: 'Indica el título del nuevo capítulo.\nEjemplo: /chapter new "Capítulo 1: Comienzo"',
+                  content: 'Indica el título del nuevo capítulo.\nEjemplo: /chapter create "Capítulo 1: Comienzo"',
                 },
               ],
             };
@@ -155,7 +191,7 @@ export function createChapterCommands(): CommandDefinition[] {
           if (!story) {
             return {
               success: false,
-              blocks: [{ type: 'error', title: 'No encontrada', content: `No existe la novela "${storyId}".` }],
+              blocks: [{ type: 'error', title: 'Novela no encontrada', content: `No existe la novela "${storyId}".` }],
             };
           }
 
@@ -168,9 +204,9 @@ export function createChapterCommands(): CommandDefinition[] {
 
           app.currentChapterId = chapter.id;
 
-          // Automatically generate external file according to story editor preference
+          // Generar archivo externo correspondiente
           if (story.editorPreference === 'word') {
-            await app.wordService.exportChapterToDocx(story, chapter);
+            await app.wordService.exportChapterToDocx(story, chapter).catch(() => {});
           } else if (story.editorPreference === 'notepad') {
             app.notepadService.exportChapterToTxt(story, chapter);
           }
@@ -182,182 +218,288 @@ export function createChapterCommands(): CommandDefinition[] {
                 type: 'card',
                 title: '¡CAPÍTULO CREADO CON ÉXITO!',
                 subtitle: `${chapter.title} [${chapter.id}]`,
-                statusBadge: '[BORRADOR LOCAL]',
+                statusBadge: '[BORRADOR PRIVADO]',
                 statusColor: '#808080',
                 fields: [
                   { label: 'Novela', value: `${story.title} [${story.id}]` },
                   { label: 'Número de capítulo', value: `Capítulo ${chapter.chapterNumber}` },
                   { label: 'Identificador', value: chapter.id },
+                  { label: 'Estado', value: 'Borrador privado (no publicado en Wattpad)' },
                   { label: 'Editor Preferido', value: story.editorPreference.toUpperCase() },
-                  { label: 'Estado', value: 'Borrador privado local (no publicado)' },
                 ],
               },
             ],
-            message: `Capítulo ${chapter.id} listo para escribir. Usa /chapter open ${story.id} ${chapter.id} para abrirlo en tu editor.`,
+            message: `Capítulo ${chapter.id} creado exitosamente como borrador privado.`,
           };
         }
 
-        // Helper to resolve storyId and chapterId from args
-        let storyId = app.currentStoryId;
-        let chapterId = app.currentChapterId;
+        // /chapter import <ruta_o_docId>
+        if (sub === 'import') {
+          const filePathOrId = parsed.args[0] || (parsed.flags.file as string) || (parsed.flags.path as string);
+          const isConfirmed = Boolean(parsed.flags.confirm || parsed.flags.c);
+          const targetStoryId = (parsed.flags.story as string) || app.currentStoryId;
 
-        if (parsed.args.length >= 2 && parsed.args[0].startsWith('NOV-') && parsed.args[1].startsWith('CAP-')) {
-          storyId = parsed.args[0];
-          chapterId = parsed.args[1];
-        } else if (parsed.args.length >= 1 && parsed.args[0].startsWith('CAP-')) {
-          chapterId = parsed.args[0];
-        } else if (parsed.args.length >= 1 && parsed.args[0].startsWith('NOV-')) {
-          storyId = parsed.args[0];
-        }
-
-        if (!storyId || !chapterId) {
-          return {
-            success: false,
-            blocks: [
-              {
-                type: 'error',
-                title: 'Parámetros requeridos',
-                content:
-                  'Debes indicar la novela y el capítulo.\n' +
-                  `Ejemplo: /chapter ${sub || 'open'} NOV-0001 CAP-0001`,
-              },
-            ],
-          };
-        }
-
-        const story = app.storyRepo.findById(storyId);
-        const chapter = app.chapterRepo.findById(chapterId);
-
-        if (!story || !chapter) {
-          return {
-            success: false,
-            blocks: [{ type: 'error', title: 'No encontrado', content: 'Novela o capítulo no encontrado.' }],
-          };
-        }
-
-        // /chapter open
-        if (sub === 'open') {
-          app.currentStoryId = story.id;
-          app.currentChapterId = chapter.id;
-
-          const pref = story.editorPreference;
-          let filePath = '';
-
-          if (pref === 'word') {
-            const exp = await app.wordService.exportChapterToDocx(story, chapter);
-            filePath = exp.filePath;
-          } else if (pref === 'notepad') {
-            const exp = app.notepadService.exportChapterToTxt(story, chapter);
-            filePath = exp.filePath;
-          } else if (pref === 'google') {
-            // Google Doc
-            const res = await app.googleService.exportChapterToGoogleDoc(story, chapter);
+          if (!targetStoryId) {
             return {
-              success: true,
+              success: false,
               blocks: [
                 {
-                  type: 'success',
-                  title: 'Google Doc abierto',
-                  content: `Documento accesible en: ${res.docUrl}`,
+                  type: 'error',
+                  title: 'Novela de destino requerida',
+                  content:
+                    'Debes tener una novela abierta o indicar la novela de destino.\n' +
+                    'Ejemplo: /story open NOV-0001 y luego /chapter import <archivo>',
                 },
               ],
             };
           }
 
-          await app.fsManager.openFileInOS(filePath, pref);
+          const story = app.storyRepo.findById(targetStoryId);
+          if (!story) {
+            return {
+              success: false,
+              blocks: [{ type: 'error', title: 'Novela no encontrada', content: `No existe la novela "${targetStoryId}".` }],
+            };
+          }
+
+          if (!filePathOrId) {
+            return {
+              success: false,
+              blocks: [
+                {
+                  type: 'error',
+                  title: 'Ruta de archivo requerida',
+                  content:
+                    'Indica la ruta del archivo Word (.docx), Bloc de Notas (.txt) o ID de Google Docs.\n' +
+                    'Ejemplo:\n› /chapter import ./manuscrito.docx\n› /chapter import google:<docId>',
+                },
+              ],
+            };
+          }
+
+          let parseResult: DocumentParseResult;
+
+          try {
+            if (filePathOrId.startsWith('google:')) {
+              const docId = filePathOrId.replace(/^google:/, '').trim();
+              parseResult = await app.googleService.importDocument(docId);
+            } else {
+              parseResult = await DocumentParser.parseFile(path.resolve(process.cwd(), filePathOrId));
+            }
+          } catch (err: any) {
+            return {
+              success: false,
+              blocks: [
+                {
+                  type: 'error',
+                  title: 'Error al leer el documento',
+                  content: err.message,
+                },
+              ],
+            };
+          }
+
+          // PASO 1: Si no está confirmado, mostrar VISTA PREVIA DETALLADA
+          if (!isConfirmed) {
+            const previewItems = parseResult.chapters.slice(0, 8).map((ch) => ({
+              primary: `Capítulo ${ch.chapterNumber}: ${ch.title} (${ch.wordCount.toLocaleString()} palabras)`,
+              secondary: ch.preview,
+              badge: 'DETECTADO',
+            }));
+
+            return {
+              success: true,
+              blocks: [
+                {
+                  type: 'card',
+                  title: `VISTA PREVIA DE IMPORTACIÓN: "${parseResult.filename}"`,
+                  subtitle: `Novela de destino: ${story.title} [${story.id}]`,
+                  statusBadge: `${parseResult.chapters.length} CAPÍTULOS DETECTADOS`,
+                  statusColor: '#17A2B8',
+                  fields: [
+                    { label: 'Archivo origen', value: parseResult.sourcePath },
+                    { label: 'Formato', value: parseResult.format.toUpperCase() },
+                    { label: 'Capítulos detectados', value: `${parseResult.chapters.length} capítulo(s)` },
+                    { label: 'Palabras totales', value: `${parseResult.totalWords.toLocaleString()} palabras` },
+                    { label: 'Estado previsto', value: 'Se guardarán como borradores privados locales' },
+                    { label: 'Publicación', value: 'NO se publicará nada automáticamente en Wattpad' },
+                  ],
+                  items: previewItems,
+                  content:
+                    `Se detectaron ${parseResult.chapters.length} capítulos en el documento.\n\n` +
+                    'Para confirmar la importación e incorporar estos capítulos a tu novela, ejecuta:\n' +
+                    `› /chapter import "${filePathOrId}" --confirm`,
+                },
+              ],
+              message: `Vista previa: ${parseResult.chapters.length} capítulos detectados. Ejecuta con --confirm para importar.`,
+            };
+          }
+
+          // PASO 2: Confirmación aprobada por el usuario — Crear los capítulos como borradores
+          const createdChapters: any[] = [];
+          const existingCount = app.chapterRepo.findByStoryId(story.id).length;
+
+          for (let i = 0; i < parseResult.chapters.length; i++) {
+            const chData = parseResult.chapters[i];
+            const created = app.chapterRepo.create({
+              storyId: story.id,
+              title: chData.title,
+              content: chData.content,
+              chapterNumber: existingCount + i + 1,
+              status: 'draft',
+            });
+            createdChapters.push(created);
+
+            // Exportar a la estructura local
+            if (story.editorPreference === 'word') {
+              await app.wordService.exportChapterToDocx(story, created).catch(() => {});
+            } else if (story.editorPreference === 'notepad') {
+              app.notepadService.exportChapterToTxt(story, created);
+            }
+          }
 
           return {
             success: true,
             blocks: [
               {
                 type: 'card',
-                title: `ABRIENDO CAPÍTULO EN ${pref.toUpperCase()}`,
-                subtitle: `${chapter.title} [${chapter.id}]`,
-                statusBadge: 'EDITANDO',
-                statusColor: '#FF6122',
+                title: '¡IMPORTACIÓN DOCUMENTAL CONFIRMADA!',
+                subtitle: `Novela: ${story.title} [${story.id}]`,
+                statusBadge: `${createdChapters.length} CAPÍTULOS INCORPORADOS`,
+                statusColor: '#28A745',
                 fields: [
-                  { label: 'Archivo abierto', value: filePath },
-                  { label: 'Instrucción', value: 'Escribe tu historia en tu editor y cuando termines usa /chapter import para guardar cambios.' },
+                  { label: 'Archivo procesado', value: parseResult.filename },
+                  { label: 'Capítulos importados', value: `${createdChapters.length} capítulo(s)` },
+                  { label: 'Palabras totales', value: `${parseResult.totalWords.toLocaleString()} palabras` },
+                  { label: 'Estado', value: 'Borradores privados en tu novela local' },
+                  { label: 'Publicación', value: 'Borradores sin publicar en Wattpad. Usa /chapter publish cuando decidas publicar.' },
                 ],
               },
             ],
+            message: `¡Importación completada! ${createdChapters.length} capítulos incorporados a "${story.title}".`,
           };
         }
 
-        // /chapter import
-        if (sub === 'import') {
-          const syncRes = await app.syncEngine.syncChapter(story.id, chapter.id, 'from_external');
+        // Helper para resolver IDs
+        let storyId = app.currentStoryId;
+        let chapterId = targetArg || app.currentChapterId;
+
+        if (parsed.args.length >= 2 && parsed.args[0].startsWith('NOV-') && parsed.args[1].startsWith('CAP-')) {
+          storyId = parsed.args[0];
+          chapterId = parsed.args[1];
+        } else if (targetArg && targetArg.startsWith('CAP-')) {
+          chapterId = targetArg;
+        }
+
+        if (!chapterId) {
           return {
-            success: syncRes.success,
-            blocks: [
-              {
-                type: syncRes.success ? 'success' : 'error',
-                title: syncRes.success ? 'Capítulo importado' : 'Error al importar',
-                content: syncRes.message,
-              },
-            ],
+            success: false,
+            blocks: [{ type: 'error', title: 'Identificador requerido', content: `Uso: /chapter ${sub} CAP-xxxx` }],
           };
         }
 
-        // /chapter export
-        if (sub === 'export') {
-          const syncRes = await app.syncEngine.syncChapter(story.id, chapter.id, 'to_external');
+        const chapter = app.chapterRepo.findById(chapterId);
+        if (!chapter) {
           return {
-            success: syncRes.success,
-            blocks: [
-              {
-                type: 'success',
-                title: 'Capítulo exportado',
-                content: syncRes.message,
-              },
-            ],
+            success: false,
+            blocks: [{ type: 'error', title: 'Capítulo no encontrado', content: `No existe el capítulo "${chapterId}".` }],
           };
         }
 
-        // /chapter edit
-        if (sub === 'edit') {
-          const content = parsed.args.slice(parsed.args[0].startsWith('NOV-') ? 2 : 1).join(' ') || (parsed.flags.content as string);
-          if (!content) {
-            return {
-              success: false,
-              blocks: [{ type: 'error', title: 'Contenido requerido', content: 'Indica el nuevo contenido del capítulo.' }],
-            };
-          }
+        const story = app.storyRepo.findById(chapter.storyId);
 
-          const updated = app.chapterRepo.update(chapter.id, { content }, 'cli');
+        // /chapter status CAP-xxxx
+        if (sub === 'status' || sub === 'open') {
+          app.currentChapterId = chapter.id;
+          if (story) app.currentStoryId = story.id;
+
           return {
             success: true,
             blocks: [
               {
-                type: 'success',
-                title: 'Capítulo actualizado',
-                content: `Capítulo "${updated?.title}" actualizado. Palabras: ${updated?.wordCount}.`,
+                type: 'card',
+                title: `ESTADO DE CAPÍTULO: ${chapter.title}`,
+                subtitle: `Identificador: ${chapter.id} (Capítulo ${chapter.chapterNumber})`,
+                statusBadge: chapter.status === 'published' ? 'PUBLICADO' : 'BORRADOR PRIVADO',
+                statusColor: chapter.status === 'published' ? '#28A745' : '#808080',
+                fields: [
+                  { label: 'Novela asociada', value: story ? `${story.title} [${story.id}]` : chapter.storyId },
+                  { label: 'Título', value: chapter.title },
+                  { label: 'Número', value: `Capítulo ${chapter.chapterNumber}` },
+                  { label: 'Palabras', value: `${chapter.wordCount.toLocaleString()} palabras` },
+                  { label: 'Estado en Wattpad', value: chapter.status === 'published' ? 'Publicado' : 'Borrador Privado (no público)' },
+                  { label: 'ID Wattpad', value: chapter.wattpadId || 'Pendiente' },
+                ],
               },
             ],
+            message: `Capítulo "${chapter.title}" [${chapter.id}] seleccionado.`,
           };
         }
 
-        // /chapter delete
-        if (sub === 'delete') {
-          const isConfirmed = Boolean(parsed.flags.confirm || parsed.flags.c);
-          if (!isConfirmed) {
+        // /chapter edit CAP-xxxx
+        if (sub === 'edit') {
+          const updates: any = {};
+          if (parsed.flags.title) updates.title = String(parsed.flags.title);
+          if (parsed.flags.content) {
+            updates.content = String(parsed.flags.content);
+            updates.wordCount = updates.content.split(/\s+/).filter(Boolean).length;
+          }
+
+          if (Object.keys(updates).length === 0) {
             return {
-              success: true,
+              success: false,
               blocks: [
                 {
                   type: 'warning',
-                  title: 'CONFIRMACIÓN DE ELIMINACIÓN DE CAPÍTULO',
-                  subtitle: `${chapter.title} [${chapter.id}]`,
-                  statusBadge: 'ACCIÓN DESTRUCTIVA',
-                  statusColor: '#DC3545',
-                  content:
-                    `¿Estás seguro de que deseas eliminar permanentemente el capítulo "${chapter.title}" [${chapter.id}] de la novela "${story.title}"?\n\n` +
-                    'Esta acción no se puede deshacer.\n' +
-                    'Para confirmar expresamente, escribe:\n' +
-                    `› /chapter delete ${story.id} ${chapter.id} --confirm`,
+                  title: 'Sin cambios indicados',
+                  content: 'Indica los campos a modificar:\n› /chapter edit CAP-xxxx --title="Nuevo título" --content="..."',
                 },
               ],
-              message: `Confirmación requerida: usa /chapter delete ${story.id} ${chapter.id} --confirm para proceder.`,
+            };
+          }
+
+          const updated = app.chapterRepo.update(chapter.id, updates);
+
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: 'CAPÍTULO ACTUALIZADO',
+                subtitle: `${updated.title} [${updated.id}]`,
+                statusBadge: 'ACTUALIZADO',
+                statusColor: '#28A745',
+                fields: [
+                  { label: 'Título', value: updated.title },
+                  { label: 'Palabras', value: `${updated.wordCount} palabras` },
+                ],
+              },
+            ],
+            message: `Capítulo ${chapter.id} actualizado con éxito.`,
+          };
+        }
+
+        // /chapter delete CAP-xxxx --confirm
+        if (sub === 'delete') {
+          const isConfirmed = Boolean(parsed.flags.confirm || parsed.flags.c);
+
+          if (!isConfirmed) {
+            return {
+              success: false,
+              blocks: [
+                {
+                  type: 'warning',
+                  title: 'CONFIRMACIÓN OBLIGATORIA REQUERIDA',
+                  subtitle: `Eliminar capítulo: "${chapter.title}" [${chapter.id}]`,
+                  statusBadge: 'ACCIÓN IRREVERSIBLE',
+                  statusColor: '#DC3545',
+                  content:
+                    `¿Estás seguro de que deseas eliminar el capítulo "${chapter.title}"?\n` +
+                    'Para confirmar ejecuta:\n' +
+                    `› /chapter delete ${chapter.id} --confirm`,
+                },
+              ],
+              message: `Confirmación requerida. Usa /chapter delete ${chapter.id} --confirm para borrar.`,
             };
           }
 
@@ -371,118 +513,92 @@ export function createChapterCommands(): CommandDefinition[] {
             blocks: [
               {
                 type: 'card',
-                title: 'CAPÍTULO ELIMINADO CON ÉXITO',
-                subtitle: `${chapter.title} [${chapter.id}]`,
+                title: 'CAPÍTULO ELIMINADO',
+                subtitle: `"${chapter.title}" [${chapter.id}]`,
                 statusBadge: 'ELIMINADO',
-                statusColor: '#DC3545',
-                content: 'El capítulo y su historial de versiones han sido eliminados de la base de datos.',
+                statusColor: '#808080',
+                content: `El capítulo "${chapter.title}" ha sido eliminado de tu novela local.`,
               },
             ],
-            message: `Capítulo "${chapter.title}" eliminado correctamente.`,
+            message: `Capítulo ${chapter.id} eliminado.`,
           };
         }
 
-        // /chapter reorder
-        if (sub === 'reorder') {
-          const newOrder = parseInt((parsed.flags.order as string) || parsed.args[2] || '1', 10);
-          const updated = app.chapterRepo.update(chapter.id, { chapterNumber: newOrder }, 'cli');
-          return {
-            success: true,
-            blocks: [
-              {
-                type: 'card',
-                title: 'ORDEN DEL CAPÍTULO ACTUALIZADO',
-                subtitle: `${chapter.title} [${chapter.id}]`,
-                statusBadge: `ORDEN: ${newOrder}`,
-                statusColor: '#28A745',
-                fields: [
-                  { label: 'Novela', value: `${story.title} [${story.id}]` },
-                  { label: 'Nuevo orden', value: `Capítulo ${newOrder}` },
-                ],
-              },
-            ],
-            message: `Capítulo "${chapter.title}" reordenado a la posición ${newOrder}.`,
-          };
-        }
-
-        // /chapter publish
+        // /chapter publish CAP-xxxx --confirm
         if (sub === 'publish') {
           const isConfirmed = Boolean(parsed.flags.confirm || parsed.flags.c);
+
           if (!isConfirmed) {
+            return {
+              success: false,
+              blocks: [
+                {
+                  type: 'warning',
+                  title: 'CONFIRMACIÓN DE PUBLICACIÓN EN WATTPAD',
+                  subtitle: `Publicar capítulo: "${chapter.title}" [${chapter.id}]`,
+                  statusBadge: 'CONFIRMACIÓN REQUERIDA',
+                  statusColor: '#FF6122',
+                  content:
+                    `Estás a punto de hacer público el capítulo "${chapter.title}" en Wattpad.\n` +
+                    'Los lectores podrán leer este capítulo.\n\n' +
+                    'Para publicar ejecuta:\n' +
+                    `› /chapter publish ${chapter.id} --confirm`,
+                },
+              ],
+              message: `Confirmación requerida. Ejecuta /chapter publish ${chapter.id} --confirm para publicar.`,
+            };
+          }
+
+          if (!story) {
+            return {
+              success: false,
+              blocks: [{ type: 'error', title: 'Error', content: 'No se encontró la novela asociada al capítulo.' }],
+            };
+          }
+
+          try {
+            const pubRes = await app.wattpadService.publishChapter(story, chapter);
+            app.chapterRepo.update(chapter.id, {
+              status: 'published',
+              wattpadId: pubRes.wattpadId,
+            });
+
             return {
               success: true,
               blocks: [
                 {
-                  type: 'warning',
-                  title: 'CONFIRMACIÓN DE PUBLICACIÓN DE CAPÍTULO',
-                  subtitle: `${chapter.title} [${chapter.id}]`,
-                  statusBadge: 'CONFIRMACIÓN REQUERIDA',
-                  statusColor: '#FFC107',
-                  content:
-                    `Revisión del capítulo antes de publicar:\n\n` +
-                    `1. Novela: ${story.title} [${story.id}]\n` +
-                    `2. Capítulo: ${chapter.title} (${chapter.wordCount} palabras)\n` +
-                    `3. Estado actual: ${chapter.status.toUpperCase()}\n\n` +
-                    `Para confirmar la publicación, ejecuta:\n` +
-                    `› /chapter publish ${story.id} ${chapter.id} --confirm`,
+                  type: 'card',
+                  title: '¡CAPÍTULO PUBLICADO CON ÉXITO EN WATTPAD!',
+                  subtitle: `"${chapter.title}" [${chapter.id}]`,
+                  statusBadge: 'PUBLICADO',
+                  statusColor: '#28A745',
+                  fields: [
+                    { label: 'Novela', value: story.title },
+                    { label: 'Capítulo', value: chapter.title },
+                    { label: 'Identificador Wattpad', value: pubRes.wattpadId },
+                    { label: 'Estado', value: 'Público en Wattpad' },
+                  ],
                 },
               ],
-              message: `Confirmación requerida: usa /chapter publish ${story.id} ${chapter.id} --confirm para proceder.`,
+              message: pubRes.message,
+            };
+          } catch (err: any) {
+            return {
+              success: false,
+              blocks: [
+                {
+                  type: 'error',
+                  title: 'Error de publicación',
+                  content: err.message,
+                },
+              ],
             };
           }
-
-          const updated = app.chapterRepo.update(chapter.id, { status: 'published' }, 'cli');
-          return {
-            success: true,
-            blocks: [
-              {
-                type: 'card',
-                title: 'CAPÍTULO CONFIRMADO COMO PUBLICADO',
-                subtitle: `${chapter.title} [${chapter.id}]`,
-                statusBadge: 'PUBLICADO',
-                statusColor: '#28A745',
-                fields: [
-                  { label: 'Novela', value: `${story.title} [${story.id}]` },
-                  { label: 'Estado', value: 'Publicado formalmente' },
-                  { label: 'Palabras', value: `${chapter.wordCount} palabras` },
-                ],
-              },
-            ],
-            message: `Capítulo "${chapter.title}" marcado como publicado con éxito.`,
-          };
-        }
-
-        // /chapter unpublish
-        if (sub === 'unpublish') {
-          const updated = app.chapterRepo.update(chapter.id, { status: 'draft' }, 'cli');
-          return {
-            success: true,
-            blocks: [
-              {
-                type: 'card',
-                title: 'CAPÍTULO REVERTIDO A BORRADOR',
-                subtitle: `${chapter.title} [${chapter.id}]`,
-                statusBadge: 'BORRADOR',
-                statusColor: '#808080',
-                fields: [
-                  { label: 'Novela', value: `${story.title} [${story.id}]` },
-                  { label: 'Estado', value: 'Borrador privado (no público)' },
-                ],
-              },
-            ],
-            message: `Capítulo "${chapter.title}" revertido a borrador privado.`,
-          };
         }
 
         return {
           success: false,
-          blocks: [
-            {
-              type: 'error',
-              title: 'Subcomando desconocido',
-              content: 'Subcomandos válidos: new, open, edit, import, export, delete, reorder, publish, unpublish.',
-            },
-          ],
+          blocks: [{ type: 'error', title: 'Subcomando no reconocido', content: 'Uso: /chapter [create | edit | delete | import | publish | status]' }],
         };
       },
     },

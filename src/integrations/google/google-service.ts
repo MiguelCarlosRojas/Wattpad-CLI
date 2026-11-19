@@ -1,10 +1,17 @@
 import http from 'http';
-import { docs_v1, drive_v3, google } from 'googleapis';
+import { google } from 'googleapis';
 import { CredentialStore } from '../../security/credential-store';
 import { defaultConfig } from '../../config/config';
 import { sha256 } from '../../security/crypto-utils';
 import { Chapter } from '../../types/chapter.types';
 import { Story } from '../../types/story.types';
+import { DocumentParser, DocumentParseResult } from '../document-parser';
+
+export interface GoogleDocItem {
+  id: string;
+  name: string;
+  modifiedTime?: string;
+}
 
 export class GoogleService {
   private credentialStore: CredentialStore;
@@ -37,11 +44,13 @@ export class GoogleService {
     }
   }
 
+  /**
+   * Inicia el flujo OAuth 2.0 con permisos mínimos necesarios (solo lectura para documentos e inventario de Drive)
+   */
   public async initiateAuth(): Promise<{ authUrl: string; waitForAuth: () => Promise<boolean> }> {
     const scopes = [
-      'https://www.googleapis.com/auth/documents',
-      'https://www.googleapis.com/auth/drive.file',
-      'https://www.googleapis.com/auth/userinfo.email',
+      'https://www.googleapis.com/auth/documents.readonly',
+      'https://www.googleapis.com/auth/drive.readonly',
     ];
 
     const authUrl = this.oauth2Client.generateAuthUrl({
@@ -91,11 +100,8 @@ export class GoogleService {
           }
         });
 
-        server.listen(8585, () => {
-          // Server listening for redirect
-        });
+        server.listen(8585, () => {});
 
-        // 3 minute timeout
         setTimeout(() => {
           try {
             server.close();
@@ -112,6 +118,69 @@ export class GoogleService {
     await this.credentialStore.remove('google_tokens');
   }
 
+  /**
+   * Consulta los documentos reales del usuario en Google Drive
+   */
+  public async listDocuments(pageSize: number = 15): Promise<GoogleDocItem[]> {
+    const auth = await this.getClient();
+    if (!auth) {
+      throw new Error('Google Docs no está conectado. Usa /connect google primero.');
+    }
+
+    const drive = google.drive({ version: 'v3', auth });
+    const res = await drive.files.list({
+      q: "mimeType='application/vnd.google-apps.document' and trashed=false",
+      fields: 'files(id, name, modifiedTime)',
+      pageSize,
+      orderBy: 'modifiedTime desc',
+    });
+
+    const files = res.data.files || [];
+    return files.map((f) => ({
+      id: f.id!,
+      name: f.name || 'Documento sin título',
+      modifiedTime: f.modifiedTime || undefined,
+    }));
+  }
+
+  /**
+   * Importa el contenido de un Google Doc y lo estructura en capítulos
+   */
+  public async importDocument(docId: string): Promise<DocumentParseResult> {
+    const auth = await this.getClient();
+    if (!auth) {
+      throw new Error('Google Docs no está conectado. Usa /connect google primero.');
+    }
+
+    const docs = google.docs({ version: 'v1', auth });
+    const res = await docs.documents.get({ documentId: docId });
+
+    const title = res.data.title || 'Documento de Google';
+    let fullText = '';
+    const contentElements = res.data.body?.content || [];
+
+    for (const elem of contentElements) {
+      if (elem.paragraph) {
+        for (const pElem of elem.paragraph.elements || []) {
+          if (pElem.textRun?.content) {
+            fullText += pElem.textRun.content;
+          }
+        }
+      }
+    }
+
+    return DocumentParser.parseRawContent(fullText, title, 'gdoc', `https://docs.google.com/document/d/${docId}/edit`);
+  }
+
+  public async importChapterFromGoogleDoc(docId: string): Promise<{ content: string; hash: string }> {
+    const parsed = await this.importDocument(docId);
+    const content = parsed.chapters.map((c) => c.content).join('\n\n');
+    return {
+      content,
+      hash: sha256(content),
+    };
+  }
+
   public async exportChapterToGoogleDoc(
     story: Story,
     chapter: Chapter,
@@ -123,15 +192,12 @@ export class GoogleService {
     }
 
     const docs = google.docs({ version: 'v1', auth });
-    const drive = google.drive({ version: 'v3', auth });
-
     const contentText = `${chapter.title}\n\n${chapter.content || ''}\n`;
     const hash = sha256(contentText);
 
     let docId = existingDocId;
 
     if (!docId) {
-      // Create new Google Doc
       const createRes = await docs.documents.create({
         requestBody: {
           title: `[Wattpad] ${story.title} - Cap ${chapter.chapterNumber}: ${chapter.title}`,
@@ -140,7 +206,6 @@ export class GoogleService {
 
       docId = createRes.data.documentId!;
 
-      // Insert content
       await docs.documents.batchUpdate({
         documentId: docId,
         requestBody: {
@@ -155,7 +220,6 @@ export class GoogleService {
         },
       });
     } else {
-      // Update existing document: fetch doc length, clear, and insert new content
       const doc = await docs.documents.get({ documentId: docId });
       const body = doc.data.body;
       const endIndex = (body?.content?.[body.content.length - 1]?.endIndex || 2) - 1;
@@ -186,33 +250,5 @@ export class GoogleService {
 
     const docUrl = `https://docs.google.com/document/d/${docId}/edit`;
     return { docId, docUrl, hash };
-  }
-
-  public async importChapterFromGoogleDoc(docId: string): Promise<{ content: string; hash: string }> {
-    const auth = await this.getClient();
-    if (!auth) {
-      throw new Error('Google Docs no está conectado. Usa /connect google primero.');
-    }
-
-    const docs = google.docs({ version: 'v1', auth });
-    const res = await docs.documents.get({ documentId: docId });
-
-    let fullText = '';
-    const contentElements = res.data.body?.content || [];
-    for (const elem of contentElements) {
-      if (elem.paragraph) {
-        for (const pElem of elem.paragraph.elements || []) {
-          if (pElem.textRun?.content) {
-            fullText += pElem.textRun.content;
-          }
-        }
-      }
-    }
-
-    const cleaned = fullText.trim();
-    return {
-      content: cleaned,
-      hash: sha256(cleaned),
-    };
   }
 }

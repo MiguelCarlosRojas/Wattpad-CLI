@@ -1,4 +1,4 @@
-import { Theme, Chalk, padEndVisible, stripAnsi } from '../theme';
+import { Theme, Chalk, stripAnsi } from '../theme';
 
 export class CommandInput {
   public static render(
@@ -31,17 +31,17 @@ export class CommandInput {
       );
     };
 
-    // Line 2: Empty space
+    // Padding line 1
     lines.push(padRow(' '));
 
-    // Line 3: Prompt + Input with Cursor
+    // Prompt + Content
     const promptSymbol = isFocused
       ? Chalk.bold(Chalk.hex(Theme.colors.primary, '  ❯ '))
       : Chalk.dim('  ❯ ');
 
     let content: string;
     if (value.length === 0) {
-      content = Chalk.dim('Escribe un comando o utiliza / para ver los comandos');
+      content = Chalk.dim('Escribe un comando o selecciona una operación');
     } else {
       const before = value.slice(0, cursorIndex);
       const cursorChar = value.slice(cursorIndex, cursorIndex + 1) || ' ';
@@ -53,19 +53,18 @@ export class CommandInput {
 
     lines.push(padRow(`${promptSymbol}${content}`));
 
-    // Line 4: Empty space
+    // Padding line 2
     lines.push(padRow(' '));
 
-    // Line 5: ╰─ ? Ayuda · ↑↓ Historial · Tab Autocompletar · Ctrl+C Salir ───╯
-    const bottomLabel = ' ? Ayuda · ↑↓ Historial · Tab Autocompletar · Ctrl+C Salir ';
-    const bottomBarLength = Math.max(2, boxWidth - 3 - bottomLabel.length);
+    // Bottom border: ╰─ ? Ayuda · / Comandos · Ctrl+C Salir ──────────╯
+    const footerText = ' ? Ayuda · / Comandos · Ctrl+C Salir ';
+    const bottomBarLength = Math.max(2, boxWidth - 3 - footerText.length);
     const line5 =
       Chalk.hex(borderColor, Theme.borders.bottomLeft + Theme.borders.horizontal) +
-      Chalk.dim(bottomLabel) +
+      Chalk.dim(footerText) +
       Chalk.hex(borderColor, Theme.borders.horizontal.repeat(bottomBarLength) + Theme.borders.bottomRight);
     lines.push(line5);
 
     return lines;
   }
 }
-

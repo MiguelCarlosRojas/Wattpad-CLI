@@ -8,42 +8,57 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/
 
 ## [1.0.0] — 2026-11-19
 
-### 🚀 Nueva Línea de Versiones Oficial v1.0.0
+### 🚀 Reconstrucción Funcional y Auditoría Integral v1.0.0
 
-Lanzamiento oficial de **Wattpad CLI v1.0.0**, consolidado como una herramienta de terminal limpia, profesional, segura y dedicada exclusivamente a la administración de tu cuenta de Wattpad, novelas, capítulos, documentos e integraciones.
+Reconstrucción completa de **Wattpad CLI** como una herramienta de terminal soberana y exclusivamente dedicada a gestionar una cuenta de Wattpad, novelas, capítulos, documentos y publicaciones.
 
-### 🛡️ Autenticación Soberana y Segura
-- **Nuevo Flujo de Conexión Real**: Al invocar `/login`, se abre el portal oficial de Wattpad en el navegador predeterminado (`https://www.wattpad.com/login`) y se despliega una ventana emergente interactiva (`AuthModal`) con entrada enmascarada para introducir el Creator Token oficial.
-- **Verificación Criptográfica Directa**: Las credenciales se validan en tiempo real contra `https://api.wattpad.com/v4/users/me`. Si el token es inválido, falla honestamente sin recurrir a datos ficticios ni usuarios simulados.
-- **Aislamiento Total de Secretos**: Las credenciales de Wattpad **jamás se envían a Render**. Quedan cifradas localmente con **AES-256-GCM** en `vault.enc`.
-- **Cierre de Sesión Protegido**: `/logout` exige confirmación explícita con `--confirm`, revoca las credenciales del vault, limpia la memoria y devuelve el estado formal `Wattpad: Desconectado` manteniendo intactos los manuscritos del autor.
-- **Perfil Real**: `/account` consulta y muestra únicamente la identidad real verificada de la cuenta autenticada.
+### 🛡️ Autenticación Real de Wattpad con Navegador Controlado
+- **Navegador Integrado con Playwright**: `/login` abre una ventana de navegador oficial dirigida a `https://www.wattpad.com/login` para que el usuario introduzca directamente sus credenciales y complete cualquier desafío de seguridad o autenticación en dos factores.
+- **Detección Automática de Sesión**: Detecta cuándo la sesión ha iniciado exitosamente, valida la identidad del autor y guarda de forma persistente y segura el perfil de navegación local.
+- **Registro Oficial**: Comando `/register` que abre directamente la página oficial de registro de Wattpad.
+- **Cierre de Sesión Completo**: `/logout --confirm` invalida la sesión local, elimina el perfil del navegador de forma segura y restablece el estado a desconectado.
+- **Cero Copia Manual de Tokens**: El usuario ya no necesita copiar manualmente cookies o tokens de la consola del navegador.
 
-### 🎨 Rediseño Total de la Terminal (Single-Canvas TUI)
-- **Lienzo Único Moderno**: Eliminación de dashboards complejos de tres columnas y paneles innecesarios.
-- **Caja de Entrada Protagonista**: Caja delimitada con bordes TrueColor naranja Wattpad (`#FF6122`), título centrado ` Wattpad CLI `, prompt `  ❯ `, e indicador inferior de atajos.
-- **Nuevo Status-Bar Minimalista**: Línea inferior limpia con atajos reales (`↑↓ Historial · Enter Ejecutar · Tab Autocompletar · / Comandos · Ctrl+C Salir`), con adaptación responsiva en terminales estrechas.
-- **Menú de Sugerencias Flotante**: Desplegable ordenado sobre la caja de comandos al escribir `/`.
+### 🧹 Eliminación de Render como Backend Funcional
+- **Retirada de PostgreSQL y APIs Duplicadas**: Eliminadas todas las conexiones innecesarias a PostgreSQL, endpoints falsos de autenticación cloud (`/api/auth/start`), CRUDs de novelas remotos y almacenamiento duplicado.
+- **Servidor de Distribución Puro**: El servidor web se mantiene exclusivamente para alojar y servir los instaladores (`/cli/install.ps1`, `/cli/install.sh`, `/cli/config`, `/cli/download/`) y comprobar salud (`/api/health`).
+- **Eliminación de Render de `/connect`**: Render Cloud Backend ya no aparece como integración en la interfaz de usuario.
+- **Persistencia Local Soberana**: Base de datos SQLite nativa (`bun:sqlite`) con integridad referencial y modo WAL.
 
-### 📚 Gestión Literaria y Documentos
-- **Gestión de Novelas**: Creación, edición, consulta, borrado destructivo protegido con confirmación y búsqueda local exacta (`/stories`, `/story new`, `/story open`, `/story info`, `/story edit`, `/story delete --confirm`, `/stories search`).
-- **Gestión de Capítulos**: Organización por novela, conteo exacto de palabras, hash de contenido y estados (`/chapters`, `/chapter new`, `/chapter open`, `/chapter edit`, `/chapter delete --confirm`, `/chapter publish --confirm`, `/chapter unpublish`).
-- **Integraciones Consolidadas**:
-  - **Microsoft Word**: Exportación y apertura directa en `.docx`.
-  - **Bloc de Notas**: Exportación y apertura directa en `.txt` con codificación UTF-8.
-  - **Google Docs**: Vinculación segura vía OAuth2 HTTPS (cero localhost).
-- **Protección de Manuscritos Personales**: Carpeta `Mis novelas/` excluida de Git en `.gitignore`.
+### 📄 Administrador Documental Reconstruido (`/connect` y `/chapter import`)
+- **Microsoft Word (.docx)**: Lectura nativa mediante `mammoth` y exportación con `docx`, preservando títulos y contenido íntegro.
+- **Bloc de Notas (.txt)**: Lectura en UTF-8 con detección automática de separaciones de capítulos.
+- **Google Docs**: Integración oficial con Google OAuth 2.0 y Drive/Docs API solicitando permisos mínimos necesarios de lectura (`documents.readonly`, `drive.readonly`).
+- **Segmentación Inteligente con Vista Previa**: `/chapter import` analiza los documentos, detecta capítulos automáticamente y muestra una vista previa completa antes de incorporar los capítulos. **No publica automáticamente.**
 
-### 🧹 Limpieza Radical del Repositorio
-- Eliminación de controladores y modelos de IA, asistentes y chats ajenos a Wattpad.
-- Eliminación de todas las carpetas, vistas y selectores antiguos (`src/cli/terminal/views/`, `header-bar.ts`, `selector-list.ts`, `workspace-navigation.ts`, `focus-manager.ts`, etc.).
-- Eliminación de copias duplicadas de integraciones (`src/cli/integrations/`).
-- Eliminación de almacenamiento S3 simulado (`src/api/storage/`).
-- Eliminación de datos y usuarios ficticios (`wattpad_author`, `El Secreto de las Sombras`, seguidores y estadísticas simuladas).
-- Eliminación de lanzamientos y tags antiguos en GitHub para reiniciar el ciclo en v1.0.0.
+### 📚 Gestión Real de Novelas y Capítulos
+- `/stories`: Consulta novelas reales de la cuenta o muestra honestamente `No tienes novelas disponibles en esta cuenta`.
+- `/story create` / `/story open` / `/story info` / `/story edit` / `/story delete`: Gestión con confirmación obligatoria `--confirm` para borrado.
+- `/story privacy [public|private]`: Gestión de visibilidad pública o borrador privado.
+- `/chapters`: Lista capítulos reales con conteo exacto de palabras.
+- `/chapter create` / `/chapter edit` / `/chapter delete`: Gestión de capítulos con confirmación obligatoria.
+- `/chapter publish`: Publicación formal en Wattpad con confirmación expresa `--confirm`.
+- `/chapter status`: Consulta de estado de publicación real.
 
-### 📦 Distribución y Verificación
-- Tres canales oficiales de instalación: **PowerShell** (Windows), **Shell curl** (Linux/macOS) y **NPM** (`@wattpad/cli`).
-- Suite de pruebas automatizadas con **83 pruebas pasando al 100%** (0 fallos).
-- Verificación estricta de tipos TypeScript con `tsc --noEmit` (0 errores).
-- Compilación limpia de ejecutables binarios nativos independientes de GitHub Actions.
+### 🔄 Actualización Real de Wattpad CLI
+- `/update`: Consulta real a GitHub Releases (`api.github.com/repos/.../releases/latest`), compara versiones semánticas, muestra versión instalada, última versión, fecha, cambios y tamaño. Permite instalar con `--install` verificando SHA-256.
+- Si no hay versión nueva: Muestra `Wattpad CLI está actualizado. No hay actualizaciones disponibles.` sin descargar innecesariamente.
+- `/config update`: Permite configurar actualizaciones automáticas, comprobación al iniciar y canal de actualización (`stable`).
+
+### 🎨 Rediseño Minimalista de la Interfaz
+- **Línea Superior Exclusiva**:
+  `WATTPAD CLI v1.0.0     ● @usuario     Conectado`
+  o si está desconectado:
+  `WATTPAD CLI v1.0.0     ○ Sin conexión`
+- **Caja de Entrada Estilizada**: Marco minimalista con bordes redondeados (`╭`, `╯`), prompt `❯` y atajos: `? Ayuda · / Comandos · Ctrl+C Salir`.
+- **Eliminación Total de Bloques Ajenos**: Sin dashboards complejos, sin asistentes conversacionales, sin tarjetas ficticias ni telemetría.
+
+### 📥 Instalador de Windows con Barra de Progreso Real
+- `installers/install.ps1`: Descarga en streaming continuo con visualización en tiempo real:
+  `████████████████░░░░░░░░  65%  |  72.4 MB / 111.3 MB  |  Velocidad: 8.2 MB/s`
+- Medición real de bytes y velocidad, comprobación estricta de encabezado PE `MZ` y hash SHA-256 antes de instalar.
+
+### 🧪 Pruebas y Tipos
+- 76 pruebas automatizadas aprobadas al 100% (0 fallos).
+- Verificación de tipos estricta `tsc --noEmit` con 0 errores.
+- Binario nativo generado y verificado con sumas SHA-256 en `dist/SHA256SUMS.txt`.

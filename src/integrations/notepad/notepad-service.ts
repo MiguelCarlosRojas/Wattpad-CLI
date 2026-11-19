@@ -4,12 +4,17 @@ import { sha256 } from '../../security/crypto-utils';
 import { FileSystemManager } from '../../utils/file-system';
 import { Chapter } from '../../types/chapter.types';
 import { Story } from '../../types/story.types';
+import { DocumentParser, DocumentParseResult } from '../document-parser';
 
 export class NotepadService {
   private fsManager: FileSystemManager;
 
   constructor(fsManager?: FileSystemManager) {
     this.fsManager = fsManager || new FileSystemManager();
+  }
+
+  public async importDocument(filePath: string): Promise<DocumentParseResult> {
+    return DocumentParser.parseFile(filePath);
   }
 
   public exportChapterToTxt(story: Story, chapter: Chapter): { filePath: string; hash: string } {

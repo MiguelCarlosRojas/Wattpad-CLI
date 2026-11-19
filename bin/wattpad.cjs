@@ -19,7 +19,7 @@ const { spawnSync } = require('child_process');
 
 // Official known SHA-256 hashes for releases
 const OFFICIAL_CHECKSUMS = {
-  'win32-x64': '37e1673071d1285157c296e71117d09eaec4a466b1cc13d2d37a7f1d2a83ba6d',
+  'win32-x64': '8d82e28829e22a31e78e1c38c6cabdbe34b12cb61bf47714e5e303e282a923a5',
   'linux-x64': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
   'darwin-arm64': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
   'darwin-x64': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',

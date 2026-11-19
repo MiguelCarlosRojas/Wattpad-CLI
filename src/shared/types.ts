@@ -161,9 +161,9 @@ export interface PublicCliConfig {
   serverStatus: 'healthy' | 'degraded' | 'maintenance';
   features: {
     googleDocsOAuth: boolean;
-    wordCloudSync: boolean;
-    cloudPostgres: boolean;
-    s3Storage: boolean;
+    wordImport: boolean;
+    notepadImport: boolean;
+    browserAuth: boolean;
   };
   installerEndpoints: {
     powershell: string;
