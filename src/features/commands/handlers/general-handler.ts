@@ -3,6 +3,7 @@ import path from 'path';
 import { CommandDefinition, CommandResult, ParsedCommand, RenderBlock } from '../../../core/types/command.types';
 import { defaultConfig } from '../../../core/config/config';
 import { sha256 } from '../../../core/security/crypto-utils';
+import { executeRefresh } from '../../stories/handlers/story-handler';
 
 const INSTALLED_VERSION = '1.1.0';
 const GITHUB_REPO = 'MiguelCarlosRojas/Wattpad-CLI';
@@ -458,6 +459,18 @@ export function createGeneralCommands(): CommandDefinition[] {
           clearScreen: true,
           message: 'Área de contenido restablecida.',
         };
+      },
+    },
+
+    {
+      name: '/refresh',
+      category: 'stories',
+      description: 'Actualiza la sesión, obras en Wattpad y manuscritos locales',
+      descriptionEn: 'Refreshes session, Wattpad stories and local manuscripts',
+      usage: '/refresh [--force]',
+      examples: ['/refresh', '/refresh --force'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        return await executeRefresh(app, parsed);
       },
     },
 

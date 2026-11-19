@@ -4,6 +4,8 @@ import { Theme, Chalk, padEndVisible, stripAnsi } from '../theme';
 export interface HeaderProps {
   version: string;
   user?: string | null;
+  displayName?: string | null;
+  profileVerified?: boolean;
   isAuthenticated: boolean;
   serverUrl?: string;
   serverOnline?: boolean;
@@ -20,10 +22,9 @@ export class Header {
     const version = Chalk.dim(`v${props.version || '1.1.0'}`);
     const leftText = `${brand} ${version}`;
 
-    // Estado superior sobrio especificado exactamente:
-    // `WATTPAD CLI v1.0.0     ● @usuario     Conectado`
-    // Si no hay sesión:
-    // `WATTPAD CLI v1.0.0     ○ Sin conexión`
+    // Estado superior:
+    // Conectado:   WATTPAD CLI v1.1.0                         ● @usuario_real     Conectado
+    // Desconectado: WATTPAD CLI v1.1.0                         ○ Sin conexión
     let rightStatus: string;
     if (props.isAuthenticated && props.user && props.user !== 'Desconectado' && props.user !== 'Sin conectar') {
       const username = props.user.startsWith('@') ? props.user : `@${props.user}`;
@@ -43,10 +44,23 @@ export class Header {
 
     lines.push(`${leftText}${' '.repeat(spacing)}${rightStatus}`);
 
-    // Si se especifica servidor o entorno de pruebas
-    if (props.serverOnline && props.user && props.isAuthenticated) {
-      const subInfo = Chalk.dim(`Cuenta: ${props.user.startsWith('@') ? props.user : '@' + props.user} · Wattpad conectado ◉`);
-      lines.push(padEndVisible(subInfo, width));
+    // Línea de identidad real del usuario autenticado:
+    // Cuenta: @usuario_real · Nombre visible del autor
+    // O si falló la verificación:
+    // Cuenta: No se pudo verificar el perfil
+    if (props.isAuthenticated) {
+      if (props.profileVerified === false) {
+        const warnInfo = Chalk.hex(Theme.colors.warning, 'Cuenta: No se pudo verificar el perfil');
+        lines.push(padEndVisible(warnInfo, width));
+      } else if (props.user && props.user !== 'Desconectado' && props.user !== 'Sin conectar') {
+        const rawUser = props.user.startsWith('@') ? props.user.slice(1) : props.user;
+        const displayName = props.displayName || (props.serverOnline ? 'Wattpad conectado ◉' : rawUser);
+        const accountInfo = Chalk.dim(`Cuenta: @${rawUser} · ${displayName}`);
+        lines.push(padEndVisible(accountInfo, width));
+      } else {
+        const warnInfo = Chalk.hex(Theme.colors.warning, 'Cuenta: No se pudo verificar el perfil');
+        lines.push(padEndVisible(warnInfo, width));
+      }
     }
 
     // Contexto activo si existe (novela y capítulo)

@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { sanitizeFileName } from '../../core/utils/formatter';
 import { defaultConfig } from '../../core/config/config';
-import { Story } from '../../features/stories/types/story.types';
+import { Story, LocalManuscript } from '../../features/stories/types/story.types';
 import { Chapter } from '../../features/chapters/types/chapter.types';
 
 export class FileSystemManager {
@@ -174,5 +174,121 @@ export class FileSystemManager {
     const opener = process.platform === 'darwin' ? 'open' : 'xdg-open';
     Bun.spawn([opener, filePath], { detached: true });
     return true;
+  }
+
+  /**
+   * Escanea la carpeta local de novelas ("Mis novelas") y detecta manuscritos Word (.docx)
+   * o Bloc de Notas (.txt) pendientes de subir a Wattpad.
+   */
+  public scanLocalManuscripts(customDir?: string): LocalManuscript[] {
+    const targetDir = customDir || this.baseDocsDir;
+    const manuscripts: LocalManuscript[] = [];
+
+    if (!fs.existsSync(targetDir)) {
+      return manuscripts;
+    }
+
+    try {
+      const entries = fs.readdirSync(targetDir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(targetDir, entry.name);
+
+        if (entry.isFile()) {
+          const ext = path.extname(entry.name).toLowerCase();
+          if (ext === '.docx' || ext === '.txt') {
+            const stats = fs.statSync(fullPath);
+            const rawExt = ext.replace('.', '') as 'docx' | 'txt';
+            const cleanTitle = path.basename(entry.name, ext).replace(/[_-]/g, ' ').trim();
+            manuscripts.push({
+              filename: entry.name,
+              filePath: fullPath,
+              relativePath: path.relative(process.cwd(), fullPath),
+              format: rawExt,
+              detectedTitle: cleanTitle,
+              chapterCount: 1,
+              sizeBytes: stats.size,
+              lastModified: stats.mtime.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+              status: 'Solo disponible localmente',
+              synced: false,
+            });
+          }
+        } else if (entry.isDirectory()) {
+          // Folder-based story: Mis novelas/<StoryName>/
+          const subEntries = fs.readdirSync(fullPath);
+          const docFile = subEntries.find((f) => f === 'novela.docx' || f === 'novela.txt') ||
+                          subEntries.find((f) => f.endsWith('.docx') || f.endsWith('.txt'));
+
+          // Check Informacion/metadatos.json
+          let storyTitle = entry.name.replace(/[_-]/g, ' ').trim();
+          let linkedWattpadId: string | undefined;
+          const metaPath = path.join(fullPath, 'Informacion', 'metadatos.json');
+          if (fs.existsSync(metaPath)) {
+            try {
+              const metaContent = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+              if (metaContent.title) storyTitle = metaContent.title;
+              if (metaContent.wattpadId) linkedWattpadId = String(metaContent.wattpadId);
+            } catch {}
+          }
+
+          // Count chapters in Capitulos folder
+          const chaptersDir = path.join(fullPath, 'Capitulos');
+          let chapterFilesCount = 0;
+          let latestChapterMtime = 0;
+          if (fs.existsSync(chaptersDir)) {
+            const chapFiles = fs.readdirSync(chaptersDir).filter((f) => f.endsWith('.docx') || f.endsWith('.txt'));
+            chapterFilesCount = chapFiles.length;
+            for (const chapFile of chapFiles) {
+              try {
+                const chapStats = fs.statSync(path.join(chaptersDir, chapFile));
+                if (chapStats.mtimeMs > latestChapterMtime) {
+                  latestChapterMtime = chapStats.mtimeMs;
+                }
+              } catch {}
+            }
+          }
+
+          if (docFile) {
+            const docPath = path.join(fullPath, docFile);
+            const stats = fs.statSync(docPath);
+            const ext = path.extname(docFile).toLowerCase().replace('.', '') as 'docx' | 'txt';
+            const mtime = Math.max(stats.mtimeMs, latestChapterMtime);
+            manuscripts.push({
+              filename: `${entry.name}/${docFile}`,
+              filePath: docPath,
+              relativePath: path.relative(process.cwd(), docPath),
+              format: ext === 'docx' ? 'docx' : 'txt',
+              detectedTitle: storyTitle,
+              chapterCount: Math.max(1, chapterFilesCount),
+              sizeBytes: stats.size,
+              lastModified: new Date(mtime).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+              status: 'Solo disponible localmente',
+              synced: !!linkedWattpadId,
+              linkedStoryId: linkedWattpadId,
+            });
+          } else if (chapterFilesCount > 0) {
+            // Folder only has Capitulos/
+            const firstChap = path.join(chaptersDir, fs.readdirSync(chaptersDir)[0]);
+            const stats = fs.statSync(firstChap);
+            const ext = path.extname(firstChap).toLowerCase().replace('.', '') as 'docx' | 'txt';
+            manuscripts.push({
+              filename: `${entry.name}/Capitulos`,
+              filePath: chaptersDir,
+              relativePath: path.relative(process.cwd(), chaptersDir),
+              format: ext === 'docx' ? 'docx' : 'txt',
+              detectedTitle: storyTitle,
+              chapterCount: chapterFilesCount,
+              sizeBytes: stats.size * chapterFilesCount,
+              lastModified: new Date(latestChapterMtime || stats.mtimeMs).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+              status: 'Solo disponible localmente',
+              synced: !!linkedWattpadId,
+              linkedStoryId: linkedWattpadId,
+            });
+          }
+        }
+      }
+    } catch {}
+
+    return manuscripts;
   }
 }

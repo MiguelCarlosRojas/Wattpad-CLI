@@ -1,23 +1,115 @@
 import { CommandDefinition, CommandResult, ParsedCommand, RenderBlock } from '../../../core/types/command.types';
-import { EditorPreference } from '../types/story.types';
+import { EditorPreference, RemoteWattpadStory, LocalManuscript, UnifiedStoryCatalog } from '../types/story.types';
 import { formatStatusBadge } from '../../../core/utils/formatter';
+
+/**
+ * Función central de actualización ejecutada por /refresh y /stories refresh
+ */
+export async function executeRefresh(app: any, parsed?: ParsedCommand): Promise<CommandResult> {
+  const force = parsed?.flags?.['force'] === true || !parsed?.flags?.['cached'];
+  const catalog: UnifiedStoryCatalog = await app.refreshAll(force);
+
+  const user = app.currentUser;
+  const sessionStatus = user
+    ? `Sesión activa como @${user.username}${user.name && user.name !== user.username ? ` · ${user.name}` : ''}`
+    : 'Sin sesión activa (usa /login para conectar tu cuenta)';
+
+  const publishedCount = catalog.publishedStories.length;
+  const draftCount = catalog.wattpadDrafts.length;
+  const localCount = catalog.localManuscripts.length;
+
+  return {
+    success: true,
+    blocks: [
+      {
+        type: 'card',
+        title: 'ACTUALIZACIÓN DEL CATÁLOGO COMPLETADA',
+        subtitle: `Sincronización finalizada el ${new Date(catalog.lastSync).toLocaleTimeString('es-ES')}`,
+        statusBadge: catalog.remoteSyncFailed ? 'MODO LOCAL' : 'ACTUALIZADO',
+        statusColor: catalog.remoteSyncFailed ? '#FFC107' : '#28A745',
+        fields: [
+          { label: 'Estado de Sesión', value: sessionStatus },
+          { label: 'Novelas Publicadas', value: `${publishedCount} obra(s) en Wattpad` },
+          { label: 'Borradores en Wattpad', value: `${draftCount} obra(s) en Wattpad` },
+          { label: 'Manuscritos Locales', value: `${localCount} archivo(s) (.docx, .txt)` },
+          {
+            label: 'Origen de Datos',
+            value: catalog.remoteSyncFailed
+              ? `Local / Caché (${catalog.errorMessage || 'Wattpad no disponible'})`
+              : 'Wattpad Oficial (window.wattpad / prefetched) + Mis novelas',
+          },
+        ],
+      },
+    ],
+    message: `Catálogo actualizado: ${publishedCount} publicadas, ${draftCount} borradores, ${localCount} manuscritos locales.`,
+  };
+}
 
 export function createStoryCommands(): CommandDefinition[] {
   return [
     {
       name: '/stories',
-      subcommands: ['search', 'drafts', 'published', 'borradores', 'publicadas'],
+      subcommands: ['search', 'drafts', 'published', 'borradores', 'publicadas', 'local', 'manuscritos', 'refresh', 'all'],
       category: 'stories',
-      description: 'Muestra todas las novelas de tu cuenta o busca entre tus obras',
-      descriptionEn: 'Shows all stories in your account or searches your works',
-      usage: '/stories [search <término> | drafts | published | borradores | publicadas]',
-      examples: ['/stories', '/stories search "fantasía"', '/stories drafts', '/stories published', '/stories publicadas'],
-      execute: (app, parsed: ParsedCommand): CommandResult => {
-        let stories = app.storyRepo.findAll();
+      description: 'Muestra el catálogo unificado de novelas de Wattpad y manuscritos locales',
+      descriptionEn: 'Shows unified catalog of Wattpad stories and local manuscripts',
+      usage: '/stories [--published | --drafts | --local | --all | search <término> | refresh]',
+      examples: [
+        '/stories',
+        '/stories --published',
+        '/stories --drafts',
+        '/stories --local',
+        '/stories search "fantasía"',
+        '/stories refresh',
+      ],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        // 1. Subcomando refresh
+        if (parsed.subcommand === 'refresh' || parsed.args.includes('refresh')) {
+          return await executeRefresh(app, parsed);
+        }
 
-        // Manejo de /stories search <query>
-        if (parsed.subcommand === 'search' || parsed.args[0] === 'search') {
-          const query = (parsed.subcommand === 'search' ? parsed.args.join(' ') : parsed.args.slice(1).join(' ')).trim().toLowerCase();
+        // Obtener historias remotas y locales
+        let remoteStories: RemoteWattpadStory[] = app.remoteStories || [];
+        let localManuscripts: LocalManuscript[] = app.localManuscripts || [];
+        let localStories = app.storyRepo.findAll();
+
+        // Si app.localManuscripts está vacío, escanear
+        if (localManuscripts.length === 0 && app.fsManager) {
+          localManuscripts = app.fsManager.scanLocalManuscripts();
+          app.localManuscripts = localManuscripts;
+        }
+
+        // Si remoteStories está vacío y no estamos en pruebas vacías, intentar recuperar caché
+        if (remoteStories.length === 0 && app.wattpadService) {
+          const cached = app.wattpadService.getCachedRemoteWorks();
+          if (cached && cached.stories) {
+            remoteStories = cached.stories;
+            app.remoteStories = remoteStories;
+          }
+        }
+
+        let publishedStories = remoteStories.filter((s) => s.published);
+        let wattpadDrafts = remoteStories.filter((s) => !s.published);
+
+        // 2. Manejo de búsqueda: /stories search <query> o /stories <query>
+        const isSearch =
+          parsed.subcommand === 'search' ||
+          parsed.args[0] === 'search' ||
+          (parsed.args.length > 0 &&
+            !['all', 'drafts', 'published', 'borradores', 'publicadas', 'local', 'manuscritos', 'refresh'].includes(
+              parsed.args[0].toLowerCase()
+            ) &&
+            !parsed.args[0].startsWith('-'));
+
+        if (isSearch) {
+          const query = (
+            parsed.subcommand === 'search'
+              ? parsed.args.join(' ')
+              : (parsed.args[0] === 'search' ? parsed.args.slice(1).join(' ') : parsed.args.join(' '))
+          )
+            .trim()
+            .toLowerCase();
+
           if (!query) {
             return {
               success: false,
@@ -31,7 +123,30 @@ export function createStoryCommands(): CommandDefinition[] {
             };
           }
 
-          const matched = stories.filter(
+          const matchedPublished = publishedStories.filter(
+            (s) =>
+              s.title.toLowerCase().includes(query) ||
+              s.genre.toLowerCase().includes(query) ||
+              (s.description && s.description.toLowerCase().includes(query)) ||
+              s.tags.some((t) => t.toLowerCase().includes(query))
+          );
+
+          const matchedDrafts = wattpadDrafts.filter(
+            (s) =>
+              s.title.toLowerCase().includes(query) ||
+              s.genre.toLowerCase().includes(query) ||
+              (s.description && s.description.toLowerCase().includes(query)) ||
+              s.tags.some((t) => t.toLowerCase().includes(query))
+          );
+
+          const matchedManuscripts = localManuscripts.filter(
+            (m) =>
+              m.detectedTitle.toLowerCase().includes(query) ||
+              m.filename.toLowerCase().includes(query) ||
+              m.relativePath.toLowerCase().includes(query)
+          );
+
+          const matchedLocal = localStories.filter(
             (s: any) =>
               s.title.toLowerCase().includes(query) ||
               s.genre.toLowerCase().includes(query) ||
@@ -39,61 +154,318 @@ export function createStoryCommands(): CommandDefinition[] {
               (s.tags && s.tags.some((t: string) => t.toLowerCase().includes(query)))
           );
 
-          if (matched.length === 0) {
+          const totalMatched =
+            matchedPublished.length + matchedDrafts.length + matchedManuscripts.length + matchedLocal.length;
+
+          if (totalMatched === 0) {
             return {
               success: true,
               blocks: [
                 {
                   type: 'card',
                   title: `BÚSQUEDA DE NOVELAS: "${query}"`,
-                  subtitle: 'Catálogo de obras',
+                  subtitle: 'Catálogo unificado de obras',
                   statusBadge: '0 COINCIDENCIAS',
                   statusColor: '#808080',
-                  content: `No se encontraron novelas en tu cuenta que coincidan con "${query}".`,
+                  content: `No se encontraron novelas ni manuscritos que coincidan con "${query}".`,
                 },
               ],
               message: `No se encontraron novelas que coincidan con "${query}".`,
             };
           }
 
+          const searchBlocks: RenderBlock[] = [
+            {
+              type: 'card',
+              title: `RESULTADOS DE BÚSQUEDA: "${query}"`,
+              subtitle: `${totalMatched} obra(s) encontrada(s) en tu catálogo`,
+              statusBadge: `${totalMatched} COINCIDENCIAS`,
+              statusColor: '#17A2B8',
+            },
+          ];
+
+          for (const s of matchedPublished) {
+            searchBlocks.push({
+              type: 'card',
+              title: `${s.title} [ID: ${s.id}]`,
+              subtitle: s.description ? s.description.slice(0, 90) : 'Sin sinopsis.',
+              statusBadge: 'PUBLICADA EN WATTPAD',
+              statusColor: '#28A745',
+              fields: [
+                { label: 'Identificador', value: String(s.id) },
+                { label: 'Género', value: s.genre },
+                { label: 'Capítulos', value: `${s.numParts} partes (${s.publishedCount} publicadas)` },
+                { label: 'URL de Wattpad', value: s.url },
+              ],
+            });
+          }
+
+          for (const s of matchedDrafts) {
+            searchBlocks.push({
+              type: 'card',
+              title: `${s.title} [ID: ${s.id}]`,
+              subtitle: s.description ? s.description.slice(0, 90) : 'Sin sinopsis.',
+              statusBadge: 'BORRADOR EN WATTPAD',
+              statusColor: '#FFC107',
+              fields: [
+                { label: 'Identificador', value: String(s.id) },
+                { label: 'Género', value: s.genre },
+                { label: 'Estado', value: 'Borrador no publicado en Wattpad' },
+                { label: 'Capítulos', value: `${s.numParts} capítulo(s) en borrador` },
+                { label: 'URL de Wattpad', value: s.url },
+              ],
+            });
+          }
+
+          for (const m of matchedManuscripts) {
+            searchBlocks.push({
+              type: 'card',
+              title: `${m.detectedTitle} (${m.format.toUpperCase()})`,
+              subtitle: `Ruta: ${m.relativePath}`,
+              statusBadge: 'MANUSCRITO LOCAL - PENDIENTE DE SUBIR A WATTPAD',
+              statusColor: '#17A2B8',
+              fields: [
+                { label: 'Archivo', value: m.filename },
+                { label: 'Formato', value: `.${m.format}` },
+                { label: 'Capítulos Estimados', value: `${m.chapterCount} capítulo(s)` },
+                { label: 'Estado', value: 'Solo disponible localmente' },
+              ],
+            });
+          }
+
+          for (const s of matchedLocal) {
+            searchBlocks.push({
+              type: 'card',
+              title: `${s.title} [${s.id}]`,
+              subtitle: s.description ? s.description.slice(0, 90) : 'Sin sinopsis.',
+              statusBadge: 'LOCAL - EN PREPARACIÓN',
+              statusColor: '#6C757D',
+              fields: [
+                { label: 'Género', value: s.genre },
+                { label: 'Estado', value: 'Borrador local de la CLI' },
+              ],
+            });
+          }
+
           return {
             success: true,
-            blocks: [
-              {
-                type: 'card',
-                title: `RESULTADOS DE BÚSQUEDA: "${query}"`,
-                subtitle: `${matched.length} obra(s) encontrada(s) en tu catálogo`,
-                statusBadge: `${matched.length} COINCIDENCIAS`,
-                statusColor: '#17A2B8',
-                items: matched.map((s: any) => ({
-                  primary: `${s.title} [${s.id}]`,
-                  secondary: `Género: ${s.genre} | Idioma: ${s.language.toUpperCase()} | Estado: ${s.status}`,
-                  badge: s.wattpadId ? 'EN WATTPAD' : 'BORRADOR',
-                })),
-              },
-            ],
+            blocks: searchBlocks,
           };
         }
 
-        const filter = parsed.subcommand || parsed.args[0];
+        // 3. Filtros
+        const filterArg = (parsed.subcommand || parsed.args[0] || '').toLowerCase();
+        const filterPublished =
+          parsed.flags['published'] === true ||
+          filterArg === 'published' ||
+          filterArg === 'publicadas' ||
+          parsed.args.includes('--published');
+        const filterDrafts =
+          parsed.flags['drafts'] === true ||
+          filterArg === 'drafts' ||
+          filterArg === 'borradores' ||
+          parsed.args.includes('--drafts');
+        const filterLocal =
+          parsed.flags['local'] === true ||
+          filterArg === 'local' ||
+          filterArg === 'manuscritos' ||
+          parsed.args.includes('--local');
 
-        if (filter === 'drafts' || filter === 'borradores') {
-          stories = stories.filter((s: any) => s.status === 'draft');
-        } else if (filter === 'published' || filter === 'publicadas') {
-          stories = stories.filter((s: any) => s.status === 'published');
+        // Caso filtro de publicadas
+        if (filterPublished) {
+          if (publishedStories.length === 0) {
+            return {
+              success: true,
+              blocks: [
+                {
+                  type: 'card',
+                  title: 'NOVELAS PUBLICADAS EN WATTPAD',
+                  subtitle: 'Filtro: Solo publicadas',
+                  statusBadge: '0 PUBLICADAS',
+                  statusColor: '#808080',
+                  content: 'No tienes novelas publicadas actualmente en tu cuenta de Wattpad.',
+                },
+              ],
+              message: 'No tienes novelas publicadas en Wattpad.',
+            };
+          }
+
+          const blocks: RenderBlock[] = [
+            {
+              type: 'card',
+              title: 'NOVELAS PUBLICADAS EN WATTPAD',
+              subtitle: `${publishedStories.length} obra(s) pública(s) en tu cuenta`,
+              statusBadge: `${publishedStories.length} PUBLICADAS`,
+              statusColor: '#28A745',
+            },
+          ];
+
+          for (const s of publishedStories) {
+            blocks.push({
+              type: 'card',
+              title: `${s.title} [ID: ${s.id}]`,
+              subtitle: s.description ? s.description.slice(0, 100) : 'Sin descripción.',
+              statusBadge: 'PUBLICADA EN WATTPAD',
+              statusColor: '#28A745',
+              fields: [
+                { label: 'Identificador', value: String(s.id) },
+                { label: 'Género', value: s.genre },
+                { label: 'Capítulos', value: `${s.numParts} partes (${s.publishedCount} publicadas)` },
+                {
+                  label: 'Lecturas / Votos',
+                  value: `${(s.readCount || 0).toLocaleString()} lecturas · ${(s.voteCount || 0).toLocaleString()} votos`,
+                },
+                {
+                  label: 'Última modificación',
+                  value: s.lastModified ? new Date(s.lastModified).toLocaleDateString('es-ES') : 'No disponible',
+                },
+                { label: 'URL de Wattpad', value: s.url },
+              ],
+            });
+          }
+
+          return { success: true, blocks };
         }
 
-        if (stories.length === 0) {
+        // Caso filtro de borradores
+        if (filterDrafts) {
+          if (wattpadDrafts.length === 0) {
+            return {
+              success: true,
+              blocks: [
+                {
+                  type: 'card',
+                  title: 'BORRADORES EN WATTPAD',
+                  subtitle: 'Filtro: Solo borradores de Wattpad',
+                  statusBadge: '0 BORRADORES',
+                  statusColor: '#808080',
+                  content: 'No tienes borradores guardados actualmente en tu cuenta de Wattpad.',
+                },
+              ],
+              message: 'No tienes borradores guardados en Wattpad.',
+            };
+          }
+
+          const blocks: RenderBlock[] = [
+            {
+              type: 'card',
+              title: 'BORRADORES EN WATTPAD',
+              subtitle: `${wattpadDrafts.length} obra(s) en borrador dentro de Wattpad`,
+              statusBadge: `${wattpadDrafts.length} BORRADORES`,
+              statusColor: '#FFC107',
+            },
+          ];
+
+          for (const s of wattpadDrafts) {
+            blocks.push({
+              type: 'card',
+              title: `${s.title} [ID: ${s.id}]`,
+              subtitle: s.description ? s.description.slice(0, 100) : 'Sin sinopsis.',
+              statusBadge: 'BORRADOR EN WATTPAD',
+              statusColor: '#FFC107',
+              fields: [
+                { label: 'Identificador', value: String(s.id) },
+                { label: 'Género', value: s.genre },
+                { label: 'Estado', value: 'Borrador en Wattpad (no publicado)' },
+                { label: 'Número de Capítulos', value: `${s.numParts} capítulo(s) en borrador` },
+                {
+                  label: 'Última modificación',
+                  value: s.lastModified ? new Date(s.lastModified).toLocaleDateString('es-ES') : 'No disponible',
+                },
+                { label: 'URL de Wattpad', value: s.url },
+              ],
+            });
+          }
+
+          return { success: true, blocks };
+        }
+
+        // Caso filtro local
+        if (filterLocal) {
+          const totalLocal = localManuscripts.length + localStories.length;
+          if (totalLocal === 0) {
+            return {
+              success: true,
+              blocks: [
+                {
+                  type: 'card',
+                  title: 'MANUSCRITOS LOCALES',
+                  subtitle: 'Filtro: Solo manuscritos y novelas locales',
+                  statusBadge: '0 LOCALES',
+                  statusColor: '#808080',
+                  content: 'No tienes manuscritos locales pendientes de subir en "Mis novelas".',
+                },
+              ],
+              message: 'No tienes manuscritos locales pendientes.',
+            };
+          }
+
+          const blocks: RenderBlock[] = [
+            {
+              type: 'card',
+              title: 'MANUSCRITOS LOCALES (PENDIENTES DE SUBIR A WATTPAD)',
+              subtitle: `${localManuscripts.length} manuscrito(s) detectados en "Mis novelas"`,
+              statusBadge: `${localManuscripts.length} ARCHIVOS`,
+              statusColor: '#17A2B8',
+            },
+          ];
+
+          for (const m of localManuscripts) {
+            blocks.push({
+              type: 'card',
+              title: `${m.detectedTitle} (${m.format.toUpperCase()})`,
+              subtitle: `Ruta: ${m.relativePath}`,
+              statusBadge: 'MANUSCRITO LOCAL - PENDIENTE DE SUBIR A WATTPAD',
+              statusColor: '#17A2B8',
+              fields: [
+                { label: 'Archivo', value: m.filename },
+                { label: 'Título Detectado', value: m.detectedTitle },
+                { label: 'Formato', value: `.${m.format}` },
+                { label: 'Capítulos Estimados', value: `${m.chapterCount} capítulo(s)` },
+                { label: 'Tamaño', value: `${(m.sizeBytes / 1024).toFixed(1)} KB` },
+                { label: 'Última Modificación', value: m.lastModified },
+                { label: 'Estado', value: 'Solo disponible localmente / No sincronizado con Wattpad' },
+              ],
+            });
+          }
+
+          for (const story of localStories) {
+            const chapters = app.chapterRepo.findByStoryId(story.id);
+            const badge = formatStatusBadge(story.status);
+            blocks.push({
+              type: 'card',
+              title: `${story.title} [${story.id}]`,
+              subtitle: story.description ? story.description.slice(0, 90) : 'Sin sinopsis.',
+              statusBadge: 'LOCAL - EN PREPARACIÓN',
+              statusColor: badge.color,
+              fields: [
+                { label: 'Género', value: story.genre },
+                { label: 'Editor Preferido', value: story.editorPreference.toUpperCase() },
+                { label: 'Capítulos', value: `${chapters.length} capítulo(s)` },
+                { label: 'Estado', value: 'Borrador local en preparación' },
+              ],
+            });
+          }
+
+          return { success: true, blocks };
+        }
+
+        // 4. Vista general unificada (todas las obras)
+        const totalAll =
+          publishedStories.length + wattpadDrafts.length + localManuscripts.length + localStories.length;
+
+        if (totalAll === 0) {
           return {
             success: true,
             blocks: [
               {
                 type: 'card',
                 title: 'MIS NOVELAS',
-                subtitle: filter ? `Filtro: ${filter}` : 'Catálogo de obras',
+                subtitle: 'Catálogo de obras',
                 statusBadge: '0 NOVELAS',
                 statusColor: '#808080',
-                content: 'No tienes novelas disponibles en esta cuenta.\nUsa /story create "Título" para crear tu primera novela.',
+                content:
+                  'No tienes novelas disponibles en esta cuenta.\nUsa /story create "Título" para crear tu primera novela.',
               },
             ],
             message: 'No tienes novelas disponibles en esta cuenta.',
@@ -103,14 +475,82 @@ export function createStoryCommands(): CommandDefinition[] {
         const blocks: RenderBlock[] = [
           {
             type: 'card',
-            title: 'MIS NOVELAS Y OBRAS',
-            subtitle: `Total: ${stories.length} obra(s) en tu cuenta`,
-            statusBadge: `${stories.length} NOVELAS`,
+            title: 'CATÁLOGO UNIFICADO DE OBRAS',
+            subtitle: `${publishedStories.length} publicadas · ${wattpadDrafts.length} borradores en Wattpad · ${localManuscripts.length} manuscritos locales`,
+            statusBadge: `${totalAll} OBRAS`,
             statusColor: '#FF6122',
           },
         ];
 
-        for (const story of stories) {
+        // Sección 1: Publicadas en Wattpad
+        for (const s of publishedStories) {
+          blocks.push({
+            type: 'card',
+            title: `${s.title} [ID: ${s.id}]`,
+            subtitle: s.description ? s.description.slice(0, 100) : 'Sin descripción.',
+            statusBadge: 'PUBLICADA EN WATTPAD',
+            statusColor: '#28A745',
+            fields: [
+              { label: 'Identificador', value: String(s.id) },
+              { label: 'Género', value: s.genre },
+              { label: 'Capítulos', value: `${s.numParts} partes (${s.publishedCount} publicadas)` },
+              {
+                label: 'Lecturas / Votos',
+                value: `${(s.readCount || 0).toLocaleString()} lecturas · ${(s.voteCount || 0).toLocaleString()} votos`,
+              },
+              {
+                label: 'Última modificación',
+                value: s.lastModified ? new Date(s.lastModified).toLocaleDateString('es-ES') : 'No disponible',
+              },
+              { label: 'URL de Wattpad', value: s.url },
+            ],
+          });
+        }
+
+        // Sección 2: Borradores en Wattpad
+        for (const s of wattpadDrafts) {
+          blocks.push({
+            type: 'card',
+            title: `${s.title} [ID: ${s.id}]`,
+            subtitle: s.description ? s.description.slice(0, 100) : 'Sin sinopsis.',
+            statusBadge: 'BORRADOR EN WATTPAD',
+            statusColor: '#FFC107',
+            fields: [
+              { label: 'Identificador', value: String(s.id) },
+              { label: 'Género', value: s.genre },
+              { label: 'Estado', value: 'Borrador en Wattpad (no publicado)' },
+              { label: 'Número de Capítulos', value: `${s.numParts} capítulo(s) en borrador` },
+              {
+                label: 'Última modificación',
+                value: s.lastModified ? new Date(s.lastModified).toLocaleDateString('es-ES') : 'No disponible',
+              },
+              { label: 'URL de Wattpad', value: s.url },
+            ],
+          });
+        }
+
+        // Sección 3: Manuscritos Locales
+        for (const m of localManuscripts) {
+          blocks.push({
+            type: 'card',
+            title: `${m.detectedTitle} (${m.format.toUpperCase()})`,
+            subtitle: `Ruta: ${m.relativePath}`,
+            statusBadge: 'MANUSCRITO LOCAL - PENDIENTE DE SUBIR A WATTPAD',
+            statusColor: '#17A2B8',
+            fields: [
+              { label: 'Archivo', value: m.filename },
+              { label: 'Título Detectado', value: m.detectedTitle },
+              { label: 'Formato', value: `.${m.format}` },
+              { label: 'Capítulos Estimados', value: `${m.chapterCount} capítulo(s)` },
+              { label: 'Tamaño', value: `${(m.sizeBytes / 1024).toFixed(1)} KB` },
+              { label: 'Última Modificación', value: m.lastModified },
+              { label: 'Estado', value: 'Solo disponible localmente / No sincronizado con Wattpad' },
+            ],
+          });
+        }
+
+        // Sección 4: Novelas Locales en Memoria / Workspace
+        for (const story of localStories) {
           const chapters = app.chapterRepo.findByStoryId(story.id);
           const badge = formatStatusBadge(story.status);
           const totalWords = chapters.reduce((sum: number, ch: any) => sum + ch.wordCount, 0);
@@ -119,15 +559,15 @@ export function createStoryCommands(): CommandDefinition[] {
             type: 'card',
             title: `${story.title} [${story.id}]`,
             subtitle: story.description ? story.description.slice(0, 90) : 'Sin sinopsis.',
-            statusBadge: badge.text,
+            statusBadge: 'LOCAL - EN PREPARACIÓN',
             statusColor: badge.color,
             fields: [
               { label: 'Género', value: story.genre },
               { label: 'Editor Preferido', value: story.editorPreference.toUpperCase() },
               { label: 'Capítulos', value: `${chapters.length} capítulo(s)` },
               { label: 'Palabras Totales', value: `${totalWords.toLocaleString()} palabras` },
-              { label: 'Privacidad', value: story.status === 'published' ? 'Pública en Wattpad' : 'Privada / Borrador' },
-              { label: 'Identificador Wattpad', value: story.wattpadId || 'Pendiente de publicación' },
+              { label: 'Estado Local', value: story.status === 'published' ? 'Marcado para publicación' : 'Borrador local' },
+              { label: 'Identificador Wattpad', value: story.wattpadId || 'Pendiente de sincronización' },
             ],
           });
         }

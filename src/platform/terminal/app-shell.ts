@@ -9,7 +9,7 @@ import { SuggestionsDropdown } from './components/suggestions';
 import { StatusBar } from './components/status-bar';
 import { CommandOutput, OutputViewProps } from './components/command-output';
 import { HomeView } from './components/home-view';
-import { Story } from '../../features/stories/types/story.types';
+import { Story, RemoteWattpadStory, LocalManuscript } from '../../features/stories/types/story.types';
 import { Chapter } from '../../features/chapters/types/chapter.types';
 import { WattpadUser } from '../../features/account/types/account.types';
 import { CommandRegistry } from '../../features/commands/command-registry';
@@ -28,6 +28,8 @@ export class AppShell {
 
   private stories: Story[] = [];
   private chapters: Chapter[] = [];
+  private remoteStories: RemoteWattpadStory[] = [];
+  private localManuscripts: LocalManuscript[] = [];
   private currentUser: WattpadUser | null = null;
   private activeStoryId: string | null = null;
   private activeChapterId: string | null = null;
@@ -77,6 +79,8 @@ export class AppShell {
   public setState(props: {
     stories?: Story[];
     chapters?: Chapter[];
+    remoteStories?: RemoteWattpadStory[];
+    localManuscripts?: LocalManuscript[];
     currentUser?: WattpadUser | null;
     activeStoryId?: string | null;
     activeChapterId?: string | null;
@@ -86,6 +90,8 @@ export class AppShell {
   }): void {
     if (props.stories !== undefined) this.stories = props.stories;
     if (props.chapters !== undefined) this.chapters = props.chapters;
+    if (props.remoteStories !== undefined) this.remoteStories = props.remoteStories;
+    if (props.localManuscripts !== undefined) this.localManuscripts = props.localManuscripts;
     if (props.currentUser !== undefined) this.currentUser = props.currentUser;
     if (props.activeStoryId !== undefined) this.activeStoryId = props.activeStoryId;
     if (props.activeChapterId !== undefined) this.activeChapterId = props.activeChapterId;
@@ -376,6 +382,7 @@ export class AppShell {
     const headerProps: HeaderProps = {
       version: this.version || '1.1.0',
       user: this.currentUser ? this.currentUser.username : 'Sin conectar',
+      displayName: this.currentUser?.name,
       isAuthenticated: Boolean(this.currentUser),
       serverUrl: this.serverUrl,
       serverOnline: this.serverOnline,
@@ -401,6 +408,8 @@ export class AppShell {
         isAuthenticated: Boolean(this.currentUser),
         stories: this.stories,
         chapters: this.chapters,
+        remoteStories: this.remoteStories,
+        localManuscripts: this.localManuscripts,
         activeStoryId: this.activeStoryId,
         recentCommands: this.history.getAll(),
         width: config.width,

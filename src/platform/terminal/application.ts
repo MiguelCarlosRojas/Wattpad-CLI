@@ -1,3 +1,4 @@
+import path from 'path';
 import { WordService } from '../filesystem/word-service';
 import { NotepadService } from '../filesystem/notepad-service';
 import { GoogleService } from '../google/google-service';
@@ -7,7 +8,7 @@ import { CommandRouter } from '../../features/commands/command-router';
 import { CommandHistory } from '../../features/commands/history';
 import { AppShell } from './app-shell';
 import { WattpadUser } from '../../features/account/types/account.types';
-import { Story } from '../../features/stories/types/story.types';
+import { Story, RemoteWattpadStory, LocalManuscript, UnifiedStoryCatalog } from '../../features/stories/types/story.types';
 import { Chapter } from '../../features/chapters/types/chapter.types';
 import { createGeneralCommands } from '../../features/commands/handlers/general-handler';
 import { createAuthCommands } from '../../features/account/handlers/auth-handler';
@@ -80,6 +81,8 @@ export class Application {
   public currentUser: WattpadUser | null = null;
   public currentStoryId: string | null = null;
   public currentChapterId: string | null = null;
+  public remoteStories: RemoteWattpadStory[] = [];
+  public localManuscripts: LocalManuscript[] = [];
 
   // In-Memory and JSON-backed sovereign workspace managers (No Database)
   public storyRepo: StoryManager;
@@ -93,12 +96,13 @@ export class Application {
 
   constructor(customConfigDir?: string, customCredentialStore?: CredentialStore) {
     this.credentialStore = customCredentialStore || new CredentialStore();
-    this.fsManager = new FileSystemManager();
+    const docsBase = customConfigDir ? path.join(customConfigDir, 'Mis novelas') : undefined;
+    this.fsManager = new FileSystemManager(docsBase);
 
     this.wordService = new WordService(this.fsManager);
     this.notepadService = new NotepadService(this.fsManager);
     this.googleService = new GoogleService(this.credentialStore);
-    this.wattpadService = new WattpadService(this.credentialStore);
+    this.wattpadService = new WattpadService(this.credentialStore, this.fsManager);
 
     // Initializing sovereign workspace managers (no database engine)
     this.storyRepo = new StoryManager();
@@ -155,11 +159,24 @@ export class Application {
       this.connRepo.setConnected('wattpad', 'Wattpad', true, this.currentUser.username);
     }
 
-    // 2. Cargar historias y capítulos desde el workspace en memoria / local
+    // 2. Cargar obras remotas desde caché local si existen
+    const cached = this.wattpadService.getCachedRemoteWorks();
+    if (cached) {
+      this.remoteStories = cached.stories || [];
+      if (!this.currentUser && cached.user) {
+        this.currentUser = cached.user;
+        this.connRepo.setConnected('wattpad', 'Wattpad', true, cached.user.username);
+      }
+    }
+
+    // 3. Escanear manuscritos locales (.docx y .txt) en "Mis novelas"
+    this.localManuscripts = this.fsManager.scanLocalManuscripts();
+
+    // 4. Cargar historias y capítulos desde el workspace en memoria / local
     const stories = this.storyRepo.findAll();
     const allChapters = this.chapterRepo.findAll();
 
-    // 3. Configurar manejador de envío de token (compatibilidad con AuthModal)
+    // 5. Configurar manejador de envío de token (compatibilidad con AuthModal)
     this.appShell.setTokenSubmitHandler(async (token: string) => {
       try {
         const session = await this.wattpadService.loginWithToken(token);
@@ -172,18 +189,58 @@ export class Application {
       }
     });
 
-    // 4. Propagar estado real a AppShell
+    // 6. Propagar estado real completo a AppShell
     this.appShell.setState({
       stories,
       chapters: allChapters,
+      remoteStories: this.remoteStories,
+      localManuscripts: this.localManuscripts,
       currentUser: this.currentUser,
       version: '1.1.0',
     });
 
-    // 5. Conectar router de comandos con la terminal interactiva
+    // 7. Conectar router de comandos con la terminal interactiva
     this.appShell.setCommandExecutor(async (cmdStr: string) => {
       return await this.router.execute(this, cmdStr);
     });
+  }
+
+  /**
+   * Refresca la sesión, obras en Wattpad y manuscritos locales
+   */
+  public async refreshAll(forceRemote = false): Promise<UnifiedStoryCatalog> {
+    // 1. Re-escanear manuscritos locales
+    this.localManuscripts = this.fsManager.scanLocalManuscripts();
+
+    // 2. Consultar historias remotas y perfil
+    const remoteRes = await this.wattpadService.fetchRemoteWorks({ force: forceRemote });
+    if (remoteRes.user) {
+      this.currentUser = remoteRes.user;
+      this.connRepo.setConnected('wattpad', 'Wattpad', true, this.currentUser.username);
+    }
+    this.remoteStories = remoteRes.stories || [];
+
+    // 3. Actualizar estado en AppShell
+    const localStories = this.storyRepo.findAll();
+    const allChapters = this.chapterRepo.findAll();
+
+    this.appShell.setState({
+      stories: localStories,
+      chapters: allChapters,
+      remoteStories: this.remoteStories,
+      localManuscripts: this.localManuscripts,
+      currentUser: this.currentUser,
+    });
+
+    return {
+      publishedStories: this.remoteStories.filter((s) => s.published),
+      wattpadDrafts: this.remoteStories.filter((s) => !s.published),
+      localStories,
+      localManuscripts: this.localManuscripts,
+      lastSync: new Date().toISOString(),
+      remoteSyncFailed: Boolean(remoteRes.error),
+      errorMessage: remoteRes.error,
+    };
   }
 
   public getHeaderState(): any {
@@ -193,6 +250,7 @@ export class Application {
     return {
       version: '1.1.0',
       user: this.currentUser ? this.currentUser.username : 'Sin conectar',
+      displayName: this.currentUser?.name,
       isAuthenticated: Boolean(this.currentUser),
       activeStory: activeStory ? `${activeStory.title} [${activeStory.id}]` : null,
       activeChapter: activeChapter ? `${activeChapter.title} [${activeChapter.id}]` : null,

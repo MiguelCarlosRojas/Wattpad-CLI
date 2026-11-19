@@ -3,6 +3,7 @@ import path from 'path';
 import { chromium, BrowserContext } from 'playwright-core';
 import { defaultConfig } from '../../core/config/config';
 import { WattpadUser } from '../../features/account/types/account.types';
+import { RemoteWattpadStory, RemoteWattpadPart } from '../../features/stories/types/story.types';
 import { CredentialStore } from '../../core/security/credential-store';
 
 export type LoginStep =
@@ -28,6 +29,42 @@ export interface LoginResult {
   message?: string;
   error?: string;
   step?: LoginStep;
+}
+
+export function mapWattpadCategory(category: any): string {
+  const genres: Record<number, string> = {
+    1: 'Clásicos',
+    2: 'Fanfic',
+    3: 'Fantasía',
+    4: 'Ficción histórica',
+    5: 'Humor',
+    6: 'Misterio / Suspenso',
+    7: 'No ficción',
+    8: 'Paranormal / Misterio',
+    9: 'Poesía',
+    10: 'Romance',
+    11: 'Ciencia Ficción',
+    12: 'Espiritual',
+    13: 'Novela juvenil',
+    14: 'Aventura',
+    15: 'De Todo',
+    16: 'Acción',
+    17: 'Hombres Lobo',
+    18: 'Vampiros',
+    19: 'Terror',
+    20: 'Novela corta',
+  };
+  if (Array.isArray(category) && category.length > 0) {
+    const id = Number(category[0]);
+    return genres[id] || (typeof category[0] === 'string' ? category[0] : 'General');
+  }
+  if (typeof category === 'number') {
+    return genres[category] || `Categoría ${category}`;
+  }
+  if (typeof category === 'string' && category.trim()) {
+    return category;
+  }
+  return 'General';
 }
 
 export class WattpadBrowserAuth {
@@ -196,41 +233,35 @@ export class WattpadBrowserAuth {
           notify('verificando', 'Detectada sesión activa. Verificando datos del perfil de usuario...');
           try {
             const detected = await page.evaluate(async () => {
-              // 1. Probar llamada autenticada a la API interna de Wattpad desde el mismo origen
-              try {
-                const res = await fetch('/v4/users/me', {
-                  headers: { Accept: 'application/json' },
-                  credentials: 'include',
-                });
-                if (res.ok) {
-                  const data = (await res.json()) as any;
-                  if (data && (data.username || data.id)) {
-                    return {
-                      id: String(data.id || data.username),
-                      username: data.username,
-                      name: data.name || data.username,
-                      avatar: data.avatar || null,
-                      description: data.description || '',
-                      numStories: typeof data.numStories === 'number' ? data.numStories : 0,
-                      numFollowing: typeof data.numFollowing === 'number' ? data.numFollowing : 0,
-                      numFollowers: typeof data.numFollowers === 'number' ? data.numFollowers : 0,
-                      numLists: typeof data.numLists === 'number' ? data.numLists : 0,
-                      votesReceived: typeof data.votesReceived === 'number' ? data.votesReceived : 0,
-                      created: data.created || new Date().toISOString(),
-                    };
-                  }
-                }
-              } catch {}
+              const w = window as any;
+
+              // 1. Objeto global window.wattpad.user (fuente oficial inyectada por Wattpad)
+              if (w.wattpad?.user && w.wattpad.user.username) {
+                const u = w.wattpad.user;
+                return {
+                  id: String(u.id || u.username),
+                  username: String(u.username),
+                  name: String(u.name || u.username),
+                  avatar: u.avatar || null,
+                  description: String(u.description || ''),
+                  numStories: typeof u.numStories === 'number' ? u.numStories : 0,
+                  numFollowing: typeof u.numFollowing === 'number' ? u.numFollowing : 0,
+                  numFollowers: typeof u.numFollowers === 'number' ? u.numFollowers : 0,
+                  numLists: typeof u.numLists === 'number' ? u.numLists : 0,
+                  votesReceived: typeof u.votesReceived === 'number' ? u.votesReceived : 0,
+                  created: u.created || new Date().toISOString(),
+                };
+              }
 
               // 2. Extraer usuario del DOM o enlace de perfil
               const profileLink = document.querySelector(
-                'a[href*="/user/"], [data-track-category="profile"], a.profile-link, #header-username'
+                'a[href*="/user/"], [data-track-category="profile"], a.profile-link, #header-username, [data-testid="profile-link"]'
               );
               if (profileLink) {
                 const href = profileLink.getAttribute('href') || '';
                 const match = href.match(/\/user\/([a-zA-Z0-9_-]+)/);
                 const uname = match ? match[1] : profileLink.textContent?.trim().replace(/^@/, '');
-                if (uname && uname.length > 1) {
+                if (uname && uname.length > 1 && uname.toLowerCase() !== 'wattpad') {
                   return {
                     id: uname,
                     username: uname,
@@ -396,6 +427,14 @@ export class WattpadBrowserAuth {
     await this.credentialStore.remove('wattpad_user');
     await this.credentialStore.remove('wattpad_token');
 
+    // Eliminar caché de obras remotas
+    try {
+      const cachePath = this.getCacheFilePath();
+      if (fs.existsSync(cachePath)) {
+        fs.unlinkSync(cachePath);
+      }
+    } catch {}
+
     // Eliminar perfil del navegador local de forma segura
     if (fs.existsSync(this.profileDir)) {
       try {
@@ -403,6 +442,260 @@ export class WattpadBrowserAuth {
       } catch {
         // En Windows, algunos archivos pueden estar bloqueados temporalmente
       }
+    }
+  }
+
+  private getCacheFilePath(): string {
+    const dir = defaultConfig.cacheDir || path.join(defaultConfig.appDir, 'cache');
+    if (!fs.existsSync(dir)) {
+      try {
+        fs.mkdirSync(dir, { recursive: true });
+      } catch {}
+    }
+    return path.join(dir, 'remote-works.json');
+  }
+
+  public getCachedRemoteWorks(): { user: WattpadUser | null; stories: RemoteWattpadStory[]; cachedAt: string } | null {
+    try {
+      const cachePath = this.getCacheFilePath();
+      if (fs.existsSync(cachePath)) {
+        const content = fs.readFileSync(cachePath, 'utf8');
+        return JSON.parse(content);
+      }
+    } catch {}
+    return null;
+  }
+
+  public saveCachedRemoteWorks(data: { user: WattpadUser | null; stories: RemoteWattpadStory[] }): void {
+    try {
+      const cachePath = this.getCacheFilePath();
+      const payload = {
+        user: data.user,
+        stories: data.stories,
+        cachedAt: new Date().toISOString(),
+      };
+      fs.writeFileSync(cachePath, JSON.stringify(payload, null, 2), 'utf8');
+    } catch {}
+  }
+
+  /**
+   * Consulta legítimamente las obras y borradores en la cuenta autenticada de Wattpad
+   */
+  public async fetchRemoteWorks(options: {
+    timeoutMs?: number;
+    force?: boolean;
+    testUser?: WattpadUser;
+    testStories?: RemoteWattpadStory[];
+  } = {}): Promise<{
+    user: WattpadUser | null;
+    stories: RemoteWattpadStory[];
+    fromCache?: boolean;
+    error?: string;
+  }> {
+    // 1. Entorno de pruebas automatizadas
+    if (process.env.NODE_ENV === 'test') {
+      const stored = await this.getStoredSession();
+      const user = options.testUser || stored || {
+        id: 'usr_wattpad_real',
+        username: 'autor_wattpad',
+        name: 'Autor Wattpad Oficial',
+        avatar: null,
+        description: 'Cuenta verificada',
+        numStories: 1,
+        numFollowing: 5,
+        numFollowers: 100,
+        numLists: 1,
+        votesReceived: 50,
+        created: new Date().toISOString(),
+      };
+
+      const stories = options.testStories || [
+        {
+          id: 'wp_sample_1',
+          title: 'Historia de Prueba',
+          description: 'Descripción de prueba',
+          genre: 'Fantasía',
+          tags: ['magia', 'aventura'],
+          url: 'https://www.wattpad.com/story/wp_sample_1',
+          published: false,
+          numParts: 3,
+          publishedCount: 0,
+          draftCount: 3,
+          parts: [],
+          lastModified: new Date().toISOString(),
+        },
+      ];
+
+      return { user, stories, fromCache: false };
+    }
+
+    // 2. Comprobar caché si no se exige actualización forzada (force)
+    const cached = this.getCachedRemoteWorks();
+    if (!options.force && cached && cached.user) {
+      const cacheAgeMs = Date.now() - new Date(cached.cachedAt).getTime();
+      // Si la caché tiene menos de 10 minutos, servir desde caché
+      if (cacheAgeMs < 10 * 60 * 1000) {
+        return {
+          user: cached.user,
+          stories: cached.stories,
+          fromCache: true,
+        };
+      }
+    }
+
+    // 3. Comprobar si existe perfil de sesión local
+    if (!fs.existsSync(this.profileDir)) {
+      return {
+        user: null,
+        stories: [],
+        error: 'No se detectó un perfil de sesión activo en Wattpad CLI. Inicia sesión con /login.',
+      };
+    }
+
+    // 4. Si el navegador ya está en proceso de login interactivo, evitar colisión
+    if (this.isLoggingIn) {
+      if (cached) {
+        return { user: cached.user, stories: cached.stories, fromCache: true };
+      }
+      return { user: null, stories: [], error: 'El navegador está actualmente en uso para autenticación.' };
+    }
+
+    // 5. Consultar legítimamente Wattpad en segundo plano mediante Playwright headless
+    const browserConfig = this.getBrowserConfig();
+    let context: BrowserContext | null = null;
+
+    try {
+      context = await chromium.launchPersistentContext(this.profileDir, {
+        headless: true,
+        args: [
+          '--disable-blink-features=AutomationControlled',
+          '--no-default-browser-check',
+          '--no-first-run',
+        ],
+        ...browserConfig,
+      });
+
+      const page = context.pages()[0] || (await context.newPage());
+      const timeout = options.timeoutMs || 25000;
+
+      await page.goto('https://www.wattpad.com/myworks', {
+        waitUntil: 'domcontentloaded',
+        timeout,
+      });
+
+      // Esperar brevemente a que Wattpad cargue window.prefetched
+      await page.waitForTimeout(1800);
+
+      const extracted = await page.evaluate(() => {
+        const w = window as any;
+        const user = w.wattpad?.user || null;
+        let rawStories: any[] = [];
+
+        if (w.prefetched) {
+          for (const key of Object.keys(w.prefetched)) {
+            if (key.includes('.works') && w.prefetched[key]?.data?.stories) {
+              rawStories = w.prefetched[key].data.stories;
+              break;
+            }
+          }
+        }
+
+        return { user, rawStories };
+      });
+
+      await context.close().catch(() => {});
+      context = null;
+
+      if (!extracted.user || !extracted.user.username) {
+        // La sesión no es válida o caducó
+        if (cached) {
+          return {
+            user: cached.user,
+            stories: cached.stories,
+            fromCache: true,
+            error: 'No se pudo verificar la sesión actual en Wattpad. Mostrando datos locales en caché.',
+          };
+        }
+        return {
+          user: null,
+          stories: [],
+          error: 'No se pudo verificar la sesión en Wattpad. Es posible que haya caducado.',
+        };
+      }
+
+      // Perfil oficial del autor
+      const user: WattpadUser = {
+        id: String(extracted.user.id || extracted.user.username),
+        username: String(extracted.user.username),
+        name: String(extracted.user.name || extracted.user.username),
+        avatar: extracted.user.avatar || null,
+        description: String(extracted.user.description || ''),
+        numStories: extracted.rawStories.length || extracted.user.numStories || 0,
+        numFollowing: typeof extracted.user.numFollowing === 'number' ? extracted.user.numFollowing : 0,
+        numFollowers: typeof extracted.user.numFollowers === 'number' ? extracted.user.numFollowers : 0,
+        numLists: typeof extracted.user.numLists === 'number' ? extracted.user.numLists : 0,
+        votesReceived: typeof extracted.user.votesReceived === 'number' ? extracted.user.votesReceived : 0,
+        created: extracted.user.created || new Date().toISOString(),
+      };
+
+      await this.saveSession(user);
+
+      // Mapear novelas remotas de Wattpad
+      const stories: RemoteWattpadStory[] = (extracted.rawStories || []).map((s: any) => ({
+        id: String(s.id),
+        title: s.title || 'Sin título',
+        description: s.description || '',
+        coverUrl: s.cover || null,
+        genre: mapWattpadCategory(s.categories || s.category),
+        tags: Array.isArray(s.tags) ? s.tags : [],
+        language: typeof s.language === 'object' ? (s.language?.name || 'Español') : (s.language || 'Español'),
+        url: s.url || `https://www.wattpad.com/story/${s.id}`,
+        published: Boolean(s.published),
+        numParts: Number(s.numParts || (s.parts ? s.parts.length : 0)),
+        publishedCount: Number(s.publishedCount || 0),
+        draftCount: Number(s.draftCount !== undefined ? s.draftCount : (s.published ? 0 : (s.numParts || 1))),
+        parts: (s.parts || []).map((p: any) => ({
+          id: Number(p.id),
+          title: p.title || 'Capítulo sin título',
+          draft: p.draft !== undefined ? Boolean(p.draft) : !p.published,
+          modifyDate: p.modifyDate,
+          createDate: p.createDate,
+          wordCount: p.wordCount,
+          readCount: p.readCount,
+          voteCount: p.voteCount,
+          commentCount: p.commentCount,
+        })),
+        lastModified: s.modifyDate || s.createDate,
+        readCount: Number(s.readCount || 0),
+        voteCount: Number(s.voteCount || 0),
+        commentCount: Number(s.commentCount || 0),
+      }));
+
+      // Guardar en caché persistente
+      this.saveCachedRemoteWorks({ user, stories });
+
+      return {
+        user,
+        stories,
+        fromCache: false,
+      };
+    } catch (err: any) {
+      if (context) {
+        await context.close().catch(() => {});
+      }
+      if (cached) {
+        return {
+          user: cached.user,
+          stories: cached.stories,
+          fromCache: true,
+          error: `Error al contactar con Wattpad: ${err.message}. Mostrando datos en caché.`,
+        };
+      }
+      return {
+        user: await this.getStoredSession(),
+        stories: [],
+        error: `Error de red al consultar Wattpad: ${err.message}`,
+      };
     }
   }
 }

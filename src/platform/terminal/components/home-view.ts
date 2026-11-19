@@ -1,7 +1,7 @@
 import { ResponsiveLayoutConfig } from '../responsive';
 import { Theme, Chalk, padEndVisible, stripAnsi } from '../theme';
 import { WattpadUser } from '../../../features/account/types/account.types';
-import { Story } from '../../../features/stories/types/story.types';
+import { Story, RemoteWattpadStory, LocalManuscript } from '../../../features/stories/types/story.types';
 import { Chapter } from '../../../features/chapters/types/chapter.types';
 
 export interface HomeViewProps {
@@ -9,6 +9,8 @@ export interface HomeViewProps {
   isAuthenticated: boolean;
   stories: Story[];
   chapters: Chapter[];
+  remoteStories?: RemoteWattpadStory[];
+  localManuscripts?: LocalManuscript[];
   activeStoryId?: string | null;
   recentCommands: string[];
   width: number;
@@ -129,23 +131,50 @@ export class HomeView {
         return `  ${Chalk.hex(borderColor, Theme.borders.vertical)}${content}${' '.repeat(padSpaces)}${Chalk.hex(borderColor, Theme.borders.vertical)}`;
       };
 
-      const storyCount = props.stories.length;
-      const chapterCount = props.chapters.length;
+      const remoteStories = props.remoteStories || [];
+      const publishedStories = remoteStories.filter((s) => s.published);
+      const wattpadDrafts = remoteStories.filter((s) => !s.published);
+      const localManuscripts = props.localManuscripts || [];
+
+      const publishedCount = publishedStories.length;
+      const draftCount = wattpadDrafts.length;
+      const localManuscriptsCount = localManuscripts.length;
+
+      // Cálculo de capítulos totales registrados
+      let remoteChaptersCount = 0;
+      for (const s of remoteStories) {
+        remoteChaptersCount += Math.max(s.numParts || 0, s.parts?.length || 0);
+      }
+      let localChapterCount = props.chapters.length;
+      for (const m of localManuscripts) {
+        localChapterCount += (m.chapterCount || 1);
+      }
+      const totalChapters = remoteChaptersCount > 0 ? remoteChaptersCount : (localChapterCount || props.chapters.length);
 
       lines.push(padRow(' '));
       lines.push(
         padRow(
-          `   ${Chalk.bold(Chalk.hex(Theme.colors.text, 'Novelas locales:'))}     ${Chalk.hex(Theme.colors.primary, `${storyCount} obra(s)`)} en catálogo`
+          `   ${Chalk.bold(Chalk.hex(Theme.colors.text, 'Novelas publicadas:'))}    ${Chalk.hex(Theme.colors.success, `${publishedCount} obra(s)`)} en Wattpad`
         )
       );
       lines.push(
         padRow(
-          `   ${Chalk.bold(Chalk.hex(Theme.colors.text, 'Capítulos creados:'))}   ${Chalk.hex(Theme.colors.text, `${chapterCount} capítulo(s)`)} registrados`
+          `   ${Chalk.bold(Chalk.hex(Theme.colors.text, 'Borradores en Wattpad:'))}  ${Chalk.hex(Theme.colors.warning, `${draftCount} obra(s)`)} en Wattpad`
         )
       );
       lines.push(
         padRow(
-          `   ${Chalk.bold(Chalk.hex(Theme.colors.text, 'Fuentes vinculadas:'))}  ${Chalk.hex(Theme.colors.success, '✓ Word (.docx)')}  ${Chalk.hex(Theme.colors.success, '✓ Bloc de Notas (.txt)')}  ${Chalk.hex(Theme.colors.info, 'Google Docs')}`
+          `   ${Chalk.bold(Chalk.hex(Theme.colors.text, 'Manuscritos locales:'))}    ${Chalk.hex(Theme.colors.primary, `${localManuscriptsCount} archivo(s)`)} (.docx, .txt)`
+        )
+      );
+      lines.push(
+        padRow(
+          `   ${Chalk.bold(Chalk.hex(Theme.colors.text, 'Capítulos registrados:'))}  ${Chalk.hex(Theme.colors.text, `${totalChapters} capítulo(s)`)}`
+        )
+      );
+      lines.push(
+        padRow(
+          `   ${Chalk.bold(Chalk.hex(Theme.colors.text, 'Fuentes vinculadas:'))}     ${Chalk.hex(Theme.colors.success, '✓ Word (.docx)')}  ${Chalk.hex(Theme.colors.success, '✓ Bloc de Notas (.txt)')}  ${Chalk.hex(Theme.colors.info, 'Google Docs')}`
         )
       );
 
@@ -154,7 +183,7 @@ export class HomeView {
         if (activeStory) {
           lines.push(
             padRow(
-              `   ${Chalk.bold(Chalk.hex(Theme.colors.primary, 'Novela activa:'))}       ${activeStory.title} [${activeStory.id}]`
+              `   ${Chalk.bold(Chalk.hex(Theme.colors.primary, 'Novela activa:'))}        ${activeStory.title} [${activeStory.id}]`
             )
           );
         }
@@ -172,7 +201,10 @@ export class HomeView {
       // Accesos directos a operaciones de autor
       lines.push(Chalk.bold(Chalk.hex(Theme.colors.text, '  Operaciones disponibles:')));
       lines.push(
-        `    ${Chalk.hex(Theme.colors.primary, '› /stories')}         ${Chalk.dim('Ver tus novelas y estadísticas')}`
+        `    ${Chalk.hex(Theme.colors.primary, '› /stories')}         ${Chalk.dim('Ver catálogo unificado (obras de Wattpad y manuscritos)')}`
+      );
+      lines.push(
+        `    ${Chalk.hex(Theme.colors.primary, '› /refresh')}         ${Chalk.dim('Actualizar sesión, obras en Wattpad y manuscritos')}`
       );
       lines.push(
         `    ${Chalk.hex(Theme.colors.primary, '› /story create')}     ${Chalk.dim('Crear una nueva novela con título y género')}`

@@ -1,16 +1,19 @@
 import { CredentialStore } from '../../core/security/credential-store';
 import { WattpadUser, AuthSession } from '../../features/account/types/account.types';
-import { Story } from '../../features/stories/types/story.types';
+import { Story, RemoteWattpadStory, LocalManuscript, UnifiedStoryCatalog } from '../../features/stories/types/story.types';
 import { Chapter } from '../../features/chapters/types/chapter.types';
 import { WattpadBrowserAuth, LoginResult, LoginInteractiveOptions } from '../browser/browser-auth';
+import { FileSystemManager } from '../filesystem/file-system';
 
 export class WattpadService {
   private credentialStore: CredentialStore;
   private browserAuth: WattpadBrowserAuth;
+  private fsManager: FileSystemManager;
 
-  constructor(credentialStore?: CredentialStore) {
+  constructor(credentialStore?: CredentialStore, fsManager?: FileSystemManager) {
     this.credentialStore = credentialStore || new CredentialStore();
     this.browserAuth = new WattpadBrowserAuth(this.credentialStore);
+    this.fsManager = fsManager || new FileSystemManager();
   }
 
   public getBrowserAuth(): WattpadBrowserAuth {
@@ -18,7 +21,7 @@ export class WattpadService {
   }
 
   public async getSession(): Promise<AuthSession | null> {
-    const user = await this.browserAuth.getStoredSession();
+    const user = await this.getProfile();
     if (!user) return null;
 
     return {
@@ -29,12 +32,70 @@ export class WattpadService {
   }
 
   public async getProfile(): Promise<WattpadUser | null> {
-    return this.browserAuth.getStoredSession();
+    const stored = await this.browserAuth.getStoredSession();
+    if (stored) return stored;
+
+    const cached = this.browserAuth.getCachedRemoteWorks();
+    if (cached && cached.user) {
+      await this.browserAuth.saveSession(cached.user);
+      return cached.user;
+    }
+
+    return null;
   }
 
   public async isAuthenticated(): Promise<boolean> {
-    const user = await this.browserAuth.getStoredSession();
+    const user = await this.getProfile();
     return Boolean(user && user.username);
+  }
+
+  public async fetchRemoteWorks(options: {
+    timeoutMs?: number;
+    force?: boolean;
+    testUser?: WattpadUser;
+    testStories?: RemoteWattpadStory[];
+  } = {}): Promise<{
+    user: WattpadUser | null;
+    stories: RemoteWattpadStory[];
+    fromCache?: boolean;
+    error?: string;
+  }> {
+    return this.browserAuth.fetchRemoteWorks(options);
+  }
+
+  public getCachedRemoteWorks(): { user: WattpadUser | null; stories: RemoteWattpadStory[]; cachedAt: string } | null {
+    return this.browserAuth.getCachedRemoteWorks();
+  }
+
+  /**
+   * Genera el Catálogo Unificado Oficial combinando:
+   * 1. Novelas publicadas en Wattpad
+   * 2. Borradores en Wattpad
+   * 3. Manuscritos locales (.docx y .txt en Mis novelas)
+   * 4. Obras locales en memoria de la CLI
+   */
+  public async getUnifiedCatalog(
+    localStories: Story[] = [],
+    customManuscriptsDir?: string,
+    forceRemote = false
+  ): Promise<UnifiedStoryCatalog> {
+    const localManuscripts: LocalManuscript[] = this.fsManager.scanLocalManuscripts(customManuscriptsDir);
+
+    const remoteRes = await this.fetchRemoteWorks({ force: forceRemote });
+    const remoteStories = remoteRes.stories || [];
+
+    const publishedStories = remoteStories.filter((s) => s.published);
+    const wattpadDrafts = remoteStories.filter((s) => !s.published);
+
+    return {
+      publishedStories,
+      wattpadDrafts,
+      localStories,
+      localManuscripts,
+      lastSync: new Date().toISOString(),
+      remoteSyncFailed: Boolean(remoteRes.error),
+      errorMessage: remoteRes.error,
+    };
   }
 
   public async loginInteractive(options: LoginInteractiveOptions = {}): Promise<LoginResult> {
