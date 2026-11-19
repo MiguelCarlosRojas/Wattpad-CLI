@@ -11,7 +11,10 @@ async function main(): Promise<void> {
   const rawArgs = process.argv.slice(2);
   if (rawArgs.length > 0) {
     await app.init();
-    let commandStr = rawArgs.join(' ').trim();
+    let commandStr = rawArgs
+      .map((a) => (a.includes(' ') && !a.startsWith('"') && !a.startsWith("'") ? `"${a}"` : a))
+      .join(' ')
+      .trim();
     if (commandStr === '--help' || commandStr === '-h' || commandStr === 'help') {
       commandStr = '/help';
     } else if (commandStr === '--version' || commandStr === '-v' || commandStr === 'version') {

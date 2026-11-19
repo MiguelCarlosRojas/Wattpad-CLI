@@ -150,13 +150,13 @@ export function createChapterCommands(): CommandDefinition[] {
         // /chapter create o /chapter new
         if (sub === 'create' || sub === 'new') {
           let storyId = app.currentStoryId;
-          let title = '';
+          let title = (parsed.flags.title as string) || '';
 
           if (parsed.args.length >= 2 && parsed.args[0].startsWith('NOV-')) {
             storyId = parsed.args[0];
-            title = parsed.args[1];
+            title = title || parsed.args.slice(1).join(' ');
           } else if (parsed.args.length >= 1) {
-            title = parsed.args[0];
+            title = title || parsed.args.join(' ');
           }
 
           if (!storyId) {

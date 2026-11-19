@@ -194,7 +194,7 @@ export function createStoryCommands(): CommandDefinition[] {
 
         // /story create o /story new
         if (sub === 'create' || sub === 'new') {
-          const title = parsed.args[0] || (parsed.flags.title as string);
+          const title = (parsed.flags.title as string) || parsed.args.join(' ');
           if (!title) {
             return {
               success: false,

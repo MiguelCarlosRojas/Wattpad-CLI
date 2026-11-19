@@ -63,7 +63,7 @@ export class ChapterRepository {
   }
 
   public findById(id: string): Chapter | null {
-    const row = this.db.query('SELECT * FROM chapters WHERE id = ?').get(id) as Record<string, any> | null;
+    const row = this.db.query('SELECT * FROM chapters WHERE id = ? COLLATE NOCASE').get(id) as Record<string, any> | null;
     return row ? this.mapRowToChapter(row) : null;
   }
 
@@ -73,7 +73,7 @@ export class ChapterRepository {
   }
 
   public findByStoryId(storyId: string): Chapter[] {
-    const rows = this.db.query('SELECT * FROM chapters WHERE story_id = ? ORDER BY chapter_number ASC').all(storyId) as Array<Record<string, any>>;
+    const rows = this.db.query('SELECT * FROM chapters WHERE story_id = ? COLLATE NOCASE ORDER BY chapter_number ASC').all(storyId) as Array<Record<string, any>>;
     return rows.map((r) => this.mapRowToChapter(r));
   }
 
@@ -101,7 +101,7 @@ export class ChapterRepository {
       `UPDATE chapters SET
         title = ?, chapter_number = ?, content = ?, content_hash = ?,
         word_count = ?, status = ?, wattpad_id = ?, external_doc_id = ?, updated_at = ?
-      WHERE id = ?`,
+      WHERE id = ? COLLATE NOCASE`,
       [
         title,
         chapterNumber,
@@ -124,7 +124,7 @@ export class ChapterRepository {
   }
 
   public delete(id: string): boolean {
-    const res = this.db.run('DELETE FROM chapters WHERE id = ?', [id]);
+    const res = this.db.run('DELETE FROM chapters WHERE id = ? COLLATE NOCASE', [id]);
     return res.changes > 0;
   }
 

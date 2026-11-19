@@ -55,7 +55,7 @@ export class StoryRepository {
   }
 
   public findById(id: string): Story | null {
-    const row = this.db.query('SELECT * FROM stories WHERE id = ?').get(id) as Record<string, any> | null;
+    const row = this.db.query('SELECT * FROM stories WHERE id = ? COLLATE NOCASE').get(id) as Record<string, any> | null;
     return row ? this.mapRowToStory(row) : null;
   }
 
@@ -98,7 +98,7 @@ export class StoryRepository {
         title = ?, description = ?, cover_url = ?, genre = ?, category = ?,
         tags = ?, language = ?, mature = ?, editor_preference = ?, status = ?,
         wattpad_id = ?, updated_at = ?
-      WHERE id = ?`,
+      WHERE id = ? COLLATE NOCASE`,
       [
         title,
         description,
@@ -120,7 +120,7 @@ export class StoryRepository {
   }
 
   public delete(id: string): boolean {
-    const res = this.db.run('DELETE FROM stories WHERE id = ?', [id]);
+    const res = this.db.run('DELETE FROM stories WHERE id = ? COLLATE NOCASE', [id]);
     return res.changes > 0;
   }
 
