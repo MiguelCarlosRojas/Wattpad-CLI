@@ -19,7 +19,7 @@ export class CommandHistory {
     this.currentDraft = '';
   }
 
-  public navigateUp(currentInput: string): string | null {
+  public navigateUp(currentInput: string = ''): string | null {
     if (this.history.length === 0) return null;
 
     if (this.pointer === -1) {

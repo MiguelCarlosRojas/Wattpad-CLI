@@ -1,59 +1,90 @@
 import { ApiClient } from '../api/api-client';
-import { WordCloudIntegration } from '../integrations/word-cloud';
-import { NotepadCloudIntegration } from '../integrations/notepad-cloud';
-import { GoogleCloudIntegration } from '../integrations/google-cloud';
+import { WordService } from '../../integrations/word/word-service';
+import { NotepadService } from '../../integrations/notepad/notepad-service';
+import { GoogleService } from '../../integrations/google/google-service';
+import { WattpadService } from '../../integrations/wattpad/wattpad-service';
 import { CommandRegistry } from '../../commands/command-registry';
 import { CommandRouter } from '../../commands/command-router';
 import { CommandHistory } from '../../commands/history';
-import { TerminalRenderer } from '../terminal/renderer';
-import { CloudHeaderState } from '../terminal/components/header-bar';
-import { SelectorItem } from '../terminal/focus-manager';
+import { AppShell } from '../terminal/app-shell';
 import { Story, Chapter, WattpadUser } from '../../shared/types';
 import { getEnv } from '../../shared/env-validator';
-import { setLocale } from '../../utils/i18n';
 import { createGeneralCommands } from '../../commands/handlers/general-handler';
 import { createAuthCommands } from '../../commands/handlers/auth-handler';
-import { createProfileCommands } from '../../commands/handlers/profile-handler';
-import { createLanguageCommands } from '../../commands/handlers/language-handler';
-import { createLibraryCommands } from '../../commands/handlers/library-handler';
 import { createStoryCommands } from '../../commands/handlers/story-handler';
 import { createChapterCommands } from '../../commands/handlers/chapter-handler';
 import { createConnectCommands } from '../../commands/handlers/connect-handler';
 import { createSyncCommands } from '../../commands/handlers/sync-handler';
-import { createExploreCommands } from '../../commands/handlers/explore-handler';
 import { createPublishCommands } from '../../commands/handlers/publish-handler';
-import { CommandResult, RenderBlock } from '../../types/command.types';
+import { CommandResult } from '../../types/command.types';
 import { CredentialStore } from '../../security/credential-store';
 import { FileSystemManager } from '../../utils/file-system';
 
 export class Application {
   public apiClient: ApiClient;
-  public wordIntegration: WordCloudIntegration;
-  public notepadIntegration: NotepadCloudIntegration;
-  public googleIntegration: GoogleCloudIntegration;
+  public wordService: WordService;
+  public notepadService: NotepadService;
+  public googleService: GoogleService;
+  public wattpadService: WattpadService;
+
   public credentialStore: CredentialStore;
   public fsManager: FileSystemManager;
 
   public registry: CommandRegistry;
   public router: CommandRouter;
   public history: CommandHistory;
-  public renderer: TerminalRenderer;
+  public appShell: AppShell;
+
+  // Compatibility getter/alias for renderer
+  public get renderer(): any {
+    return {
+      appShell: this.appShell,
+      start: async () => this.appShell.start(),
+      stop: async () => this.appShell.exit(),
+      setState: (state: any) => this.appShell.setState(state),
+      setSubmitHandler: (handler: any) => this.appShell.setCommandExecutor(handler),
+      showSelector: () => {},
+      clearSelector: () => {},
+      addBlocks: () => {},
+    };
+  }
+
+  // Compatibility alias for integrations
+  public get wordIntegration(): any {
+    return {
+      openChapterInWord: async (s: Story, c: Chapter) => (await this.wordService.exportChapterToDocx(s as any, c as any)).filePath,
+    };
+  }
+  public get notepadIntegration(): any {
+    return {
+      openChapterInNotepad: (s: Story, c: Chapter) => this.notepadService.exportChapterToTxt(s as any, c as any).filePath,
+    };
+  }
+  public get googleIntegration(): any {
+    return {
+      startAuth: async () => {
+        const auth = await this.googleService.initiateAuth();
+        return { authUrl: auth.authUrl, sessionId: 'google_session' };
+      },
+      checkConnected: async () => this.googleService.isConnected(),
+    };
+  }
 
   public currentUser: WattpadUser | null = null;
   public currentStoryId: string | null = null;
   public currentChapterId: string | null = null;
+  public serverOnline: boolean = true;
 
-  // Compatibility adapters for command handlers (delegating to Cloud API)
+  // Repositories for command handlers
   public storyRepo: any;
   public chapterRepo: any;
   public connRepo: any;
   public syncRepo: any;
   public settingsRepo: any;
-  public wattpadService: any;
-  public googleService: any;
   public syncEngine: any;
-  public wordService: any;
-  public notepadService: any;
+
+  private cachedStories: Story[] = [];
+  private cachedChapters: Chapter[] = [];
 
   constructor(customApiUrl?: string) {
     const env = getEnv();
@@ -62,29 +93,25 @@ export class Application {
     this.credentialStore = new CredentialStore();
     this.fsManager = new FileSystemManager();
 
-    this.wordIntegration = new WordCloudIntegration(this.apiClient);
-    this.notepadIntegration = new NotepadCloudIntegration(this.apiClient);
-    this.googleIntegration = new GoogleCloudIntegration(this.apiClient);
+    this.wordService = new WordService(this.fsManager);
+    this.notepadService = new NotepadService(this.fsManager);
+    this.googleService = new GoogleService(this.credentialStore);
+    this.wattpadService = new WattpadService(this.credentialStore);
 
     this.registry = new CommandRegistry();
     this.router = new CommandRouter(this.registry);
     this.history = new CommandHistory();
-    this.renderer = new TerminalRenderer(this.registry, this.history);
+    this.appShell = new AppShell(this.registry, this.history);
 
-    this.setupCloudAdapters();
+    this.setupAdapters();
     this.registerCommands();
   }
 
-  private setupCloudAdapters(): void {
-    // Story Adapter using Cloud API
+  private setupAdapters(): void {
+    // Story Repository Adapter
     this.storyRepo = {
-      findAll: () => {
-        // Cached or synchronous representation for synchronous command handlers
-        return this.cachedStories;
-      },
-      findById: (id: string) => {
-        return this.cachedStories.find((s) => s.id === id) || null;
-      },
+      findAll: () => this.cachedStories,
+      findById: (id: string) => this.cachedStories.find((s) => s.id === id) || null,
       create: (input: any) => {
         const padded = String(this.cachedStories.length + 1).padStart(4, '0');
         const newStory: Story = {
@@ -125,17 +152,14 @@ export class Application {
       },
     };
 
-    // Chapter Adapter using Cloud API
+    // Chapter Repository Adapter
     this.chapterRepo = {
-      findByStoryId: (storyId: string) => {
-        return this.cachedChapters.filter((c) => c.storyId === storyId);
-      },
-      findById: (id: string) => {
-        return this.cachedChapters.find((c) => c.id === id) || null;
-      },
+      findByStoryId: (storyId: string) => this.cachedChapters.filter((c) => c.storyId === storyId),
+      findById: (id: string) => this.cachedChapters.find((c) => c.id === id) || null,
+      getVersions: (_id: string) => [],
       create: (input: any) => {
         const count = this.cachedChapters.filter((c) => c.storyId === input.storyId).length;
-        const padded = String(this.cachedChapters.length + 1).padStart(4, '0');
+        const padded = String(count + 1).padStart(4, '0');
         const newChap: Chapter = {
           id: `CAP-${padded}`,
           storyId: input.storyId,
@@ -144,7 +168,7 @@ export class Application {
           chapterNumber: input.chapterNumber || count + 1,
           content: input.content || '',
           contentHash: 'hash_' + Date.now(),
-          wordCount: input.content ? input.content.split(/\s+/).length : 0,
+          wordCount: (input.content || '').split(/\s+/).filter(Boolean).length,
           status: 'draft',
           externalDocId: null,
           createdAt: new Date().toISOString(),
@@ -168,110 +192,33 @@ export class Application {
         this.apiClient.deleteChapter(id).catch(() => {});
         return true;
       },
-      getVersions: (chapId: string) => {
-        return [{ id: 1, chapterId: chapId, versionNumber: 1, title: 'v1', content: '', contentHash: '', source: 'cli', createdAt: new Date().toISOString() }];
-      },
     };
 
-    // Connections Adapter
+    // Connections Repository Adapter
     this.connRepo = {
-      getStatus: (type: string) => ({
-        type,
-        name: type.toUpperCase(),
-        isConnected: true,
-        accountIdentifier: 'Cloud Active',
-      }),
       getAll: () => [
-        { type: 'wattpad', name: 'Wattpad Cloud', isConnected: true, accountIdentifier: 'https://wattpad-cli.onrender.com' },
-        { type: 'word', name: 'Microsoft Word (Cloud Cache)', isConnected: true, accountIdentifier: 'OneDrive/Office' },
-        { type: 'notepad', name: 'Bloc de Notas (TXT UTF-8)', isConnected: true, accountIdentifier: 'Local Sync' },
-        { type: 'google', name: 'Google Docs (OAuth Cloud)', isConnected: false, accountIdentifier: 'OAuth2 HTTPS' },
+        { type: 'word', name: 'Microsoft Word (.docx)', isConnected: true },
+        { type: 'notepad', name: 'Bloc de Notas (.txt UTF-8)', isConnected: true },
+        { type: 'google', name: 'Google Docs (OAuth 2.0)', isConnected: false },
+        { type: 'wattpad', name: 'Wattpad (Cuenta Oficial)', isConnected: Boolean(this.currentUser) },
+        { type: 'render', name: 'Render Cloud Backend', isConnected: this.serverOnline },
       ],
-      setConnected: () => {},
+      getByType: (type: string) => {
+        if (type === 'wattpad') return { isConnected: Boolean(this.currentUser) };
+        if (type === 'word' || type === 'notepad') return { isConnected: true };
+        return { isConnected: false };
+      },
+      save: () => {},
     };
 
-    // Settings Adapter
+    // Settings Repository Adapter
     this.settingsRepo = {
-      get: (k: string, d?: string) => d || null,
-      set: () => {},
-      addCommandHistory: () => {},
-      getCommandHistory: () => this.history.getAll(),
-    };
-
-    // Wattpad Service Adapter
-    this.wattpadService = {
-      loginWithToken: async (token: string) => {
-        const session = await this.apiClient.login(token);
-        this.currentUser = session.user;
-        await this.credentialStore.set('wattpad_token', token);
-        await this.credentialStore.set('wattpad_user', JSON.stringify(session.user));
-        return session;
-      },
-      logout: async () => {
-        await this.apiClient.logout();
-        await this.credentialStore.remove('wattpad_token');
-        await this.credentialStore.remove('wattpad_user');
-        this.currentUser = null;
-      },
-      getSession: async () => {
-        const savedToken = await this.credentialStore.get('wattpad_token');
-        const savedUserJson = await this.credentialStore.get('wattpad_user');
-        if (savedToken && savedUserJson) {
-          try {
-            return { token: savedToken, user: JSON.parse(savedUserJson) };
-          } catch {
-            return null;
-          }
-        }
+      get: (key: string) => {
+        if (key === 'language') return 'es';
+        if (key === 'editor') return 'word';
         return null;
       },
-      getProfile: async () => {
-        return await this.apiClient.getProfile();
-      },
-      getInboxMessages: async () => {
-        return [
-          {
-            id: 'msg_1',
-            fromUser: 'WattpadEquipo',
-            subject: '¡Bienvenido a Wattpad Cloud!',
-            preview: 'Tus novelas se sincronizan de forma segura con la nube.',
-            date: new Date().toISOString(),
-            read: true,
-          },
-        ];
-      },
-      searchStories: async (q: string) => {
-        return await this.apiClient.search(q);
-      },
-      exploreCategory: async (g: string) => {
-        return await this.apiClient.explore(g);
-      },
-      publishStory: async (story: Story) => {
-        return await this.apiClient.publish('story', story.id);
-      },
-      publishChapter: async (story: Story, chap: Chapter) => {
-        return await this.apiClient.publish('chapter', chap.id);
-      },
-    };
-
-    // Google Service Adapter (No Localhost!)
-    this.googleService = {
-      initiateAuth: async () => {
-        const { authUrl } = await this.googleIntegration.startAuth();
-        return {
-          authUrl,
-          waitForAuth: async () => {
-            return await this.googleIntegration.checkConnected();
-          },
-        };
-      },
-      disconnect: async () => {},
-      exportChapterToGoogleDoc: async (_s: any, chap: any) => {
-        return {
-          docUrl: `https://docs.google.com/document/d/wattpad_${chap.id}/edit`,
-          docId: `wattpad_${chap.id}`,
-        };
-      },
+      set: () => {},
     };
 
     // Sync Engine Adapter
@@ -284,44 +231,44 @@ export class Application {
         for (const ch of chapters) {
           await this.apiClient.syncChapter(storyId, ch.id);
         }
-        return [{ success: true, entityId: storyId, source: 'CLI', destination: 'Wattpad Cloud', status: 'synced', message: 'Sincronizado con éxito en la nube' }];
+        return [
+          {
+            success: true,
+            entityId: storyId,
+            source: 'CLI',
+            destination: 'Wattpad Cloud',
+            status: 'synced',
+            message: 'Sincronizado con éxito en la nube',
+          },
+        ];
       },
     };
 
     this.syncRepo = {
       getHistory: () => [
-        { id: 1, entityType: 'story', entityId: 'NOV-0001', action: 'sync', status: 'synced', details: 'Sincronizado con Wattpad Cloud (PostgreSQL)', createdAt: new Date().toISOString() },
+        {
+          id: 1,
+          entityType: 'story',
+          entityId: 'NOV-0001',
+          action: 'sync',
+          status: 'synced',
+          details: 'Sincronizado con Wattpad Cloud (PostgreSQL)',
+          createdAt: new Date().toISOString(),
+        },
       ],
       logSync: () => {},
     };
 
-    this.wordService = {
-      exportChapterToDocx: async (story: Story, chap: Chapter) => {
-        const filePath = await this.wordIntegration.openChapterInWord(story, chap);
-        return { filePath, hash: chap.contentHash };
-      },
-      exportStoryToDocx: async () => ({ filePath: 'novela.docx', hash: 'abc' }),
-      readChapterFromDocx: async (p: string) => ({ content: 'Texto importado', hash: 'hash1' }),
-    };
-
-    this.notepadService = {
-      exportChapterToTxt: (story: Story, chap: Chapter) => {
-        this.notepadIntegration.openChapterInNotepad(story, chap);
-        return { filePath: 'capitulo.txt', hash: chap.contentHash };
-      },
-      exportStoryToTxt: () => ({ filePath: 'novela.txt', hash: 'abc' }),
-      readChapterFromTxt: () => ({ content: 'Texto importado', hash: 'hash1' }),
-    };
-
+    // File opener
     const originalOpen = this.fsManager.openFileInOS.bind(this.fsManager);
     this.fsManager.openFileInOS = async (filePath: string, pref?: 'word' | 'notepad' | 'google') => {
       const story = this.storyRepo.findById(this.currentStoryId || 'NOV-0001');
       const chap = this.chapterRepo.findById(this.currentChapterId || 'CAP-0001');
       if (story && chap) {
         if (pref === 'notepad') {
-          await this.notepadIntegration.openChapterInNotepad(story, chap);
+          this.notepadService.exportChapterToTxt(story, chap);
         } else {
-          await this.wordIntegration.openChapterInWord(story, chap);
+          await this.wordService.exportChapterToDocx(story, chap);
         }
         return true;
       }
@@ -329,103 +276,14 @@ export class Application {
     };
   }
 
-  private cachedStories: Story[] = [
-    {
-      id: 'NOV-0001',
-      userId: 'usr_author_01',
-      wattpadId: null,
-      title: 'El Secreto de las Sombras',
-      description: 'Una novela de intriga y misterio que desafía el tiempo.',
-      coverUrl: null,
-      genre: 'Misterio',
-      category: 'Novela',
-      tags: ['misterio', 'fantasia', 'aventura'],
-      language: 'es',
-      mature: false,
-      editorPreference: 'word',
-      status: 'draft',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'NOV-0002',
-      userId: 'usr_author_01',
-      wattpadId: null,
-      title: 'El Último Invierno',
-      description: 'Crónica de supervivencia y valor en el confín del mundo helado.',
-      coverUrl: null,
-      genre: 'Aventura',
-      category: 'Novela',
-      tags: ['aventura', 'supervivencia'],
-      language: 'es',
-      mature: false,
-      editorPreference: 'notepad',
-      status: 'synced',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'NOV-0003',
-      userId: 'usr_author_01',
-      wattpadId: 'wp_cloud_303',
-      title: 'El Reino Perdido',
-      description: 'Magia ancestral y destinos entrelazados en tierras lejanas.',
-      coverUrl: null,
-      genre: 'Fantasía',
-      category: 'Novela',
-      tags: ['fantasia', 'magia'],
-      language: 'es',
-      mature: false,
-      editorPreference: 'word',
-      status: 'published',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ];
-
-  private cachedChapters: Chapter[] = [
-    {
-      id: 'CAP-0001',
-      storyId: 'NOV-0001',
-      wattpadId: null,
-      title: 'Capítulo 1: El Despertar',
-      chapterNumber: 1,
-      content: 'La niebla cubría el sendero cuando una sombra misteriosa cruzó el umbral.',
-      contentHash: 'hash_001',
-      wordCount: 14,
-      status: 'draft',
-      externalDocId: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-    {
-      id: 'CAP-0002',
-      storyId: 'NOV-0001',
-      wattpadId: null,
-      title: 'Capítulo 2: El Encuentro',
-      chapterNumber: 2,
-      content: 'Los ecos en el silencio anunciaban que no estaban solos en aquel viejo castillo.',
-      contentHash: 'hash_002',
-      wordCount: 15,
-      status: 'synced',
-      externalDocId: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    },
-  ];
-
   private registerCommands(): void {
     const commandLists = [
       createGeneralCommands(),
       createAuthCommands(),
-      createProfileCommands(),
-      createLanguageCommands(),
-      createLibraryCommands(),
       createStoryCommands(),
       createChapterCommands(),
       createConnectCommands(),
       createSyncCommands(),
-      createExploreCommands(),
       createPublishCommands(),
     ];
 
@@ -437,11 +295,9 @@ export class Application {
   }
 
   public async init(): Promise<void> {
-    setLocale('es');
-
     // Cloud Discovery: query /cli/config from Render API
     const config = await this.apiClient.fetchConfig();
-    const serverOnline = Boolean(config);
+    this.serverOnline = Boolean(config);
 
     // Restore real session from CredentialStore if available
     const savedToken = await this.credentialStore.get('wattpad_token');
@@ -463,96 +319,46 @@ export class Application {
       this.fsManager.syncStoryStructure(s, chaps);
     }
 
+    // Set up Token Submit Handler for interactive modal
+    this.appShell.setTokenSubmitHandler(async (token: string) => {
+      try {
+        const session = await this.wattpadService.loginWithToken(token);
+        this.currentUser = session.user;
+        await this.credentialStore.set('wattpad_token', token);
+        await this.credentialStore.set('wattpad_user', JSON.stringify(session.user));
+        this.appShell.setState({ currentUser: session.user });
+        return { success: true, user: session.user };
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Error de autenticación' };
+      }
+    });
+
     // Propagate state to modern AppShell
-    this.renderer.appShell.setState({
+    this.appShell.setState({
       stories: this.cachedStories,
       chapters: this.cachedChapters,
       currentUser: this.currentUser,
-      serverOnline,
+      serverOnline: this.serverOnline,
       serverUrl: this.apiClient.getBaseUrl(),
       version: '1.0.0',
     });
 
-    // Wire up command execution & interactive selector action
-    this.renderer.setSubmitHandler(async (cmdStr: string) => {
-      const res = await this.router.execute(this, cmdStr);
-
-      // If the command is /stories, open the interactive selector list so the user can navigate with arrows!
-      if (cmdStr.trim() === '/stories') {
-        const items: SelectorItem[] = this.cachedStories.map((s) => ({
-          id: s.id,
-          primary: `${s.id}  ${s.title}`,
-          secondary: `Género: ${s.genre} │ Editor: ${s.editorPreference.toUpperCase()}`,
-          badge: s.status.toUpperCase(),
-          action: () => {
-            this.currentStoryId = s.id;
-            this.currentChapterId = null;
-            this.renderer.addBlocks([
-              {
-                type: 'card',
-                title: `NOVELA SELECCIONADA: ${s.title} [${s.id}]`,
-                subtitle: s.description,
-                statusBadge: s.status.toUpperCase(),
-                statusColor: '#FF6122',
-                fields: [
-                  { label: 'Género', value: s.genre },
-                  { label: 'Editor Preferido', value: s.editorPreference.toUpperCase() },
-                  { label: 'Siguiente paso', value: `Usa /chapters ${s.id} para ver sus capítulos.` },
-                ],
-              },
-            ]);
-            this.renderer.clearSelector();
-          },
-        }));
-        this.renderer.showSelector('MIS HISTORIAS (↑↓ NAVEGAR │ ENTER SELECCIONAR)', items);
-      }
-
-      // If command is /chapters, open interactive selector for chapters!
-      if (cmdStr.trim().startsWith('/chapters')) {
-        const storyId = this.currentStoryId || 'NOV-0001';
-        const chaps = this.cachedChapters.filter((c) => c.storyId === storyId);
-        if (chaps.length > 0) {
-          const items: SelectorItem[] = chaps.map((c) => ({
-            id: c.id,
-            primary: `Capítulo ${c.chapterNumber}: ${c.title} [${c.id}]`,
-            secondary: `${c.wordCount} palabras │ Estado: ${c.status}`,
-            badge: c.status.toUpperCase(),
-            action: async () => {
-              this.currentChapterId = c.id;
-              const story = this.storyRepo.findById(storyId)!;
-              if (story.editorPreference === 'notepad') {
-                await this.notepadIntegration.openChapterInNotepad(story, c);
-              } else {
-                await this.wordIntegration.openChapterInWord(story, c);
-              }
-              this.renderer.addBlocks([
-                {
-                  type: 'success',
-                  title: `Abriendo Capítulo ${c.chapterNumber} en ${story.editorPreference.toUpperCase()}`,
-                  content: `Archivo temporal preparado. Cuando termines de escribir usa /chapter import para subirlo a la nube.`,
-                },
-              ]);
-              this.renderer.clearSelector();
-            },
-          }));
-          this.renderer.showSelector(`CAPÍTULOS DE ${storyId} (↑↓ NAVEGAR │ ENTER ABRIR)`, items);
-        }
-      }
-
-      return res;
+    // Wire up command execution
+    this.appShell.setCommandExecutor(async (cmdStr: string) => {
+      return await this.router.execute(this, cmdStr);
     });
   }
 
-  public getHeaderState(): CloudHeaderState {
+  public getHeaderState(): any {
     const activeStory = this.currentStoryId ? this.storyRepo.findById(this.currentStoryId) : null;
     const activeChapter = this.currentChapterId ? this.chapterRepo.findById(this.currentChapterId) : null;
 
     return {
       version: '1.0.0',
-      user: this.currentUser ? this.currentUser.username : 'Desconectado',
+      user: this.currentUser ? this.currentUser.username : 'Sin conectar',
       isAuthenticated: Boolean(this.currentUser),
       serverUrl: this.apiClient.getBaseUrl(),
-      serverOnline: true,
+      serverOnline: this.serverOnline,
       activeStory: activeStory ? `${activeStory.title} [${activeStory.id}]` : null,
       activeChapter: activeChapter ? `${activeChapter.title} [${activeChapter.id}]` : null,
       syncState: 'Al día',
@@ -561,7 +367,7 @@ export class Application {
 
   public async run(): Promise<void> {
     await this.init();
-    await this.renderer.start(this.getHeaderState());
+    await this.appShell.start();
   }
 
   public async executeCommand(rawInput: string): Promise<CommandResult> {
@@ -569,6 +375,6 @@ export class Application {
   }
 
   public async shutdown(): Promise<void> {
-    await this.renderer.stop();
+    await this.appShell.exit();
   }
 }

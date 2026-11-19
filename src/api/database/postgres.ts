@@ -36,7 +36,10 @@ export class PostgresDatabase {
       }
     }
 
-    this.seedDefaultUser();
+    // Only seed test fixtures in test execution environments to prevent production pollution
+    if (process.env.NODE_ENV === 'test') {
+      this.seedDefaultUser();
+    }
   }
 
   private seedDefaultUser(): void {

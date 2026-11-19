@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
-import { Application } from '../src/app/application';
+import { Application } from '../src/cli/app/application';
 import { closeDatabase } from '../src/database/db';
 
 describe('Application Command Execution', () => {
@@ -77,16 +77,6 @@ describe('Application Command Execution', () => {
     const resConfirmed = await app.executeCommand('/publish story NOV-0001 --confirm');
     expect(resConfirmed.success).toBe(true);
     expect(resConfirmed.blocks![0].statusBadge).toBe('[PUBLICADO EN WATTPAD]');
-  });
-
-  it('should change language with /language set', async () => {
-    const resEn = await app.executeCommand('/language set en');
-    expect(resEn.success).toBe(true);
-    expect(resEn.blocks![0].content).toContain('English');
-
-    const resEs = await app.executeCommand('/language set es');
-    expect(resEs.success).toBe(true);
-    expect(resEs.blocks![0].content).toContain('Español');
   });
 
   it('should handle /exit properly', async () => {

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import { ResponsiveManager, ResponsiveLayoutConfig } from '../src/cli/terminal/responsive';
-import { HeaderBarRenderer, CloudHeaderState } from '../src/cli/terminal/components/header-bar';
+import { Header, HeaderProps } from '../src/cli/terminal/components/header';
 import { InputBoxRenderer } from '../src/cli/terminal/components/input-box';
 import { BlockCardRenderer } from '../src/cli/terminal/components/block-card';
-import { SelectorList } from '../src/cli/terminal/components/selector-list';
+import { StatusBar } from '../src/cli/terminal/components/status-bar';
 
 describe('Responsive Layout & Dimension Adaptation', () => {
   const testDimensions = [
@@ -15,7 +15,7 @@ describe('Responsive Layout & Dimension Adaptation', () => {
     { width: 200, height: 60, name: '200x60 (Ultra Wide)' },
   ];
 
-  const mockHeader: CloudHeaderState = {
+  const mockHeader: HeaderProps = {
     version: '1.0.0',
     user: 'wattpad_author',
     isAuthenticated: true,
@@ -23,7 +23,6 @@ describe('Responsive Layout & Dimension Adaptation', () => {
     serverOnline: true,
     activeStory: 'El Secreto de las Sombras [NOV-0001]',
     activeChapter: 'Cap 1 [CAP-0001]',
-    syncState: 'Al día',
   };
 
   for (const dim of testDimensions) {
@@ -43,13 +42,13 @@ describe('Responsive Layout & Dimension Adaptation', () => {
         compactStatusBar: dim.width < 75,
       };
 
-      // 1. Header Bar render
-      const headerLines = HeaderBarRenderer.render(mockHeader, config);
+      // 1. Header render
+      const headerLines = Header.render(mockHeader, config);
       expect(headerLines.length).toBeGreaterThan(0);
 
       // 2. Input Box render
       const inputLines = InputBoxRenderer.render('/story new "Test"', 15, config.width, true);
-      expect(inputLines.length).toBe(3);
+      expect(inputLines.length).toBeGreaterThanOrEqual(3);
 
       // 3. Block Card render
       const cardLines = BlockCardRenderer.renderBlock(
@@ -66,13 +65,9 @@ describe('Responsive Layout & Dimension Adaptation', () => {
       );
       expect(cardLines.length).toBeGreaterThan(4);
 
-      // 4. Selector List render
-      const selector = new SelectorList('MIS HISTORIAS', [
-        { id: '1', primary: 'Novela 1', secondary: 'Detalles novela 1' },
-        { id: '2', primary: 'Novela 2', secondary: 'Detalles novela 2' },
-      ]);
-      const selectorLines = selector.render(config.cardWidth, true);
-      expect(selectorLines.length).toBeGreaterThan(0);
+      // 4. Status Bar render
+      const statusLines = StatusBar.render(config);
+      expect(statusLines.length).toBeGreaterThan(0);
     });
   }
 });

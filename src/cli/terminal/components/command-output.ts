@@ -6,7 +6,7 @@ export interface OutputViewProps {
   result: CommandResult;
 }
 
-export class CommandOutputView {
+export class CommandOutput {
   public static render(props: OutputViewProps, width: number): string[] {
     const lines: string[] = [];
     const res = props.result;
@@ -33,11 +33,12 @@ export class CommandOutputView {
       for (const block of res.blocks) {
         lines.push('');
         if (block.title) {
-          const titleColor = block.type === 'error'
-            ? Theme.colors.error
-            : block.type === 'success'
-            ? Theme.colors.success
-            : Theme.colors.primary;
+          const titleColor =
+            block.type === 'error'
+              ? Theme.colors.error
+              : block.type === 'success'
+              ? Theme.colors.success
+              : Theme.colors.primary;
           lines.push(padEndVisible(`  ${Chalk.bold(Chalk.hex(titleColor, block.title))}`, width));
         }
 
@@ -59,13 +60,25 @@ export class CommandOutputView {
             lines.push(padEndVisible(`    ${label}: ${val}`, width));
           }
         }
+
+        if (block.items && block.items.length > 0) {
+          for (const it of block.items) {
+            const bullet = Chalk.hex(Theme.colors.primary, '▸ ');
+            const primaryText = typeof it === 'string' ? it : it.primary;
+            const badgeText = typeof it === 'object' && it.badge ? ` [${Chalk.hex(Theme.colors.primary, it.badge)}]` : '';
+            const primary = Chalk.bold(Chalk.hex(Theme.colors.text, primaryText));
+            lines.push(padEndVisible(`    ${bullet}${primary}${badgeText}`, width));
+            if (typeof it === 'object' && it.secondary) {
+              lines.push(padEndVisible(`      ${Chalk.dim(it.secondary)}`, width));
+            }
+          }
+        }
       }
     }
-
-    lines.push('');
-    lines.push(padEndVisible(`  ${Chalk.dim('─'.repeat(Math.min(width - 4, 76)))}`, width));
-    lines.push(padEndVisible(`  ${Chalk.dim('Pulsa ')}${Chalk.hex(Theme.colors.primary, 'Esc')}${Chalk.dim(' para volver al Inicio  │  Escribe un nuevo comando abajo')}`, width));
 
     return lines;
   }
 }
+
+// Backward-compatibility alias
+export const CommandOutputView = CommandOutput;

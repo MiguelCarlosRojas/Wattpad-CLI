@@ -125,18 +125,18 @@ Comprueba el contenido de `dist/SHA256SUMS.txt`:
 Asegúrate de haber iniciado sesión con `gh auth login` o verificar tu sesión con `gh auth status`.
 
 ```powershell
-# Ejemplo para la versión v1.1.0:
-gh release create v1.1.0 dist/wattpad.exe dist/SHA256SUMS.txt `
-  --title "Wattpad CLI v1.1.0" `
-  --notes "Versión v1.1.0 de Wattpad CLI compilada manualmente. Incluye binario nativo Windows x64 y archivo de verificación SHA-256."
+# Ejemplo para la versión v1.0.0:
+gh release create v1.0.0 dist/wattpad.exe dist/SHA256SUMS.txt `
+  --title "Wattpad CLI v1.0.0" `
+  --notes "Versión oficial v1.0.0 de Wattpad CLI compilada manualmente. Incluye binario nativo Windows x64 y archivo de verificación SHA-256."
 ```
 
 #### Opción B: Mediante la Interfaz Web de GitHub
 
 1. Navega a `https://github.com/MiguelCarlosRojas/Wattpad-CLI/releases`.
 2. Haz clic en **Draft a new release**.
-3. Selecciona o crea la etiqueta de versión (ejemplo: `v1.1.0`) apuntando a la rama `main`.
-4. Asigna el título de la release (ejemplo: `Wattpad CLI v1.1.0`).
+3. Selecciona o crea la etiqueta de versión (ejemplo: `v1.0.0`) apuntando a la rama `main`.
+4. Asigna el título de la release (ejemplo: `Wattpad CLI v1.0.0`).
 5. Redacta las notas de la versión.
 6. Arrastra y suelta en el área de archivos:
    - `dist/wattpad.exe`

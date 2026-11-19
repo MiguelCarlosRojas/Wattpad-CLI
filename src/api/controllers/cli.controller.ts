@@ -7,7 +7,7 @@ export class CliController {
   public static getPublicConfig(): PublicCliConfig {
     const env = getEnv();
     return {
-      version: '1.1.0',
+      version: '1.0.0',
       minCliVersion: '1.0.0',
       apiBaseUrl: env.WATTPAD_API_BASE_URL,
       publicAppUrl: env.PUBLIC_APP_URL,
@@ -25,8 +25,8 @@ export class CliController {
       binaries: {
         'win32-x64': {
           filename: 'wattpad.exe',
-          sha256: '5f9277da2cc23f650513c32924b466fdd69ac866ad4f80d32f5ccdbf477f59f8',
-          size: 116780544,
+          sha256: '37e1673071d1285157c296e71117d09eaec4a466b1cc13d2d37a7f1d2a83ba6d',
+          size: 149465088,
           downloadUrl: `${env.WATTPAD_API_BASE_URL}/cli/download/win32-x64`,
         },
       },

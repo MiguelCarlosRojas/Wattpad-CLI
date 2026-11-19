@@ -6,37 +6,44 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/
 
 ---
 
-## [1.1.0] — 2026-11-18
+## [1.0.0] — 2026-11-19
 
-### 🎨 Nuevo Concepto e Interfaz de Usuario
-- **WATTPAD CLI — AI WRITING STUDIO**: Rediseño visual absoluto inspirado en Antigravity CLI, Claude Code, Grok CLI y ChatGPT CLI.
-- **Pantalla de Bienvenida Minimalista (`WelcomeScreen`)**: Composición elegante con marca Wattpad, estado cloud discreto, acciones rápidas en línea y visualización de proyectos recientes reales sin recuadros pesados.
-- **Flujo Conversacional Prioritario (`ConversationView`)**: Interfaz centrada en la interacción de escritura literaria, streaming de respuestas de IA y ejecución natural de comandos sin dashboards fijos de tres columnas.
-- **Soporte Multitema (`ThemeManager`)**: Incorporación de 4 temas oficiales: `dark` (estudio por defecto), `light`, `tokyo-night` y `terminal` (ANSI monocromático).
-- **Dos Modos de Renderizado (`TerminalAdapter`)**: Soporte para **Modo Full Screen** (alternate screen buffer `\x1b[?1049h`) y **Modo Inline** (flujo continuo integrado en el scrollback de la terminal).
+### 🚀 Nueva Línea de Versiones Oficial v1.0.0
 
-### 🛡️ Aislamiento y Corrección del Arranque
-- **Aislamiento Total de Dotenv**: Eliminación definitiva del mensaje intrusivo `◇ injected env (...) from .env`. La CLI global nunca lee ni inyecta variables de proyectos externos desde el directorio actual.
-- **Almacenamiento Global en Usuario**: Persistencia oficial en `%USERPROFILE%/.wattpad-cli/config.json`.
-- **Motor Asíncrono Robusto (`AppShell`)**: Ciclo de eventos con Promesa viva y manejo seguro de señales `SIGINT` / `SIGTERM`.
+Lanzamiento oficial de **Wattpad CLI v1.0.0**, consolidado como una herramienta de terminal limpia, profesional, segura y dedicada exclusivamente a la administración de tu cuenta de Wattpad, novelas, capítulos, documentos e integraciones.
 
-### 📦 Distribución Multiplataforma y npm
-- **Runner Global npm (`bin/wattpad.cjs`)**: Paquete `@wattpad/cli` sin dependencias externas obligatorias para Node.js (>= 18.0.0). Descarga y valida el ejecutable oficial mediante sumas criptográficas SHA-256.
-- **Instalador Linux/macOS Mejorado (`installers/install.sh`)**: Incorporación de verificación de sumas criptográficas SHA-256 contra el manifiesto cloud oficial.
-- **Auditoría del Registro npm**: Detección del estado de sesión y registro público documentado como pendiente de autenticación por el propietario (`npm login`).
+### 🛡️ Autenticación Soberana y Segura
+- **Nuevo Flujo de Conexión Real**: Al invocar `/login`, se abre el portal oficial de Wattpad en el navegador predeterminado (`https://www.wattpad.com/login`) y se despliega una ventana emergente interactiva (`AuthModal`) con entrada enmascarada para introducir el Creator Token oficial.
+- **Verificación Criptográfica Directa**: Las credenciales se validan en tiempo real contra `https://api.wattpad.com/v4/users/me`. Si el token es inválido, falla honestamente sin recurrir a datos ficticios ni usuarios simulados.
+- **Aislamiento Total de Secretos**: Las credenciales de Wattpad **jamás se envían a Render**. Quedan cifradas localmente con **AES-256-GCM** en `vault.enc`.
+- **Cierre de Sesión Protegido**: `/logout` exige confirmación explícita con `--confirm`, revoca las credenciales del vault, limpia la memoria y devuelve el estado formal `Wattpad: Desconectado` manteniendo intactos los manuscritos del autor.
+- **Perfil Real**: `/account` consulta y muestra únicamente la identidad real verificada de la cuenta autenticada.
 
-### 🧹 Limpieza y Optimización del Repositorio
-- Eliminación de componentes visuales duplicados y obsoletos (`suggestion-list.ts`, héroes heredados).
-- Consolidación y actualización de la suite de pruebas a **78 pruebas automatizadas** (100% aprobadas).
-- Actualización de los manifiestos de compilación e integridad (`SHA256SUMS.txt`).
+### 🎨 Rediseño Total de la Terminal (Single-Canvas TUI)
+- **Lienzo Único Moderno**: Eliminación de dashboards complejos de tres columnas y paneles innecesarios.
+- **Caja de Entrada Protagonista**: Caja delimitada con bordes TrueColor naranja Wattpad (`#FF6122`), título centrado ` Wattpad CLI `, prompt `  ❯ `, e indicador inferior de atajos.
+- **Nuevo Status-Bar Minimalista**: Línea inferior limpia con atajos reales (`↑↓ Historial · Enter Ejecutar · Tab Autocompletar · / Comandos · Ctrl+C Salir`), con adaptación responsiva en terminales estrechas.
+- **Menú de Sugerencias Flotante**: Desplegable ordenado sobre la caja de comandos al escribir `/`.
 
----
+### 📚 Gestión Literaria y Documentos
+- **Gestión de Novelas**: Creación, edición, consulta, borrado destructivo protegido con confirmación y búsqueda local exacta (`/stories`, `/story new`, `/story open`, `/story info`, `/story edit`, `/story delete --confirm`, `/stories search`).
+- **Gestión de Capítulos**: Organización por novela, conteo exacto de palabras, hash de contenido y estados (`/chapters`, `/chapter new`, `/chapter open`, `/chapter edit`, `/chapter delete --confirm`, `/chapter publish --confirm`, `/chapter unpublish`).
+- **Integraciones Consolidadas**:
+  - **Microsoft Word**: Exportación y apertura directa en `.docx`.
+  - **Bloc de Notas**: Exportación y apertura directa en `.txt` con codificación UTF-8.
+  - **Google Docs**: Vinculación segura vía OAuth2 HTTPS (cero localhost).
+- **Protección de Manuscritos Personales**: Carpeta `Mis novelas/` excluida de Git en `.gitignore`.
 
-## [1.0.0] — 2026-11-18
+### 🧹 Limpieza Radical del Repositorio
+- Eliminación de controladores y modelos de IA, asistentes y chats ajenos a Wattpad.
+- Eliminación de todas las carpetas, vistas y selectores antiguos (`src/cli/terminal/views/`, `header-bar.ts`, `selector-list.ts`, `workspace-navigation.ts`, `focus-manager.ts`, etc.).
+- Eliminación de copias duplicadas de integraciones (`src/cli/integrations/`).
+- Eliminación de almacenamiento S3 simulado (`src/api/storage/`).
+- Eliminación de datos y usuarios ficticios (`wattpad_author`, `El Secreto de las Sombras`, seguidores y estadísticas simuladas).
+- Eliminación de lanzamientos y tags antiguos en GitHub para reiniciar el ciclo en v1.0.0.
 
-### ✨ Lanzamiento Inicial
-- Arquitectura cloud conectada a `https://wattpad-cli.onrender.com`.
-- Persistencia remota en PostgreSQL y almacenamiento cloud S3.
-- Integraciones para Microsoft Word (.docx), Bloc de Notas (.txt) y Google Docs.
-- Comandos para gestión de novelas (`/story`), capítulos (`/chapter`), sincronización (`/sync`) y publicación (`/publish`).
-- Suite inicial de 49 pruebas automatizadas.
+### 📦 Distribución y Verificación
+- Tres canales oficiales de instalación: **PowerShell** (Windows), **Shell curl** (Linux/macOS) y **NPM** (`@wattpad/cli`).
+- Suite de pruebas automatizadas con **83 pruebas pasando al 100%** (0 fallos).
+- Verificación estricta de tipos TypeScript con `tsc --noEmit` (0 errores).
+- Compilación limpia de ejecutables binarios nativos independientes de GitHub Actions.

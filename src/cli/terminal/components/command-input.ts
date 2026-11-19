@@ -4,34 +4,68 @@ export class CommandInput {
   public static render(
     value: string,
     cursorIndex: number,
-    width: number,
+    width: number = 80,
     isFocused: boolean = true
   ): string[] {
     const lines: string[] = [];
-    const sep = Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(width));
-    lines.push(sep);
+    const boxWidth = Math.max(40, width);
+    const borderColor = isFocused ? Theme.colors.primary : Theme.colors.divider;
 
+    // Line 1: ╭─ Wattpad CLI ────────────────────────────────────────╮
+    const titleText = ' Wattpad CLI ';
+    const topBarLength = Math.max(2, boxWidth - 3 - titleText.length);
+    const line1 =
+      Chalk.hex(borderColor, Theme.borders.topLeft + Theme.borders.horizontal) +
+      Chalk.bold(Chalk.hex(Theme.colors.primary, titleText)) +
+      Chalk.hex(borderColor, Theme.borders.horizontal.repeat(topBarLength) + Theme.borders.topRight);
+    lines.push(line1);
+
+    const padRow = (content: string) => {
+      const plainLen = stripAnsi(content).length;
+      const padSpaces = Math.max(0, boxWidth - 2 - plainLen);
+      return (
+        Chalk.hex(borderColor, Theme.borders.vertical) +
+        content +
+        ' '.repeat(padSpaces) +
+        Chalk.hex(borderColor, Theme.borders.vertical)
+      );
+    };
+
+    // Line 2: Empty space
+    lines.push(padRow(' '));
+
+    // Line 3: Prompt + Input with Cursor
     const promptSymbol = isFocused
-      ? Chalk.bold(Chalk.hex(Theme.colors.primary, '› '))
-      : Chalk.dim('› ');
+      ? Chalk.bold(Chalk.hex(Theme.colors.primary, '  ❯ '))
+      : Chalk.dim('  ❯ ');
 
     let content: string;
     if (value.length === 0) {
-      content = Chalk.dim('Escribe una idea o utiliza / para comandos');
+      content = Chalk.dim('Escribe un comando o utiliza / para ver los comandos');
     } else {
       const before = value.slice(0, cursorIndex);
       const cursorChar = value.slice(cursorIndex, cursorIndex + 1) || ' ';
       const after = value.slice(cursorIndex + 1);
 
-      const styledCursor = isFocused
-        ? Chalk.inverse(cursorChar)
-        : cursorChar;
-
-      content = Chalk.hex(Theme.colors.text, before) + styledCursor + Chalk.hex(Theme.colors.text, after);
+      const styledCursor = isFocused ? Chalk.inverse(cursorChar) : cursorChar;
+      content = Chalk.hex(Theme.colors.text, Chalk.bold(before)) + styledCursor + Chalk.hex(Theme.colors.text, after);
     }
 
-    const line = `${promptSymbol}${content}`;
-    lines.push(padEndVisible(line, width));
+    lines.push(padRow(`${promptSymbol}${content}`));
+
+    // Line 4: Empty space
+    lines.push(padRow(' '));
+
+    // Line 5: ╰─ ? Ayuda · ↑↓ Historial · Tab Autocompletar · Ctrl+C Salir ───╯
+    const bottomLabel = ' ? Ayuda · ↑↓ Historial · Tab Autocompletar · Ctrl+C Salir ';
+    const bottomBarLength = Math.max(2, boxWidth - 3 - bottomLabel.length);
+    const line5 =
+      Chalk.hex(borderColor, Theme.borders.bottomLeft + Theme.borders.horizontal) +
+      Chalk.dim(bottomLabel) +
+      Chalk.hex(borderColor, Theme.borders.horizontal.repeat(bottomBarLength) + Theme.borders.bottomRight);
+    lines.push(line5);
+
     return lines;
   }
 }
+

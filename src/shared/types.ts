@@ -33,6 +33,7 @@ export interface Story {
   mature: boolean;
   editorPreference: EditorPreference;
   status: StoryStatus;
+  localPath?: string | null;
   cloudStorageUrl?: string | null;
   createdAt: string;
   updatedAt: string;

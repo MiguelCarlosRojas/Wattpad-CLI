@@ -5,8 +5,8 @@ export interface HeaderProps {
   version: string;
   user: string;
   isAuthenticated: boolean;
-  serverUrl: string;
-  serverOnline: boolean;
+  serverUrl?: string;
+  serverOnline?: boolean;
   activeStory?: string | null;
   activeChapter?: string | null;
 }
@@ -14,41 +14,41 @@ export interface HeaderProps {
 export class Header {
   public static render(props: HeaderProps, config: ResponsiveLayoutConfig): string[] {
     const lines: string[] = [];
+    const width = config.width || 80;
 
+    // Line 1: WATTPAD CLI v1.0.0                                  ◉
     const brand = Chalk.bold(Chalk.hex(Theme.colors.primary, 'WATTPAD CLI'));
-    const version = Chalk.dim(`v${props.version}`);
-    const statusDot = props.serverOnline
-      ? Chalk.hex(Theme.colors.success, '●') + ' ' + Chalk.hex(Theme.colors.textSecondary, 'Cloud Postgres: Conectado')
-      : Chalk.hex(Theme.colors.warning, '○') + ' ' + Chalk.hex(Theme.colors.textSecondary, 'Modo Local');
-    const userBadge = props.isAuthenticated
-      ? Chalk.hex(Theme.colors.primary, `@${props.user}`)
-      : Chalk.dim('Desconectado');
+    const version = Chalk.dim(`v${props.version || '1.0.0'}`);
+    const leftTitle = `${brand} ${version}`;
+    const statusDot = props.isAuthenticated
+      ? Chalk.hex(Theme.colors.success, '◉')
+      : Chalk.dim('◉');
 
-    if (config.isCompact) {
-      // 1-line ultra-compact header
-      const left = `${brand} ${version}`;
-      const right = props.serverOnline ? Chalk.hex(Theme.colors.success, '●') : Chalk.hex(Theme.colors.warning, '○');
-      const spacer = ' '.repeat(Math.max(1, config.width - stripAnsi(left).length - stripAnsi(right).length));
-      lines.push(`${left}${spacer}${right}`);
-      lines.push(Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(config.width)));
-      return lines;
+    const spaceCount = Math.max(1, width - stripAnsi(leftTitle).length - stripAnsi(statusDot).length);
+    lines.push(`${leftTitle}${' '.repeat(spaceCount)}${statusDot}`);
+
+    // Line 2: Account Status
+    let accountStatusLine: string;
+    if (props.isAuthenticated && props.user && props.user !== 'Desconectado' && props.user !== 'Sin conectar') {
+      const username = props.user.startsWith('@') ? props.user : `@${props.user}`;
+      accountStatusLine = `Cuenta: ${Chalk.hex(Theme.colors.primary, Chalk.bold(username))} · ${Chalk.hex(Theme.colors.success, 'Wattpad conectado')}`;
+    } else {
+      accountStatusLine = `Cuenta: ${Chalk.dim('Sin conectar')}`;
     }
 
-    // Full studio header bar
-    const leftPart = `${brand}  ${version}`;
-    const rightPart = `${statusDot}  ${Chalk.dim('│')}  ${userBadge}`;
+    lines.push(padEndVisible(accountStatusLine, width));
 
-    const padSpaces = Math.max(2, config.width - stripAnsi(leftPart).length - stripAnsi(rightPart).length);
-    lines.push(`${leftPart}${' '.repeat(padSpaces)}${rightPart}`);
-
-    // Context subline if story is active
+    // Optional active context
     if (props.activeStory) {
-      const storyInfo = Chalk.dim('Novela activa: ') + Chalk.hex(Theme.colors.primary, props.activeStory) +
-        (props.activeChapter ? Chalk.dim('  •  Capítulo: ') + Chalk.hex(Theme.colors.text, props.activeChapter) : '');
-      lines.push(padEndVisible(storyInfo, config.width));
+      const storyInfo =
+        Chalk.dim('Novela activa: ') +
+        Chalk.hex(Theme.colors.primary, props.activeStory) +
+        (props.activeChapter ? Chalk.dim(' · Capítulo: ') + Chalk.hex(Theme.colors.text, props.activeChapter) : '');
+      lines.push(padEndVisible(storyInfo, width));
     }
 
-    lines.push(Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(config.width)));
+    // Divider
+    lines.push(Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(width)));
     return lines;
   }
 }

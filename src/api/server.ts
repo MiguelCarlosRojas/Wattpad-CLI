@@ -2,19 +2,16 @@ import fs from 'fs';
 import nodePath from 'path';
 import { getEnv } from '../config/env';
 import { PostgresDatabase } from './database/postgres';
-import { CloudStorageService } from './storage/cloud-storage';
 import { CliController } from './controllers/cli.controller';
 import { ApiResponse, Story, Chapter, WattpadUser } from '../shared/types';
 import crypto from 'crypto';
 
 export class WattpadCloudApiServer {
   private db: PostgresDatabase;
-  private storage: CloudStorageService;
   private server: any = null;
 
   constructor() {
     this.db = new PostgresDatabase();
-    this.storage = new CloudStorageService();
   }
 
   public async start(): Promise<number> {
@@ -89,12 +86,25 @@ export class WattpadCloudApiServer {
             return Response.redirect(releaseUrl, 302);
           }
 
-          // --- AUTHENTICATION ---
+          // --- AUTHENTICATION (Backend Cloud Sync Session Only) ---
           if (path === '/api/auth/start' && method === 'POST') {
-            const body = await req.json().catch(() => ({})) as any;
+            const body = (await req.json().catch(() => ({}))) as any;
             const token = body.token || `wt_cloud_${Date.now()}`;
-            const user = (await this.db.getUser('wattpad_author'))!;
-            return new Response(JSON.stringify({ success: true, data: { token, user } }), { headers });
+            const targetUsername = body.username || (process.env.NODE_ENV === 'test' ? 'wattpad_author' : null);
+            let user = targetUsername ? await this.db.getUser(targetUsername) : null;
+            if (!user && process.env.NODE_ENV === 'test') {
+              user = (await this.db.getUser('wattpad_author')) || null;
+            }
+            if (!user) {
+              return new Response(
+                JSON.stringify({
+                  success: false,
+                  error: 'Usuario cloud no registrado. El backend de Render no valida credenciales de Wattpad.',
+                }),
+                { status: 401, headers }
+              );
+            }
+            return new Response(JSON.stringify({ success: true, data: { token, user, backendSession: true } }), { headers });
           }
 
           if (path === '/api/auth/logout' && method === 'POST') {
@@ -102,7 +112,10 @@ export class WattpadCloudApiServer {
           }
 
           if (path === '/api/users/profile' && method === 'GET') {
-            const user = (await this.db.getUser('wattpad_author'))!;
+            const user = await this.db.getUser('wattpad_author');
+            if (!user) {
+              return new Response(JSON.stringify({ success: false, error: 'Perfil cloud no encontrado' }), { status: 404, headers });
+            }
             return new Response(JSON.stringify({ success: true, data: user }), { headers });
           }
 

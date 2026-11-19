@@ -1,31 +1,31 @@
 # ==============================================
-# DIRECTORIES EXCLUDED FROM GITHUB
+# Dependencias
 # ==============================================
-
-/migrations/
-*.tgz
+node_modules/
 .bun-cache/
+*.tgz
 
 # ==============================================
-# ENVIRONMENT FILES - NEVER UPLOAD
+# Compilaciones
 # ==============================================
+dist/
+build/
+coverage/
 
+# ==============================================
+# Variables de entorno y secretos
+# ==============================================
 .env
 .env.*
+!.env.example
 **/.env
 **/.env.*
-
-# ==============================================
-# SECRETS AND CREDENTIALS
-# ==============================================
-
 *.pem
 *.key
 *.p12
 *.pfx
 *.jks
 *.keystore
-
 credentials.json
 client_secret.json
 service-account.json
@@ -33,41 +33,14 @@ vault.enc
 vault.key
 
 # ==============================================
-# DEPENDENCIES
+# Logs
 # ==============================================
-
-node_modules/
-
-# ==============================================
-# COMPILED BINARIES
-# ==============================================
-
-dist/
-
-# ==============================================
-# TEMPORARY FILES
-# ==============================================
-
 *.log
-*.tmp
-*.temp
-.cache/
-.tmp/
-coverage/
+logs/
 
 # ==============================================
-# LOCAL IDE AND OS FILES
+# Documentos personales del autor
 # ==============================================
-
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-
-# ==============================================
-# USER DATA & LOCAL FALLBACKS
-# ==============================================
-
 Mis novelas/
 user-data/
 private-data/
@@ -76,3 +49,26 @@ backups/
 *.db-wal
 *.db-shm
 .wattpad-cli/
+
+# ==============================================
+# Archivos temporales
+# ==============================================
+*.tmp
+*.temp
+*.bak
+*.swp
+.cache/
+.tmp/
+
+# ==============================================
+# Sistema
+# ==============================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ==============================================
+# Configuración local de herramientas
+# ==============================================
+.vscode/
+.idea/

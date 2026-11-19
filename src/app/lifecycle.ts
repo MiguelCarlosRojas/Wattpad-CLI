@@ -1,9 +1,11 @@
-import { Application } from './application';
+export interface ShutdownableApp {
+  shutdown(): Promise<void>;
+}
 
 export class LifecycleManager {
   private static registered = false;
 
-  public static setup(app: Application): void {
+  public static setup(app: ShutdownableApp): void {
     if (this.registered) return;
     this.registered = true;
 

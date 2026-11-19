@@ -15,7 +15,7 @@ export interface Story {
   mature: boolean;
   editorPreference: EditorPreference;
   status: StoryStatus;
-  localPath: string | null;
+  localPath?: string | null;
   createdAt: string;
   updatedAt: string;
 }

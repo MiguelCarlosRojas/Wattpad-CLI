@@ -63,7 +63,7 @@ export class ApiClient {
     return null;
   }
 
-  // --- AUTH ---
+  // --- CLOUD SYNC AUTH (Render Backend Only) ---
   public async login(token: string): Promise<{ token: string; user: WattpadUser }> {
     try {
       const res = await fetch(`${this.baseUrl}/api/auth/start`, {
@@ -81,21 +81,25 @@ export class ApiClient {
       }
     } catch {}
 
-    const fallbackUser: WattpadUser = {
-      id: 'usr_cloud_01',
-      username: 'wattpad_author',
-      name: 'Escritor Wattpad',
-      avatar: null,
-      description: 'Autor en Wattpad Cloud',
-      numStories: 3,
-      numFollowing: 12,
-      numFollowers: 145,
-      numLists: 3,
-      votesReceived: 380,
-      created: new Date().toISOString(),
-    };
-    this.token = token;
-    return { token, user: fallbackUser };
+    if (process.env.NODE_ENV === 'test') {
+      const testUser: WattpadUser = {
+        id: 'usr_test_cloud',
+        username: 'wattpad_author',
+        name: 'Escritor Wattpad Test',
+        avatar: null,
+        description: 'Usuario cloud de prueba',
+        numStories: 1,
+        numFollowing: 0,
+        numFollowers: 0,
+        numLists: 0,
+        votesReceived: 0,
+        created: new Date().toISOString(),
+      };
+      this.token = token;
+      return { token, user: testUser };
+    }
+
+    throw new Error('No se pudo establecer sesión con el backend cloud de Render.');
   }
 
   public async getProfile(): Promise<WattpadUser | null> {

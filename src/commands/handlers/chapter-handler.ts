@@ -339,6 +339,28 @@ export function createChapterCommands(): CommandDefinition[] {
 
         // /chapter delete
         if (sub === 'delete') {
+          const isConfirmed = Boolean(parsed.flags.confirm || parsed.flags.c);
+          if (!isConfirmed) {
+            return {
+              success: true,
+              blocks: [
+                {
+                  type: 'warning',
+                  title: 'CONFIRMACIÓN DE ELIMINACIÓN DE CAPÍTULO',
+                  subtitle: `${chapter.title} [${chapter.id}]`,
+                  statusBadge: 'ACCIÓN DESTRUCTIVA',
+                  statusColor: '#DC3545',
+                  content:
+                    `¿Estás seguro de que deseas eliminar permanentemente el capítulo "${chapter.title}" [${chapter.id}] de la novela "${story.title}"?\n\n` +
+                    'Esta acción no se puede deshacer.\n' +
+                    'Para confirmar expresamente, escribe:\n' +
+                    `› /chapter delete ${story.id} ${chapter.id} --confirm`,
+                },
+              ],
+              message: `Confirmación requerida: usa /chapter delete ${story.id} ${chapter.id} --confirm para proceder.`,
+            };
+          }
+
           app.chapterRepo.delete(chapter.id);
           if (app.currentChapterId === chapter.id) {
             app.currentChapterId = null;
@@ -349,13 +371,14 @@ export function createChapterCommands(): CommandDefinition[] {
             blocks: [
               {
                 type: 'card',
-                title: 'CAPÍTULO ELIMINADO',
+                title: 'CAPÍTULO ELIMINADO CON ÉXITO',
                 subtitle: `${chapter.title} [${chapter.id}]`,
                 statusBadge: 'ELIMINADO',
                 statusColor: '#DC3545',
                 content: 'El capítulo y su historial de versiones han sido eliminados de la base de datos.',
               },
             ],
+            message: `Capítulo "${chapter.title}" eliminado correctamente.`,
           };
         }
 
@@ -384,24 +407,48 @@ export function createChapterCommands(): CommandDefinition[] {
 
         // /chapter publish
         if (sub === 'publish') {
+          const isConfirmed = Boolean(parsed.flags.confirm || parsed.flags.c);
+          if (!isConfirmed) {
+            return {
+              success: true,
+              blocks: [
+                {
+                  type: 'warning',
+                  title: 'CONFIRMACIÓN DE PUBLICACIÓN DE CAPÍTULO',
+                  subtitle: `${chapter.title} [${chapter.id}]`,
+                  statusBadge: 'CONFIRMACIÓN REQUERIDA',
+                  statusColor: '#FFC107',
+                  content:
+                    `Revisión del capítulo antes de publicar:\n\n` +
+                    `1. Novela: ${story.title} [${story.id}]\n` +
+                    `2. Capítulo: ${chapter.title} (${chapter.wordCount} palabras)\n` +
+                    `3. Estado actual: ${chapter.status.toUpperCase()}\n\n` +
+                    `Para confirmar la publicación, ejecuta:\n` +
+                    `› /chapter publish ${story.id} ${chapter.id} --confirm`,
+                },
+              ],
+              message: `Confirmación requerida: usa /chapter publish ${story.id} ${chapter.id} --confirm para proceder.`,
+            };
+          }
+
           const updated = app.chapterRepo.update(chapter.id, { status: 'published' }, 'cli');
           return {
             success: true,
             blocks: [
               {
                 type: 'card',
-                title: 'CAPÍTULO MARCADO COMO PUBLICADO',
+                title: 'CAPÍTULO CONFIRMADO COMO PUBLICADO',
                 subtitle: `${chapter.title} [${chapter.id}]`,
                 statusBadge: 'PUBLICADO',
-                statusColor: '#FF6122',
+                statusColor: '#28A745',
                 fields: [
                   { label: 'Novela', value: `${story.title} [${story.id}]` },
-                  { label: 'Estado', value: 'Publicado formalmente en Wattpad' },
+                  { label: 'Estado', value: 'Publicado formalmente' },
                   { label: 'Palabras', value: `${chapter.wordCount} palabras` },
                 ],
               },
             ],
-            message: `Capítulo "${chapter.title}" publicado con éxito.`,
+            message: `Capítulo "${chapter.title}" marcado como publicado con éxito.`,
           };
         }
 

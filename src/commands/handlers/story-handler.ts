@@ -6,14 +6,75 @@ export function createStoryCommands(): CommandDefinition[] {
   return [
     {
       name: '/stories',
+      subcommands: ['search', 'drafts', 'published'],
       category: 'stories',
-      description: 'Muestra todas tus novelas organizadas por estado en bloques informativos',
-      descriptionEn: 'Shows all your stories organized by state in informative blocks',
-      usage: '/stories [all | drafts | pending | published | error]',
-      examples: ['/stories', '/stories drafts', '/stories published'],
+      description: 'Muestra todas tus novelas organizadas o busca entre tus obras',
+      descriptionEn: 'Shows all your stories organized or searches your works',
+      usage: '/stories [search <término> | drafts | published]',
+      examples: ['/stories', '/stories search "fantasía"', '/stories drafts', '/stories published'],
       execute: (app, parsed: ParsedCommand): CommandResult => {
-        const filter = parsed.subcommand || parsed.args[0];
         let stories = app.storyRepo.findAll();
+
+        // Handle /stories search <query>
+        if (parsed.subcommand === 'search' || parsed.args[0] === 'search') {
+          const query = (parsed.subcommand === 'search' ? parsed.args.join(' ') : parsed.args.slice(1).join(' ')).trim().toLowerCase();
+          if (!query) {
+            return {
+              success: false,
+              blocks: [
+                {
+                  type: 'error',
+                  title: 'Término de búsqueda requerido',
+                  content: 'Uso: /stories search "término"',
+                },
+              ],
+            };
+          }
+
+          const matched = stories.filter(
+            (s) =>
+              s.title.toLowerCase().includes(query) ||
+              s.genre.toLowerCase().includes(query) ||
+              (s.description && s.description.toLowerCase().includes(query)) ||
+              (s.tags && s.tags.some((t: string) => t.toLowerCase().includes(query)))
+          );
+
+          if (matched.length === 0) {
+            return {
+              success: true,
+              blocks: [
+                {
+                  type: 'card',
+                  title: `BÚSQUEDA DE NOVELAS: "${query}"`,
+                  subtitle: 'Catálogo de obras locales',
+                  statusBadge: '0 COINCIDENCIAS',
+                  statusColor: '#808080',
+                  content: `No se encontraron novelas locales que coincidan con "${query}".\nConsulta remota en Wattpad no disponible sin una API autorizada.`,
+                },
+              ],
+            };
+          }
+
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: `RESULTADOS DE BÚSQUEDA: "${query}"`,
+                subtitle: `${matched.length} obra(s) encontrada(s) en tu catálogo local`,
+                statusBadge: `${matched.length} COINCIDENCIAS`,
+                statusColor: '#17A2B8',
+                items: matched.map((s) => ({
+                  primary: `${s.title} [${s.id}]`,
+                  secondary: `Género: ${s.genre} | Idioma: ${s.language.toUpperCase()} | Estado: ${s.status}`,
+                  badge: s.wattpadId ? 'EN WATTPAD' : 'SOLO LOCAL',
+                })),
+              },
+            ],
+          };
+        }
+
+        const filter = parsed.subcommand || parsed.args[0];
 
         if (filter === 'drafts' || filter === 'borradores') {
           stories = stories.filter((s) => s.status === 'draft');
@@ -310,7 +371,7 @@ export function createStoryCommands(): CommandDefinition[] {
           if (!id) {
             return {
               success: false,
-              blocks: [{ type: 'error', title: 'ID requerido', content: 'Uso: /story delete NOV-0001' }],
+              blocks: [{ type: 'error', title: 'ID requerido', content: 'Uso: /story delete NOV-0001 [--confirm]' }],
             };
           }
 
@@ -319,6 +380,34 @@ export function createStoryCommands(): CommandDefinition[] {
             return {
               success: false,
               blocks: [{ type: 'error', title: 'No encontrada', content: `No existe la novela "${id}".` }],
+            };
+          }
+
+          const isConfirmed = Boolean(parsed.flags.confirm || parsed.flags.c);
+          if (!isConfirmed) {
+            const chaps = app.chapterRepo.findByStoryId(story.id);
+            return {
+              success: true,
+              blocks: [
+                {
+                  type: 'warning',
+                  title: 'CONFIRMACIÓN DE ELIMINACIÓN DE NOVELA',
+                  subtitle: `${story.title} [${story.id}]`,
+                  statusBadge: 'ACCIÓN DESTRUCTIVA',
+                  statusColor: '#DC3545',
+                  content:
+                    `¿Estás seguro de que deseas eliminar permanentemente la novela "${story.title}"?\n\n` +
+                    `• Se eliminarán la novela y sus ${chaps.length} capítulo(s) asociados.\n` +
+                    '• Para confirmar expresamente esta acción irreversible, escribe:\n' +
+                    `› /story delete ${story.id} --confirm`,
+                  fields: [
+                    { label: 'Novela', value: `${story.title} [${story.id}]` },
+                    { label: 'Capítulos', value: `${chaps.length} capítulo(s)` },
+                    { label: 'Estado', value: story.status.toUpperCase() },
+                  ],
+                },
+              ],
+              message: `Confirmación requerida: usa /story delete ${story.id} --confirm para proceder.`,
             };
           }
 
@@ -333,13 +422,14 @@ export function createStoryCommands(): CommandDefinition[] {
             blocks: [
               {
                 type: 'card',
-                title: 'NOVELA ELIMINADA',
+                title: 'NOVELA ELIMINADA CON ÉXITO',
                 subtitle: `${story.title} [${story.id}]`,
                 statusBadge: 'ELIMINADA',
                 statusColor: '#DC3545',
-                content: 'La novela y sus capítulos locales han sido eliminados de la base de datos.',
+                content: 'La novela y sus capítulos locales han sido eliminados permanentemente.',
               },
             ],
+            message: `Novela "${story.title}" [${story.id}] eliminada correctamente.`,
           };
         }
 
