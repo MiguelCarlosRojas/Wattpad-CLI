@@ -21,12 +21,12 @@ export function createAuthCommands(): CommandDefinition[] {
               type: 'card',
               title: 'REGISTRO OFICIAL EN WATTPAD',
               subtitle: 'Crea tu cuenta de autor en la plataforma oficial',
-              statusBadge: 'NAVEGADOR',
+              statusBadge: 'WEB OFICIAL',
               statusColor: '#FF6122',
               fields: [
                 { label: 'Sitio oficial', value: url },
                 { label: 'Seguridad', value: 'Completa el registro directamente en la web oficial de Wattpad.' },
-                { label: 'Siguiente paso', value: 'Una vez creada tu cuenta, usa /login para conectarla con Wattpad CLI.' },
+                { label: 'Siguiente paso', value: 'Una vez creada tu cuenta, usa /login para conectar tu cuenta con Wattpad CLI.' },
               ],
             },
           ],
@@ -38,13 +38,37 @@ export function createAuthCommands(): CommandDefinition[] {
     {
       name: '/login',
       category: 'auth',
-      description: 'Inicia sesión o conecta tu cuenta de Wattpad mediante los canales oficiales',
-      descriptionEn: 'Logs into Wattpad via official browser login or authorized creator token',
+      description: 'Inicia sesión en Wattpad o vincula un token autorizado de creador/API',
+      descriptionEn: 'Logs into Wattpad via official browser login or authorized token',
       usage: '/login [token]',
       examples: ['/login', '/login wt_token_abc123'],
       execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
         const token = parsed.subcommand || parsed.args[0];
 
+        // 1. Check if session already exists
+        if (!token && app.currentUser) {
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: 'WATTPAD: CONECTADO',
+                subtitle: `Sesión activa actualmente como @${app.currentUser.username}`,
+                statusBadge: 'SESIÓN ACTIVA',
+                statusColor: '#28A745',
+                fields: [
+                  { label: 'Usuario', value: `@${app.currentUser.username}` },
+                  { label: 'Nombre', value: app.currentUser.name },
+                  { label: 'ID Wattpad', value: app.currentUser.id },
+                  { label: 'Cambiar de cuenta', value: 'Si deseas cambiar de cuenta, ejecuta /logout primero.' },
+                ],
+              },
+            ],
+            message: `Ya tienes una sesión activa como @${app.currentUser.username}.`,
+          };
+        }
+
+        // 2. /login without token: Open official Wattpad login page and explain honest status
         if (!token) {
           const loginUrl = 'https://www.wattpad.com/login';
           await openUrlInBrowser(loginUrl);
@@ -53,28 +77,50 @@ export function createAuthCommands(): CommandDefinition[] {
             success: true,
             blocks: [
               {
-                type: 'card',
+                type: 'warning',
                 title: 'INICIO DE SESIÓN EN WATTPAD',
-                subtitle: 'Conexión oficial de cuenta de autor',
-                statusBadge: 'WEB OFICIAL',
-                statusColor: '#FF6122',
+                subtitle: 'Portal web abierto en tu navegador',
+                statusBadge: 'AUTORIZACIÓN REQUERIDA',
+                statusColor: '#FFC107',
+                content: 'Iniciaste sesión en el navegador, pero Wattpad CLI todavía no está autorizada.',
                 fields: [
-                  { label: 'Página de inicio de sesión', value: loginUrl },
-                  { label: 'Acceso en navegador', value: 'Se ha abierto la página oficial de inicio de sesión en tu navegador.' },
-                  { label: 'Vincular token', value: 'Si posees un token de acceso oficial de creador, vincúlalo con: /login [tu_token]' },
-                  { label: 'Modo Autor Local', value: 'Puedes continuar redactando, organizando documentos (Word, Notepad, Google Docs) y preparando capítulos sin necesidad de token directo.' },
+                  { label: 'Página oficial', value: loginUrl },
+                  {
+                    label: 'Situación de la API',
+                    value: 'Wattpad no ofrece callbacks públicos OAuth2 para aplicaciones CLI de terceros.',
+                  },
+                  {
+                    label: 'Para autorizar la CLI',
+                    value: 'Introduce tu token de acceso autorizado con: /login [tu_token]',
+                  },
+                  {
+                    label: 'Modo Autor Local',
+                    value: 'Puedes redactar y gestionar tus novelas, capítulos, Word (.docx) y Notepad (.txt) en local.',
+                  },
                 ],
               },
             ],
-            message: 'Página oficial de inicio de sesión de Wattpad abierta en el navegador.',
+            message: 'Iniciaste sesión en el navegador, pero Wattpad CLI todavía no está autorizada.',
           };
         }
 
+        // 3. /login [token]: Validate, authenticate, and securely store
         try {
           const session = await app.wattpadService.loginWithToken(token);
           app.currentUser = session.user;
+
+          // Save credentials securely in CredentialStore
+          if (app.credentialStore) {
+            await app.credentialStore.set('wattpad_token', token);
+            await app.credentialStore.set('wattpad_user', JSON.stringify(session.user));
+          }
+
           if (app.connRepo?.setConnected) {
             app.connRepo.setConnected('wattpad', 'Wattpad', true, session.user.username);
+          }
+
+          if (app.renderer?.appShell) {
+            app.renderer.appShell.setState({ currentUser: session.user });
           }
 
           return {
@@ -82,20 +128,21 @@ export function createAuthCommands(): CommandDefinition[] {
             blocks: [
               {
                 type: 'card',
-                title: '¡SESIÓN INICIADA CORRECTAMENTE!',
-                subtitle: `Bienvenido de nuevo, ${session.user.name}`,
+                title: 'WATTPAD: CONECTADO',
+                subtitle: `¡Bienvenido de nuevo, ${session.user.name}!`,
                 statusBadge: 'CONECTADO',
                 statusColor: '#28A745',
                 fields: [
-                  { label: 'Usuario', value: `@${session.user.username}` },
-                  { label: 'ID Wattpad', value: session.user.id },
-                  { label: 'Seguidores', value: String(session.user.numFollowers) },
-                  { label: 'Votos recibidos', value: String(session.user.votesReceived) },
+                  { label: 'Nombre de usuario', value: `@${session.user.username}` },
+                  { label: 'Identificador oficial', value: session.user.id },
                   { label: 'Historias en Wattpad', value: String(session.user.numStories) },
+                  { label: 'Seguidores', value: String(session.user.numFollowers) },
+                  { label: 'Votos acumulados', value: String(session.user.votesReceived) },
+                  { label: 'Almacén seguro', value: 'Credencial cifrada con AES-256-GCM en vault.enc' },
                 ],
               },
             ],
-            message: `Cuenta @${session.user.username} conectada con éxito.`,
+            message: `WATTPAD: CONECTADO — Cuenta @${session.user.username} vinculada con éxito.`,
           };
         } catch (err: any) {
           return {
@@ -104,9 +151,10 @@ export function createAuthCommands(): CommandDefinition[] {
               {
                 type: 'error',
                 title: 'Error de autenticación',
-                content: `No se pudo verificar la credencial de Wattpad: ${err.message}`,
+                content: `No se pudo autorizar la credencial de Wattpad: ${err.message}`,
               },
             ],
+            message: `Error de autenticación: ${err.message}`,
           };
         }
       },
@@ -115,15 +163,32 @@ export function createAuthCommands(): CommandDefinition[] {
     {
       name: '/logout',
       category: 'auth',
-      description: 'Cierra la sesión actual de Wattpad y limpia las credenciales almacenadas',
+      description: 'Cierra la sesión actual de Wattpad y elimina las credenciales almacenadas',
       descriptionEn: 'Logs out of Wattpad and deletes stored credentials',
       usage: '/logout',
       examples: ['/logout'],
       execute: async (app): Promise<CommandResult> => {
-        await app.wattpadService.logout();
+        if (app.wattpadService?.logout) {
+          await app.wattpadService.logout();
+        }
+
+        if (app.credentialStore) {
+          await app.credentialStore.remove('wattpad_token');
+          await app.credentialStore.remove('wattpad_user');
+        }
+
         app.currentUser = null;
+
+        if (app.apiClient?.setToken) {
+          app.apiClient.setToken(null);
+        }
+
         if (app.connRepo?.setConnected) {
           app.connRepo.setConnected('wattpad', 'Wattpad', false);
+        }
+
+        if (app.renderer?.appShell) {
+          app.renderer.appShell.setState({ currentUser: null });
         }
 
         return {
@@ -131,16 +196,17 @@ export function createAuthCommands(): CommandDefinition[] {
           blocks: [
             {
               type: 'card',
-              title: 'SESIÓN FINALIZADA',
-              subtitle: 'Credenciales y tokens eliminados localmente con éxito.',
+              title: 'WATTPAD: DESCONECTADO',
+              subtitle: 'Sesión finalizada y credenciales eliminadas del almacén seguro.',
               statusBadge: 'DESCONECTADO',
               statusColor: '#808080',
               content:
                 'Has cerrado sesión de forma segura en Wattpad CLI.\n' +
-                'Tus novelas, capítulos, borradores y documentos (Word, Notepad, Google Docs) se mantienen intactos.',
+                'Las credenciales en vault.enc han sido borradas.\n' +
+                'Tus novelas, capítulos, borradores y manuscritos (Word, Notepad, Google Docs) se mantienen intactos.',
             },
           ],
-          message: 'Sesión de Wattpad cerrada con éxito.',
+          message: 'WATTPAD: DESCONECTADO — Sesión cerrada y credenciales eliminadas con éxito.',
         };
       },
     },
@@ -160,16 +226,20 @@ export function createAuthCommands(): CommandDefinition[] {
             blocks: [
               {
                 type: 'card',
-                title: 'ESTADO DE LA CUENTA',
-                statusBadge: 'SIN SESIÓN ACTIVA',
+                title: 'ESTADO DE LA CUENTA: DESCONECTADO',
+                subtitle: 'Modo Autor Local activo',
+                statusBadge: 'SIN SESIÓN VINCULADA',
                 statusColor: '#808080',
+                content: 'Iniciaste sesión en el navegador, pero Wattpad CLI todavía no está autorizada.',
                 fields: [
                   { label: 'Estado', value: 'Desconectado / Modo Autor Local' },
-                  { label: 'Iniciar sesión', value: 'Escribe /login para conectar tu cuenta de Wattpad.' },
-                  { label: 'Crear cuenta', value: 'Escribe /register para registrarte en la web oficial de Wattpad.' },
+                  { label: 'Para autorizar la CLI', value: 'Escribe /login [token] con un token autorizado de Wattpad.' },
+                  { label: 'Iniciar sesión en web', value: 'Escribe /login para abrir la página oficial en el navegador.' },
+                  { label: 'Crear cuenta nueva', value: 'Escribe /register para registrarte en la web oficial.' },
                 ],
               },
             ],
+            message: 'Iniciaste sesión en el navegador, pero Wattpad CLI todavía no está autorizada.',
           };
         }
 
@@ -178,18 +248,20 @@ export function createAuthCommands(): CommandDefinition[] {
           blocks: [
             {
               type: 'card',
-              title: `CUENTA: ${user.name} (@${user.username})`,
+              title: `WATTPAD: CONECTADO — ${user.name} (@${user.username})`,
+              subtitle: 'Cuenta oficial de Wattpad vinculada y verificada',
               statusBadge: 'CONECTADO',
               statusColor: '#28A745',
               fields: [
                 { label: 'Nombre de usuario', value: `@${user.username}` },
+                { label: 'Nombre', value: user.name },
                 { label: 'Identificador oficial', value: user.id },
-                { label: 'Descripción / Biografía', value: user.description || 'Sin biografía añadida' },
-                { label: 'Historias publicadas', value: String(user.numStories) },
+                { label: 'Biografía', value: user.description || 'Sin biografía añadida' },
+                { label: 'Historias en Wattpad', value: String(user.numStories) },
                 { label: 'Seguidores', value: String(user.numFollowers) },
                 { label: 'Siguiendo', value: String(user.numFollowing) },
                 { label: 'Votos acumulados', value: String(user.votesReceived) },
-                { label: 'Estado de conexión', value: 'Cuenta verificada y sincronizada' },
+                { label: 'Almacén seguro', value: 'Credencial cifrada con AES-256-GCM en vault.enc' },
               ],
             },
           ],

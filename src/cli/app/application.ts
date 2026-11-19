@@ -23,12 +23,16 @@ import { createSyncCommands } from '../../commands/handlers/sync-handler';
 import { createExploreCommands } from '../../commands/handlers/explore-handler';
 import { createPublishCommands } from '../../commands/handlers/publish-handler';
 import { CommandResult, RenderBlock } from '../../types/command.types';
+import { CredentialStore } from '../../security/credential-store';
+import { FileSystemManager } from '../../utils/file-system';
 
 export class Application {
   public apiClient: ApiClient;
   public wordIntegration: WordCloudIntegration;
   public notepadIntegration: NotepadCloudIntegration;
   public googleIntegration: GoogleCloudIntegration;
+  public credentialStore: CredentialStore;
+  public fsManager: FileSystemManager;
 
   public registry: CommandRegistry;
   public router: CommandRouter;
@@ -50,11 +54,13 @@ export class Application {
   public syncEngine: any;
   public wordService: any;
   public notepadService: any;
-  public fsManager: any;
 
   constructor(customApiUrl?: string) {
     const env = getEnv();
     this.apiClient = new ApiClient(customApiUrl || env.WATTPAD_API_BASE_URL);
+
+    this.credentialStore = new CredentialStore();
+    this.fsManager = new FileSystemManager();
 
     this.wordIntegration = new WordCloudIntegration(this.apiClient);
     this.notepadIntegration = new NotepadCloudIntegration(this.apiClient);
@@ -195,10 +201,29 @@ export class Application {
     // Wattpad Service Adapter
     this.wattpadService = {
       loginWithToken: async (token: string) => {
-        return await this.apiClient.login(token);
+        const session = await this.apiClient.login(token);
+        this.currentUser = session.user;
+        await this.credentialStore.set('wattpad_token', token);
+        await this.credentialStore.set('wattpad_user', JSON.stringify(session.user));
+        return session;
       },
       logout: async () => {
         await this.apiClient.logout();
+        await this.credentialStore.remove('wattpad_token');
+        await this.credentialStore.remove('wattpad_user');
+        this.currentUser = null;
+      },
+      getSession: async () => {
+        const savedToken = await this.credentialStore.get('wattpad_token');
+        const savedUserJson = await this.credentialStore.get('wattpad_user');
+        if (savedToken && savedUserJson) {
+          try {
+            return { token: savedToken, user: JSON.parse(savedUserJson) };
+          } catch {
+            return null;
+          }
+        }
+        return null;
       },
       getProfile: async () => {
         return await this.apiClient.getProfile();
@@ -288,20 +313,19 @@ export class Application {
       readChapterFromTxt: () => ({ content: 'Texto importado', hash: 'hash1' }),
     };
 
-    this.fsManager = {
-      openFileInOS: async (filePath: string, pref: string) => {
-        const story = this.storyRepo.findById(this.currentStoryId || 'NOV-0001');
-        const chap = this.chapterRepo.findById(this.currentChapterId || 'CAP-0001');
-        if (story && chap) {
-          if (pref === 'notepad') {
-            await this.notepadIntegration.openChapterInNotepad(story, chap);
-          } else {
-            await this.wordIntegration.openChapterInWord(story, chap);
-          }
-          return true;
+    const originalOpen = this.fsManager.openFileInOS.bind(this.fsManager);
+    this.fsManager.openFileInOS = async (filePath: string, pref?: 'word' | 'notepad' | 'google') => {
+      const story = this.storyRepo.findById(this.currentStoryId || 'NOV-0001');
+      const chap = this.chapterRepo.findById(this.currentChapterId || 'CAP-0001');
+      if (story && chap) {
+        if (pref === 'notepad') {
+          await this.notepadIntegration.openChapterInNotepad(story, chap);
+        } else {
+          await this.wordIntegration.openChapterInWord(story, chap);
         }
-        return false;
-      },
+        return true;
+      }
+      return await originalOpen(filePath, pref);
     };
   }
 
@@ -419,20 +443,25 @@ export class Application {
     const config = await this.apiClient.fetchConfig();
     const serverOnline = Boolean(config);
 
-    // Initial user profile
-    this.currentUser = {
-      id: 'usr_author_01',
-      username: 'wattpad_author',
-      name: 'Escritor Wattpad',
-      avatar: null,
-      description: 'Autor en Wattpad Cloud',
-      numStories: this.cachedStories.length,
-      numFollowing: 12,
-      numFollowers: 145,
-      numLists: 3,
-      votesReceived: 380,
-      created: new Date().toISOString(),
-    };
+    // Restore real session from CredentialStore if available
+    const savedToken = await this.credentialStore.get('wattpad_token');
+    const savedUserJson = await this.credentialStore.get('wattpad_user');
+    if (savedToken && savedUserJson) {
+      try {
+        this.currentUser = JSON.parse(savedUserJson);
+        this.apiClient.setToken(savedToken);
+      } catch {
+        this.currentUser = null;
+      }
+    } else {
+      this.currentUser = null;
+    }
+
+    // Synchronize local disk structure into "Mis novelas"
+    for (const s of this.cachedStories) {
+      const chaps = this.cachedChapters.filter((c) => c.storyId === s.id);
+      this.fsManager.syncStoryStructure(s, chaps);
+    }
 
     // Propagate state to modern AppShell
     this.renderer.appShell.setState({
@@ -520,7 +549,7 @@ export class Application {
 
     return {
       version: '1.0.0',
-      user: this.currentUser ? this.currentUser.username : 'wattpad_author',
+      user: this.currentUser ? this.currentUser.username : 'Desconectado',
       isAuthenticated: Boolean(this.currentUser),
       serverUrl: this.apiClient.getBaseUrl(),
       serverOnline: true,

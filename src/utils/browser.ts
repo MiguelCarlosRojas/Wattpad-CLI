@@ -5,6 +5,10 @@ import { spawn } from 'child_process';
  * de forma compatible con Windows, macOS y Linux.
  */
 export async function openUrlInBrowser(url: string): Promise<boolean> {
+  if (process.env.NODE_ENV === 'test' || process.env.CI === 'true') {
+    return true;
+  }
+
   return new Promise((resolve) => {
     const platform = process.platform;
     let command = '';

@@ -217,8 +217,11 @@ export function createConnectCommands(): CommandDefinition[] {
           if (!story) continue;
           const chapters = app.chapterRepo.findByStoryId(story.id);
           const fields: { label: string; value: string }[] = [
-            { label: 'Directorio', value: `Mis novelas/${story.title}/` },
+            { label: 'Ruta local', value: `Mis novelas/${story.title}/` },
+            { label: 'Vínculo ID Interno', value: story.id },
+            { label: 'Vínculo ID Wattpad', value: story.wattpadId ? story.wattpadId : 'Pendiente de publicación' },
             { label: 'Editor Preferido', value: story.editorPreference.toUpperCase() },
+            { label: 'Información', value: `Informacion/sinopsis.txt, Informacion/metadatos.json` },
           ];
 
           for (const ch of chapters) {
@@ -226,14 +229,14 @@ export function createConnectCommands(): CommandDefinition[] {
             const numStr = String(ch.chapterNumber).padStart(3, '0');
             fields.push({
               label: `Capítulo ${ch.chapterNumber}`,
-              value: `${numStr} - ${ch.title}${ext} [${ch.status.toUpperCase()}]`,
+              value: `Capitulos/${numStr} - ${ch.title}${ext} [ID: ${ch.id} · ${ch.status.toUpperCase()}]`,
             });
           }
 
           blocks.push({
             type: 'card',
             title: `${story.title} [${story.id}]`,
-            subtitle: `${chapters.length} capítulo(s) / documento(s) asociado(s)`,
+            subtitle: `${chapters.length} capítulo(s) organizados jerárquicamente`,
             statusBadge: story.editorPreference.toUpperCase(),
             statusColor: '#FF6122',
             fields,

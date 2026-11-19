@@ -44,7 +44,11 @@ describe('CLI Cloud End-to-End Workflow', () => {
     expect(resGoogle.success).toBe(true);
     expect(resGoogle.blocks![0].title).toContain('GOOGLE DOCS');
 
-    // 6. Publication with confirmation
+    // 6. Connect / Login to Wattpad
+    const resLogin = await app.executeCommand('/login cloud_test_token_99');
+    expect(resLogin.success).toBe(true);
+
+    // 7. Publication with confirmation
     const resPub = await app.executeCommand('/publish story NOV-0001 --confirm');
     expect(resPub.success).toBe(true);
     expect(resPub.blocks![0].title).toContain('NOVELA PUBLICADA EN WATTPAD');

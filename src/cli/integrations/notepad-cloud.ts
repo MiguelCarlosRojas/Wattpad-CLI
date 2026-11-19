@@ -4,28 +4,22 @@ import os from 'os';
 import crypto from 'crypto';
 import { Story, Chapter } from '../../shared/types';
 import { ApiClient } from '../api/api-client';
+import { FileSystemManager } from '../../utils/file-system';
 
 export class NotepadCloudIntegration {
-  private tempDir: string;
+  private fsManager: FileSystemManager;
 
   constructor(private apiClient: ApiClient) {
-    this.tempDir = path.join(os.tmpdir(), 'wattpad-cli-cache', 'notepad');
-    if (!fs.existsSync(this.tempDir)) {
-      fs.mkdirSync(this.tempDir, { recursive: true });
-    }
+    this.fsManager = new FileSystemManager();
   }
 
   public async openChapterInNotepad(story: Story, chapter: Chapter): Promise<string> {
-    const cleanStory = story.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_');
-    const storyFolder = path.join(this.tempDir, cleanStory);
-    if (!fs.existsSync(storyFolder)) {
-      fs.mkdirSync(storyFolder, { recursive: true });
-    }
+    const filePath = this.fsManager.getChapterFilePath(story.title, chapter.chapterNumber, 'txt', chapter.title);
 
-    const padded = String(chapter.chapterNumber).padStart(3, '0');
-    const filePath = path.join(storyFolder, `capitulo_${padded}.txt`);
+    // Sync story metadata and synopsis into Informacion/
+    this.fsManager.syncStoryStructure(story, [chapter]);
 
-    const header = `# ${chapter.title}\n# Novela: ${story.title} (Capítulo ${chapter.chapterNumber})\n# Almacenado en: Wattpad Cloud\n\n`;
+    const header = `# ${chapter.title}\n# Novela: ${story.title} (Capítulo ${chapter.chapterNumber})\n# Almacenado en: Mis novelas / Wattpad CLI\n\n`;
     const fullText = header + (chapter.content || '');
 
     fs.writeFileSync(filePath, fullText, { encoding: 'utf8' });
@@ -41,12 +35,10 @@ export class NotepadCloudIntegration {
   }
 
   public async importEditedChapter(story: Story, chapter: Chapter): Promise<{ content: string; hash: string }> {
-    const cleanStory = story.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_');
-    const padded = String(chapter.chapterNumber).padStart(3, '0');
-    const filePath = path.join(this.tempDir, cleanStory, `capitulo_${padded}.txt`);
+    const filePath = this.fsManager.getChapterFilePath(story.title, chapter.chapterNumber, 'txt', chapter.title);
 
     if (!fs.existsSync(filePath)) {
-      throw new Error(`No se encontró el archivo temporal de Bloc de Notas en ${filePath}`);
+      throw new Error(`No se encontró el archivo de Bloc de Notas en ${filePath}`);
     }
 
     const fullText = fs.readFileSync(filePath, 'utf8');
@@ -65,7 +57,7 @@ export class NotepadCloudIntegration {
     const cleanedContent = contentLines.join('\n').trim();
     const hash = crypto.createHash('sha256').update(cleanedContent).digest('hex');
 
-    // Push revision directly to Cloud API!
+    // Push revision directly to Cloud API
     await this.apiClient.updateChapter(chapter.id, { content: cleanedContent }, 'notepad');
 
     return { content: cleanedContent, hash };

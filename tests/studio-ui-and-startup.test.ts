@@ -266,7 +266,7 @@ describe('Wattpad CLI — Reconstrucción UI y Gestión Literaria', () => {
       expect(text).toContain('Mis novelas/');
       expect(text).toContain('El Secreto de las Sombras');
       expect(text).toContain('Capitulos/');
-      expect(text).toContain('Capitulo_01_El_Despertar.docx');
+      expect(text).toContain('001 - El Despertar.docx');
     });
 
     it('should render CommandOutputView with execution status and fields', () => {

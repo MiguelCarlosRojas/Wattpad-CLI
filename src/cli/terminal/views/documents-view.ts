@@ -47,37 +47,41 @@ export class DocumentsView {
 
         const ext = story.editorPreference === 'notepad' ? '.txt' : '.docx';
         const storyChaps = props.chapters.filter((c) => c.storyId === story.id);
+        const wattpadTag = story.wattpadId ? Chalk.hex(Theme.colors.primary, ` [WP ID: ${story.wattpadId}]`) : Chalk.dim(' [Local]');
 
-        lines.push(padEndVisible(`  ${sBranch} 📁 ${Chalk.bold(Chalk.hex(Theme.colors.white, story.title))}  ${Chalk.dim(`[${story.id} · ${story.genre} · Editor: ${story.editorPreference.toUpperCase()}]`)}`, width));
-        lines.push(padEndVisible(`  ${sSub}├── 📂 Capitulos/`, width));
+        lines.push(padEndVisible(`  ${sBranch} 📁 ${Chalk.bold(Chalk.hex(Theme.colors.white, story.title))}  ${Chalk.dim(`[${story.id} · ${story.genre} · Editor: ${story.editorPreference.toUpperCase()}]`)}${wattpadTag}`, width));
+        
+        // Informacion/ subfolder
+        lines.push(padEndVisible(`  ${sSub}├── 📂 Informacion/`, width));
+        lines.push(padEndVisible(`  ${sSub}│   ├── 📄 sinopsis.txt  ${Chalk.dim('(Sinopsis y argumento general)')}`, width));
+        lines.push(padEndVisible(`  ${sSub}│   └── 📄 metadatos.json  ${Chalk.dim(`(ID: ${story.id}${story.wattpadId ? ' · WP: ' + story.wattpadId : ''})`)}`, width));
+
+        // Capitulos/ subfolder
+        lines.push(padEndVisible(`  ${sSub}└── 📂 Capitulos/`, width));
 
         if (storyChaps.length === 0) {
-          lines.push(padEndVisible(`  ${sSub}│   └── ${Chalk.dim('(Sin capítulos aún. Usa /chapter new)')}`, width));
+          lines.push(padEndVisible(`  ${sSub}    └── ${Chalk.dim('(Sin capítulos aún. Usa /chapter new)')}`, width));
         } else {
           for (let cIdx = 0; cIdx < storyChaps.length; cIdx++) {
             const chap = storyChaps[cIdx];
             const isLastChap = cIdx === storyChaps.length - 1;
             const cBranch = isLastChap ? '└──' : '├──';
-            const safeTitle = chap.title.replace(/\s+/g, '_').replace(/[\/\\?%*:|"<>]/g, '_');
-            const numPad = String(chap.chapterNumber).padStart(2, '0');
-            const filename = `Capitulo_${numPad}_${safeTitle}${ext}`;
+            const numPad = String(chap.chapterNumber).padStart(3, '0');
+            const filename = `${numPad} - ${chap.title}${ext}`;
             const statusDot = chap.status === 'published'
               ? Chalk.hex(Theme.colors.primary, '● Wattpad')
               : chap.status === 'synced'
               ? Chalk.hex(Theme.colors.success, '● Sincronizado')
               : Chalk.hex(Theme.colors.warning, '○ Borrador local');
 
-            lines.push(padEndVisible(`  ${sSub}│   ${cBranch} 📄 ${filename}  ${Chalk.dim(`(${chap.wordCount} palabras)`)}  ${statusDot}`, width));
+            lines.push(padEndVisible(`  ${sSub}    ${cBranch} 📄 ${filename}  ${Chalk.dim(`(${chap.wordCount} palabras)`)}  ${statusDot}`, width));
           }
         }
-
-        lines.push(padEndVisible(`  ${sSub}└── 📂 Notas/`, width));
-        lines.push(padEndVisible(`  ${sSub}    └── 📄 notas_de_trama.txt  ${Chalk.dim('(Apuntes, escaleta y personajes)')}`, width));
       }
     }
 
     lines.push('');
-    lines.push(padEndVisible(`  ${Chalk.dim('Comandos útiles:')}  ${Chalk.hex(Theme.colors.primary, '/story import <ruta>')}  │  ${Chalk.hex(Theme.colors.primary, '/chapter open <storyId> <capId>')}  │  ${Chalk.hex(Theme.colors.primary, '/publish status')}`, width));
+    lines.push(padEndVisible(`  ${Chalk.dim('Comandos útiles:')}  ${Chalk.hex(Theme.colors.primary, '/chapter open <storyId> <capId>')}  │  ${Chalk.hex(Theme.colors.primary, '/story import <ruta>')}  │  ${Chalk.hex(Theme.colors.primary, '/publish status')}`, width));
 
     return lines;
   }

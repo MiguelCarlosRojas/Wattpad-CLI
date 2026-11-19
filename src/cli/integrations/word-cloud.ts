@@ -6,28 +6,22 @@ import mammoth from 'mammoth';
 import crypto from 'crypto';
 import { Story, Chapter } from '../../shared/types';
 import { ApiClient } from '../api/api-client';
+import { FileSystemManager } from '../../utils/file-system';
 
 export class WordCloudIntegration {
-  private tempDir: string;
+  private fsManager: FileSystemManager;
 
   constructor(private apiClient: ApiClient) {
-    this.tempDir = path.join(os.tmpdir(), 'wattpad-cli-cache', 'word');
-    if (!fs.existsSync(this.tempDir)) {
-      fs.mkdirSync(this.tempDir, { recursive: true });
-    }
+    this.fsManager = new FileSystemManager();
   }
 
   public async openChapterInWord(story: Story, chapter: Chapter): Promise<string> {
-    const cleanStory = story.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_');
-    const storyFolder = path.join(this.tempDir, cleanStory);
-    if (!fs.existsSync(storyFolder)) {
-      fs.mkdirSync(storyFolder, { recursive: true });
-    }
+    const filePath = this.fsManager.getChapterFilePath(story.title, chapter.chapterNumber, 'docx', chapter.title);
 
-    const padded = String(chapter.chapterNumber).padStart(3, '0');
-    const filePath = path.join(storyFolder, `capitulo_${padded}.docx`);
+    // Sync story metadata and synopsis into Informacion/
+    this.fsManager.syncStoryStructure(story, [chapter]);
 
-    // Build DOCX document from cloud content
+    // Build DOCX document from chapter content
     const paragraphs = (chapter.content || '')
       .split('\n')
       .map((p) => p.trim())
@@ -77,24 +71,18 @@ export class WordCloudIntegration {
   }
 
   public async importEditedChapter(story: Story, chapter: Chapter): Promise<{ content: string; hash: string }> {
-    const cleanStory = story.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_');
-    const padded = String(chapter.chapterNumber).padStart(3, '0');
-    const filePath = path.join(this.tempDir, cleanStory, `capitulo_${padded}.docx`);
+    const filePath = this.fsManager.getChapterFilePath(story.title, chapter.chapterNumber, 'docx', chapter.title);
 
     if (!fs.existsSync(filePath)) {
-      throw new Error(`No se encontró el archivo temporal de Word en ${filePath}`);
+      throw new Error(`No se encontró el archivo Word en ${filePath}`);
     }
 
-    const extracted = await mammoth.extractRawText({ path: filePath });
-    const lines = extracted.value
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-
-    const content = lines.join('\n\n');
+    const buffer = fs.readFileSync(filePath);
+    const result = await mammoth.extractRawText({ buffer });
+    const content = result.value.trim();
     const hash = crypto.createHash('sha256').update(content).digest('hex');
 
-    // Push revision directly to Cloud API!
+    // Push revision directly to Cloud API
     await this.apiClient.updateChapter(chapter.id, { content }, 'word');
 
     return { content, hash };
