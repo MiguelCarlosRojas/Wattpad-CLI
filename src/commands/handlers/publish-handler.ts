@@ -4,12 +4,14 @@ export function createPublishCommands(): CommandDefinition[] {
   return [
     {
       name: '/publish',
-      subcommands: ['story', 'chapter'],
+      subcommands: ['story', 'chapter', 'status'],
       category: 'publish',
-      description: 'Prepara y publica historias y capítulos en Wattpad de forma oficial y confirmada',
-      descriptionEn: 'Prepares and publishes stories and chapters to Wattpad with confirmation',
-      usage: '/publish [story NOV-xxxx [--confirm] | chapter NOV-xxxx CAP-xxxx [--confirm]]',
+      description: 'Prepara, consulta el estado y publica historias y capítulos en Wattpad',
+      descriptionEn: 'Prepares, checks status and publishes stories and chapters to Wattpad',
+      usage: '/publish [status | story NOV-xxxx [--confirm] | chapter NOV-xxxx CAP-xxxx [--confirm]]',
       examples: [
+        '/publish',
+        '/publish status',
         '/publish story NOV-0001',
         '/publish story NOV-0001 --confirm',
         '/publish chapter NOV-0001 CAP-0001',
@@ -18,6 +20,48 @@ export function createPublishCommands(): CommandDefinition[] {
       execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
         const sub = parsed.subcommand;
         const isConfirmed = Boolean(parsed.flags.confirm || parsed.flags.c);
+
+        // /publish or /publish status
+        if (!sub || sub === 'status') {
+          const stories = app.storyRepo.findAll();
+          const blocks: any[] = [
+            {
+              type: 'card',
+              title: 'ESTADO DE PUBLICACIÓN — WATTPAD',
+              subtitle: 'Control de novelas, capítulos, borradores privados y obras públicas',
+              statusBadge: 'PANEL DE PUBLICACIÓN',
+              statusColor: '#FF6122',
+              fields: [
+                { label: 'Portal Creadores Wattpad', value: 'https://www.wattpad.com/myworks' },
+                { label: 'Privacidad', value: 'Toda obra publicada en Wattpad es visible para lectores de la comunidad.' },
+              ],
+            },
+          ];
+
+          for (const s of stories) {
+            const chaps = app.chapterRepo.findByStoryId(s.id);
+            const pubChaps = chaps.filter((c) => c.status === 'published');
+            const draftChaps = chaps.filter((c) => c.status !== 'published');
+
+            blocks.push({
+              type: 'card',
+              title: `${s.title} [${s.id}]`,
+              statusBadge: s.status === 'published' ? 'PUBLICADA' : 'BORRADOR',
+              statusColor: s.status === 'published' ? '#28A745' : '#808080',
+              fields: [
+                { label: 'Estado Novela', value: s.status === 'published' ? 'Pública en Wattpad' : 'Borrador privado (no público)' },
+                { label: 'Capítulos Publicados', value: `${pubChaps.length} de ${chaps.length}` },
+                { label: 'Capítulos en Borrador', value: `${draftChaps.length} capítulo(s)` },
+                { label: 'ID Wattpad', value: s.wattpadId || 'Pendiente de vinculación' },
+              ],
+            });
+          }
+
+          return {
+            success: true,
+            blocks,
+          };
+        }
 
         if (sub === 'story') {
           const storyId = parsed.args[0] || app.currentStoryId;

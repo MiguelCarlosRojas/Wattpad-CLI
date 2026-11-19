@@ -47,7 +47,7 @@ describe('WATTPAD CLI — Rediseño Premium y Distribución Oficial', () => {
       },
     ];
 
-    it('should render minimalist brand header with AI Writing Studio identity', () => {
+    it('should render minimalist brand header with Wattpad CLI identity', () => {
       const lines = WelcomeScreen.render(
         {
           version: '1.1.0',
@@ -57,10 +57,10 @@ describe('WATTPAD CLI — Rediseño Premium y Distribución Oficial', () => {
         80
       );
       const text = lines.join('\n');
-      expect(text).toContain('Wattpad');
-      expect(text).toContain('AI WRITING STUDIO');
+      expect(text).toContain('Wattpad CLI');
+      expect(text).not.toContain('AI WRITING STUDIO');
       expect(text).toContain('v1.1.0');
-      expect(text).toContain('cloud');
+      expect(text).toContain('cloud postgres');
     });
 
     it('should render inspiring greeting and quick action chips without bulky boxes', () => {
@@ -73,11 +73,11 @@ describe('WATTPAD CLI — Rediseño Premium y Distribución Oficial', () => {
         80
       );
       const text = lines.join('\n');
-      expect(text).toContain('Tu espacio para crear historias.');
-      expect(text).toContain('¿Qué vamos a escribir hoy?');
-      expect(text).toContain('[ Crear nueva historia ]');
-      expect(text).toContain('[ Continuar escribiendo ]');
-      expect(text).toContain('[ Explorar mi biblioteca ]');
+      expect(text).toContain('Gestor integral de novelas');
+      expect(text).toContain('ACCIONES RECOMENDADAS');
+      expect(text).toContain('Ver novelas');
+      expect(text).toContain('Crear novela');
+      expect(text).toContain('Documentos');
     });
 
     it('should render recent stories with fine selection marker and real titles', () => {
@@ -91,7 +91,7 @@ describe('WATTPAD CLI — Rediseño Premium y Distribución Oficial', () => {
         80
       );
       const text = lines.join('\n');
-      expect(text).toContain('Recientes');
+      expect(text).toContain('NOVELAS RECIENTES');
       expect(text).toContain('El secreto de las sombras');
       expect(text).toContain('El último invierno');
       expect(text).toContain('›');

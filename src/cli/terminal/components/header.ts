@@ -15,14 +15,14 @@ export class Header {
   public static render(props: HeaderProps, config: ResponsiveLayoutConfig): string[] {
     const lines: string[] = [];
 
-    const brand = Chalk.bold(Chalk.hex(Theme.colors.primary, 'WATTPAD')) + Chalk.dim(' │ ') + Chalk.hex(Theme.colors.text, 'AI Writing Studio');
+    const brand = Chalk.bold(Chalk.hex(Theme.colors.primary, 'WATTPAD CLI'));
     const version = Chalk.dim(`v${props.version}`);
     const statusDot = props.serverOnline
-      ? Chalk.hex(Theme.colors.success, '●') + ' ' + Chalk.hex(Theme.colors.textSecondary, 'Cloud: Conectado')
-      : Chalk.hex(Theme.colors.warning, '○') + ' ' + Chalk.hex(Theme.colors.textSecondary, 'Modo Desconectado');
+      ? Chalk.hex(Theme.colors.success, '●') + ' ' + Chalk.hex(Theme.colors.textSecondary, 'Cloud Postgres: Conectado')
+      : Chalk.hex(Theme.colors.warning, '○') + ' ' + Chalk.hex(Theme.colors.textSecondary, 'Modo Local');
     const userBadge = props.isAuthenticated
-      ? Chalk.hex(Theme.colors.textSecondary, `@${props.user}`)
-      : Chalk.dim('Invitado');
+      ? Chalk.hex(Theme.colors.primary, `@${props.user}`)
+      : Chalk.dim('Desconectado');
 
     if (config.isCompact) {
       // 1-line ultra-compact header

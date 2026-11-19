@@ -14,7 +14,7 @@ RED='\033[38;2;249;112;102m'
 BOLD='\033[1m'
 RESET='\033[0m'
 
-echo -e "\n${BOLD}${ORANGE}WATTPAD CLI — AI WRITING STUDIO${RESET}"
+echo -e "\n${BOLD}${ORANGE}WATTPAD CLI${RESET}"
 echo -e "${CYAN}Instalador Oficial para Linux y macOS${RESET}\n"
 
 BASE_URL="${WATTPAD_API_BASE_URL:-https://wattpad-cli.onrender.com}"
@@ -120,4 +120,4 @@ if [[ ":$PATH:" != *":$TARGET_DIR:"* ]]; then
 fi
 
 echo -e "\n${GREEN}${BOLD}✓ ¡Wattpad CLI instalado correctamente en ${TARGET_FILE}!${RESET}"
-echo -e "Ejecuta ${BOLD}${ORANGE}wattpad${RESET} para ingresar al AI Writing Studio.\n"
+echo -e "Ejecuta ${BOLD}${ORANGE}wattpad${RESET} para iniciar.\n"

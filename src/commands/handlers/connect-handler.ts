@@ -175,5 +175,76 @@ export function createConnectCommands(): CommandDefinition[] {
         };
       },
     },
+
+    {
+      name: '/documents',
+      category: 'connections',
+      description: 'Muestra la organización de documentos asociados por novela y capítulo',
+      descriptionEn: 'Displays organized documents associated with each story and chapter',
+      usage: '/documents [NOV-xxxx]',
+      examples: ['/documents', '/documents NOV-0001'],
+      execute: (app, parsed: ParsedCommand): CommandResult => {
+        const storyId = parsed.subcommand || parsed.args[0] || app.currentStoryId;
+        const stories = storyId ? [app.storyRepo.findById(storyId)].filter(Boolean) : app.storyRepo.findAll();
+
+        if (stories.length === 0) {
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: 'ORGANIZACIÓN DE DOCUMENTOS',
+                subtitle: 'Mis novelas / Documentos',
+                statusBadge: '0 DOCUMENTOS',
+                statusColor: '#808080',
+                content: 'No hay documentos asociados aún. Usa /story new y /chapter new para generar tu biblioteca estructurada.',
+              },
+            ],
+          };
+        }
+
+        const blocks: RenderBlock[] = [
+          {
+            type: 'card',
+            title: 'ORGANIZACIÓN DE DOCUMENTOS POR NOVELA',
+            subtitle: 'Estructura organizada de archivos Microsoft Word (.docx), Bloc de notas (.txt) y Google Docs',
+            statusBadge: `${stories.length} NOVELAS`,
+            statusColor: '#FF6122',
+          },
+        ];
+
+        for (const story of stories) {
+          if (!story) continue;
+          const chapters = app.chapterRepo.findByStoryId(story.id);
+          const fields: { label: string; value: string }[] = [
+            { label: 'Directorio', value: `Mis novelas/${story.title}/` },
+            { label: 'Editor Preferido', value: story.editorPreference.toUpperCase() },
+          ];
+
+          for (const ch of chapters) {
+            const ext = story.editorPreference === 'notepad' ? '.txt' : '.docx';
+            const numStr = String(ch.chapterNumber).padStart(3, '0');
+            fields.push({
+              label: `Capítulo ${ch.chapterNumber}`,
+              value: `${numStr} - ${ch.title}${ext} [${ch.status.toUpperCase()}]`,
+            });
+          }
+
+          blocks.push({
+            type: 'card',
+            title: `${story.title} [${story.id}]`,
+            subtitle: `${chapters.length} capítulo(s) / documento(s) asociado(s)`,
+            statusBadge: story.editorPreference.toUpperCase(),
+            statusColor: '#FF6122',
+            fields,
+          });
+        }
+
+        return {
+          success: true,
+          blocks,
+        };
+      },
+    },
   ];
 }

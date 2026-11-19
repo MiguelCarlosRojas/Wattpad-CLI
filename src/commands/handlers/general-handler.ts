@@ -39,24 +39,21 @@ export function createGeneralCommands(): CommandDefinition[] {
 
         // Full help grouped by categories
         const categories: Record<string, string[]> = {
-          'Novelas (/story)': ['/stories', '/story new', '/story open NOV-xxxx', '/story info NOV-xxxx', '/story edit NOV-xxxx', '/story delete NOV-xxxx'],
-          'Capítulos (/chapter)': ['/chapters NOV-xxxx', '/chapter new NOV-xxxx', '/chapter open NOV-xxxx CAP-xxxx', '/chapter edit NOV-xxxx CAP-xxxx', '/chapter import NOV-xxxx CAP-xxxx', '/chapter export NOV-xxxx CAP-xxxx', '/chapter delete NOV-xxxx CAP-xxxx'],
-          'Conexiones (/connect)': ['/connect', '/connect word', '/connect notepad', '/connect google', '/disconnect word', '/disconnect notepad', '/disconnect google'],
-          'Sincronización (/sync)': ['/sync', '/sync status', '/sync story NOV-xxxx', '/sync chapter NOV-xxxx CAP-xxxx', '/sync history'],
-          'Publicación (/publish)': ['/publish story NOV-xxxx', '/publish chapter NOV-xxxx CAP-xxxx'],
-          'Autenticación (/login)': ['/login [token]', '/logout', '/account'],
-          'Perfil y Buzón': ['/profile', '/profile edit', '/inbox', '/inbox open [id]'],
-          'Biblioteca': ['/library', '/library list', '/library search "texto"'],
-          'Explorar y Buscar': ['/explore [género]', '/search "nombre de la novela"'],
-          'Generales': ['/help', '/version', '/models', '/update', '/status', '/settings', '/history', '/clear', '/back', '/exit'],
+          'Cuenta de Wattpad': ['/login', '/register', '/account', '/logout'],
+          'Novelas (/story)': ['/stories', '/story new', '/story open NOV-xxxx', '/story info NOV-xxxx', '/story edit NOV-xxxx', '/story delete NOV-xxxx', '/story import', '/story export NOV-xxxx'],
+          'Capítulos (/chapter)': ['/chapters', '/chapter new', '/chapter open', '/chapter edit', '/chapter import', '/chapter export', '/chapter reorder', '/chapter delete', '/chapter publish', '/chapter unpublish'],
+          'Documentos y Editores': ['/documents', '/connect word', '/connect notepad', '/connect google', '/disconnect'],
+          'Sincronización Cloud': ['/sync', '/sync status', '/sync story NOV-xxxx', '/sync chapter NOV-xxxx CAP-xxxx', '/sync history'],
+          'Publicación en Wattpad': ['/publish', '/publish status', '/publish story NOV-xxxx', '/publish chapter NOV-xxxx CAP-xxxx'],
+          'Sistema y Configuración': ['/help', '/version', '/update', '/status', '/settings', '/exit'],
         };
 
         const blocks: RenderBlock[] = [
           {
             type: 'card',
             title: 'WATTPAD CLI — CENTRO DE AYUDA Y COMANDOS',
-            subtitle: 'Todos los comandos funcionales comienzan con "/" dentro de la aplicación.',
-            statusBadge: 'GUÍA RÁPIDA',
+            subtitle: 'Herramienta de terminal para novelas, capítulos, documentos y cuenta de Wattpad.',
+            statusBadge: 'WATTPAD CLI',
             statusColor: '#FF6122',
           },
         ];
@@ -100,56 +97,6 @@ export function createGeneralCommands(): CommandDefinition[] {
                 { label: 'Base de Datos', value: 'SQLite (WAL Mode via bun:sqlite)' },
                 { label: 'Plataforma', value: `${process.platform} (${process.arch})` },
                 { label: 'Seguridad', value: 'AES-256-GCM + Almacenamiento OS Protegido' },
-              ],
-            },
-          ],
-        };
-      },
-    },
-
-    {
-      name: '/models',
-      category: 'general',
-      description: 'Lista los modelos de inteligencia artificial narrativa disponibles en Wattpad Studio',
-      descriptionEn: 'Lists narrative AI models available in Wattpad Studio',
-      usage: '/models',
-      examples: ['/models'],
-      execute: (): CommandResult => {
-        return {
-          success: true,
-          blocks: [
-            {
-              type: 'card',
-              title: 'MODELOS DE ASISTENCIA NARRATIVA IA',
-              subtitle: 'Motores de lenguaje optimizados para creación literaria, worldbuilding y corrección',
-              statusBadge: 'WATTPAD AI SUITE',
-              statusColor: '#FF6122',
-              items: [
-                {
-                  primary: 'wattpad-writer-pro-v2 (Recomendado)',
-                  secondary: 'Especializado en generación de prosa literaria, arcos de personajes y giros dramáticos.',
-                  badge: 'DEFAULT',
-                },
-                {
-                  primary: 'wattpad-dialogue-turbo',
-                  secondary: 'Optimizado para ritmo de conversaciones, dialectos y naturalidad en diálogos de personajes.',
-                  badge: 'FAST',
-                },
-                {
-                  primary: 'wattpad-editor-lexicon',
-                  secondary: 'Revisión estilística, eliminación de redundancias, ortografía y fluidez de lectura.',
-                  badge: 'PRO',
-                },
-                {
-                  primary: 'claude-3-5-sonnet (Anthropic)',
-                  secondary: 'Análisis profundo de manuscritos extensos, consistencia de lore y coherencia de trama.',
-                  badge: 'CLOUD',
-                },
-                {
-                  primary: 'gemini-1-5-pro (Google DeepMind)',
-                  secondary: 'Procesamiento de contexto masivo de novelas completas y estructuración capitular.',
-                  badge: 'CLOUD',
-                },
               ],
             },
           ],

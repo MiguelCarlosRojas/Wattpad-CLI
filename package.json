@@ -1,7 +1,7 @@
 {
   "name": "@wattpad/cli",
   "version": "1.1.0",
-  "description": "WATTPAD CLI — AI WRITING STUDIO: Terminal User Interface profesional e inteligente para novelas y sincronización cloud",
+  "description": "Wattpad CLI: Herramienta de terminal para gestionar novelas, capítulos, documentos Word, Bloc de notas y Google Docs con sincronización oficial",
   "type": "module",
   "main": "src/cli/main.ts",
   "bin": {

@@ -5,6 +5,7 @@ export interface WelcomeScreenProps {
   version?: string;
   serverOnline?: boolean;
   user?: string;
+  isAuthenticated?: boolean;
   stories: Story[];
   selectedIndex?: number;
 }
@@ -12,48 +13,63 @@ export interface WelcomeScreenProps {
 export class WelcomeScreen {
   public static render(props: WelcomeScreenProps, width: number): string[] {
     const lines: string[] = [];
-    const contentWidth = Math.min(width, 84);
 
     // 1. Wattpad Brand Header
     lines.push('');
-    const brand = Chalk.bold(Chalk.hex(Theme.colors.primary, '  Wattpad'));
-    const studioBadge = Chalk.hex(Theme.colors.textSecondary, '·  AI WRITING STUDIO');
-    const cloudStatus = props.serverOnline !== false
-      ? Chalk.hex(Theme.colors.success, '● cloud')
-      : Chalk.hex(Theme.colors.warning, '○ offline');
+    const brand = Chalk.bold(Chalk.hex(Theme.colors.primary, '  Wattpad CLI'));
     const ver = Chalk.dim(`v${props.version || '1.1.0'}`);
+    const cloudStatus = props.serverOnline !== false
+      ? Chalk.hex(Theme.colors.success, '● cloud postgres')
+      : Chalk.hex(Theme.colors.warning, '○ modo local');
 
-    const headerLine = `  ${brand}  ${studioBadge}    ${ver}  ${cloudStatus}`;
+    const headerLine = `  ${brand}    ${ver}  ${cloudStatus}`;
     lines.push(padEndVisible(headerLine, width));
+    lines.push(padEndVisible(`  ${Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(Math.min(width - 4, 76)))}`, width));
     lines.push('');
 
-    // 2. Creative Greeting & Inspiring Subtitle
-    lines.push(padEndVisible(`  ${Chalk.hex(Theme.colors.textSecondary, 'Tu espacio para crear historias.')}`, width));
-    lines.push('');
-    lines.push(padEndVisible(`  ${Chalk.bold(Chalk.hex(Theme.colors.white, '¿Qué vamos a escribir hoy?'))}`, width));
+    // 2. Inspiring Subtitle & Account Status
+    lines.push(padEndVisible(`  ${Chalk.bold(Chalk.hex(Theme.colors.text, 'Gestor integral de novelas, capítulos y manuscritos desde la terminal.'))}`, width));
+
+    let accountStatusLine: string;
+    if (props.isAuthenticated && props.user) {
+      accountStatusLine = `  ${Chalk.dim('Cuenta Wattpad:')} ${Chalk.hex(Theme.colors.primary, `@${props.user}`)} ${Chalk.hex(Theme.colors.success, '● Conectada')}  ${Chalk.dim('(Usa /account o /logout)')}`;
+    } else {
+      accountStatusLine = `  ${Chalk.dim('Cuenta Wattpad:')} ${Chalk.hex(Theme.colors.warning, '○ Modo Local / Desconectado')} — ${Chalk.dim('Inicia sesión con')} ${Chalk.hex(Theme.colors.primary, '/login')} ${Chalk.dim('o crea tu cuenta con')} ${Chalk.hex(Theme.colors.primary, '/register')}`;
+    }
+    lines.push(padEndVisible(accountStatusLine, width));
     lines.push('');
 
-    // 3. Quick Action Chips (Minimalist, no bulky boxes)
+    // 3. Quick Action Chips
+    lines.push(padEndVisible(`  ${Chalk.dim(Chalk.bold('ACCIONES RECOMENDADAS'))}`, width));
     const actions = [
-      { key: '1', label: 'Crear nueva historia', cmd: '/story new' },
-      { key: '2', label: 'Continuar escribiendo', cmd: '/chapters' },
-      { key: '3', label: 'Explorar mi biblioteca', cmd: '/library' },
+      { key: '1', label: 'Ver novelas', cmd: '/stories' },
+      { key: '2', label: 'Crear novela', cmd: '/story new' },
+      { key: '3', label: 'Mis capítulos', cmd: '/chapters' },
+      { key: '4', label: 'Documentos', cmd: '/documents' },
+      { key: '5', label: 'Conexión editores', cmd: '/connect' },
+      { key: '6', label: 'Publicaciones', cmd: '/publish status' },
     ];
 
     let actionRow = '  ';
     for (const act of actions) {
-      const chip = `${Chalk.hex(Theme.colors.primary, `[ ${act.label} ]`)}   `;
-      actionRow += chip;
+      const chip = `${Chalk.hex(Theme.colors.primary, `[${act.key}]`)} ${Chalk.hex(Theme.colors.textSecondary, act.label)}  `;
+      if (stripAnsi(actionRow + chip).length > width - 4) {
+        lines.push(padEndVisible(actionRow, width));
+        actionRow = '  ' + chip;
+      } else {
+        actionRow += chip;
+      }
     }
-    lines.push(padEndVisible(actionRow, width));
+    if (actionRow.trim().length > 0) {
+      lines.push(padEndVisible(actionRow, width));
+    }
     lines.push('');
 
-    // 4. Recent Real Projects
-    lines.push(padEndVisible(`  ${Chalk.hex(Theme.colors.textSecondary, Chalk.bold('Recientes'))}`, width));
-    lines.push('');
+    // 4. Recent Real Stories
+    lines.push(padEndVisible(`  ${Chalk.dim(Chalk.bold('NOVELAS RECIENTES'))}`, width));
 
     if (!props.stories || props.stories.length === 0) {
-      lines.push(padEndVisible(`    ${Chalk.dim('Sin proyectos aún. Escribe /story new para comenzar tu primera novela.')}`, width));
+      lines.push(padEndVisible(`    ${Chalk.dim('Sin novelas creadas aún. Escribe /story new "Título" para comenzar.')}`, width));
     } else {
       const displayStories = props.stories.slice(0, 5);
       for (let i = 0; i < displayStories.length; i++) {
@@ -68,21 +84,20 @@ export class WelcomeScreen {
 
         const genreTag = Chalk.dim(`[${story.genre || 'General'}]`);
         const statusDot = story.status === 'published'
-          ? Chalk.hex(Theme.colors.primary, '●')
+          ? Chalk.hex(Theme.colors.primary, '● Publicada')
           : story.status === 'synced'
-          ? Chalk.hex(Theme.colors.success, '●')
-          : Chalk.hex(Theme.colors.warning, '○');
+          ? Chalk.hex(Theme.colors.success, '● Sincronizada')
+          : Chalk.hex(Theme.colors.warning, '○ Borrador');
 
-        const line = `  ${marker}${titleStyled}   ${genreTag}  ${statusDot}`;
+        const line = `  ${marker}${titleStyled}   ${genreTag}   ${statusDot}  ${Chalk.dim(`(${story.editorPreference.toUpperCase()})`)}`;
         lines.push(padEndVisible(line, width));
       }
     }
 
     lines.push('');
     // 5. Subtle Divider
-    const dividerLen = Math.min(width - 4, 60);
+    const dividerLen = Math.min(width - 4, 76);
     lines.push(padEndVisible(`  ${Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(dividerLen))}`, width));
-    lines.push('');
 
     return lines;
   }

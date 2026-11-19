@@ -12,7 +12,11 @@ async function main(): Promise<void> {
   if (rawArgs.length > 0) {
     await app.init();
     let commandStr = rawArgs.join(' ').trim();
-    if (!commandStr.startsWith('/')) {
+    if (commandStr === '--help' || commandStr === '-h' || commandStr === 'help') {
+      commandStr = '/help';
+    } else if (commandStr === '--version' || commandStr === '-v' || commandStr === 'version') {
+      commandStr = '/version';
+    } else if (!commandStr.startsWith('/')) {
       commandStr = `/${commandStr}`;
     }
     const result = await app.executeCommand(commandStr);

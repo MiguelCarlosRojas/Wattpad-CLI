@@ -92,17 +92,20 @@ export function createChapterCommands(): CommandDefinition[] {
 
     {
       name: '/chapter',
-      subcommands: ['new', 'open', 'edit', 'import', 'export', 'delete'],
+      subcommands: ['new', 'open', 'edit', 'import', 'export', 'delete', 'reorder', 'publish', 'unpublish'],
       category: 'chapters',
-      description: 'Crea, abre en editor externo, edita, importa, exporta o elimina un capítulo',
-      descriptionEn: 'Create, open in external editor, edit, import, export or delete a chapter',
-      usage: '/chapter [new [NOV-xxxx] "Título" | open [NOV-xxxx] CAP-xxxx | edit [NOV-xxxx] CAP-xxxx "texto" | import [NOV-xxxx] CAP-xxxx | export [NOV-xxxx] CAP-xxxx | delete [NOV-xxxx] CAP-xxxx]',
+      description: 'Crea, abre, edita, importa, exporta, reordena, publica o despublica un capítulo',
+      descriptionEn: 'Create, open, edit, import, export, reorder, publish or unpublish a chapter',
+      usage: '/chapter [new | open | edit | import | export | delete | reorder | publish | unpublish]',
       examples: [
         '/chapter new "Capítulo 1: El Despertar"',
         '/chapter new NOV-0001 "Capítulo 2: El Encuentro"',
         '/chapter open NOV-0001 CAP-0001',
         '/chapter import NOV-0001 CAP-0001',
         '/chapter export NOV-0001 CAP-0001',
+        '/chapter reorder NOV-0001 CAP-0001 --order=2',
+        '/chapter publish NOV-0001 CAP-0001',
+        '/chapter unpublish NOV-0001 CAP-0001',
         '/chapter delete NOV-0001 CAP-0001',
       ],
       execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
@@ -356,13 +359,81 @@ export function createChapterCommands(): CommandDefinition[] {
           };
         }
 
+        // /chapter reorder
+        if (sub === 'reorder') {
+          const newOrder = parseInt((parsed.flags.order as string) || parsed.args[2] || '1', 10);
+          const updated = app.chapterRepo.update(chapter.id, { chapterNumber: newOrder }, 'cli');
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: 'ORDEN DEL CAPÍTULO ACTUALIZADO',
+                subtitle: `${chapter.title} [${chapter.id}]`,
+                statusBadge: `ORDEN: ${newOrder}`,
+                statusColor: '#28A745',
+                fields: [
+                  { label: 'Novela', value: `${story.title} [${story.id}]` },
+                  { label: 'Nuevo orden', value: `Capítulo ${newOrder}` },
+                ],
+              },
+            ],
+            message: `Capítulo "${chapter.title}" reordenado a la posición ${newOrder}.`,
+          };
+        }
+
+        // /chapter publish
+        if (sub === 'publish') {
+          const updated = app.chapterRepo.update(chapter.id, { status: 'published' }, 'cli');
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: 'CAPÍTULO MARCADO COMO PUBLICADO',
+                subtitle: `${chapter.title} [${chapter.id}]`,
+                statusBadge: 'PUBLICADO',
+                statusColor: '#FF6122',
+                fields: [
+                  { label: 'Novela', value: `${story.title} [${story.id}]` },
+                  { label: 'Estado', value: 'Publicado formalmente en Wattpad' },
+                  { label: 'Palabras', value: `${chapter.wordCount} palabras` },
+                ],
+              },
+            ],
+            message: `Capítulo "${chapter.title}" publicado con éxito.`,
+          };
+        }
+
+        // /chapter unpublish
+        if (sub === 'unpublish') {
+          const updated = app.chapterRepo.update(chapter.id, { status: 'draft' }, 'cli');
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: 'CAPÍTULO REVERTIDO A BORRADOR',
+                subtitle: `${chapter.title} [${chapter.id}]`,
+                statusBadge: 'BORRADOR',
+                statusColor: '#808080',
+                fields: [
+                  { label: 'Novela', value: `${story.title} [${story.id}]` },
+                  { label: 'Estado', value: 'Borrador privado (no público)' },
+                ],
+              },
+            ],
+            message: `Capítulo "${chapter.title}" revertido a borrador privado.`,
+          };
+        }
+
         return {
           success: false,
           blocks: [
             {
               type: 'error',
               title: 'Subcomando desconocido',
-              content: 'Subcomandos válidos: new, open, edit, import, export, delete.',
+              content: 'Subcomandos válidos: new, open, edit, import, export, delete, reorder, publish, unpublish.',
             },
           ],
         };

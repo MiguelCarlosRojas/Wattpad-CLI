@@ -4,30 +4,33 @@ export interface NavItem {
   id: string;
   label: string;
   command: string;
-  category: 'WORKSPACE' | 'INTELIGENCIA ARTIFICIAL' | 'INTEGRACIONES' | 'CUENTA';
+  category: 'NOVELAS' | 'DOCUMENTOS' | 'PUBLICACIÓN' | 'CUENTA';
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  // WORKSPACE
-  { id: 'home', label: 'Inicio', command: '/clear', category: 'WORKSPACE' },
-  { id: 'library', label: 'Biblioteca', command: '/library', category: 'WORKSPACE' },
-  { id: 'stories', label: 'Novelas', command: '/stories', category: 'WORKSPACE' },
-  { id: 'chapters', label: 'Capítulos', command: '/chapters', category: 'WORKSPACE' },
+  // NOVELAS
+  { id: 'home', label: 'Inicio', command: '/clear', category: 'NOVELAS' },
+  { id: 'stories', label: 'Mis novelas', command: '/stories', category: 'NOVELAS' },
+  { id: 'new-story', label: 'Nueva novela', command: '/story new', category: 'NOVELAS' },
+  { id: 'chapters', label: 'Mis capítulos', command: '/chapters', category: 'NOVELAS' },
 
-  // INTELIGENCIA ARTIFICIAL
-  { id: 'assistant', label: 'Asistente IA', command: '/models', category: 'INTELIGENCIA ARTIFICIAL' },
-  { id: 'models', label: 'Modelos', command: '/models', category: 'INTELIGENCIA ARTIFICIAL' },
+  // DOCUMENTOS
+  { id: 'documents', label: 'Árbol de documentos', command: '/documents', category: 'DOCUMENTOS' },
+  { id: 'word', label: 'Microsoft Word (.docx)', command: '/connect word', category: 'DOCUMENTOS' },
+  { id: 'notepad', label: 'Notepad (.txt)', command: '/connect notepad', category: 'DOCUMENTOS' },
+  { id: 'google', label: 'Google Docs', command: '/connect google', category: 'DOCUMENTOS' },
 
-  // INTEGRACIONES
-  { id: 'word', label: 'Word (.docx)', command: '/connect word', category: 'INTEGRACIONES' },
-  { id: 'notepad', label: 'Notepad (.txt)', command: '/connect notepad', category: 'INTEGRACIONES' },
-  { id: 'google', label: 'Google Docs', command: '/connect google', category: 'INTEGRACIONES' },
-  { id: 'sync', label: 'Sincronización', command: '/sync', category: 'INTEGRACIONES' },
+  // PUBLICACIÓN
+  { id: 'publish-status', label: 'Estado de publicación', command: '/publish status', category: 'PUBLICACIÓN' },
+  { id: 'publish', label: 'Publicar novela / cap', command: '/publish', category: 'PUBLICACIÓN' },
+  { id: 'sync', label: 'Sincronizar cloud', command: '/sync', category: 'PUBLICACIÓN' },
 
   // CUENTA
-  { id: 'profile', label: 'Perfil', command: '/profile', category: 'CUENTA' },
-  { id: 'settings', label: 'Configuración', command: '/settings', category: 'CUENTA' },
-  { id: 'help', label: 'Ayuda', command: '/help', category: 'CUENTA' },
+  { id: 'account', label: 'Estado de cuenta', command: '/account', category: 'CUENTA' },
+  { id: 'login', label: 'Conectar Wattpad', command: '/login', category: 'CUENTA' },
+  { id: 'register', label: 'Registrarse en Wattpad', command: '/register', category: 'CUENTA' },
+  { id: 'logout', label: 'Cerrar sesión', command: '/logout', category: 'CUENTA' },
+  { id: 'help', label: 'Ayuda de comandos', command: '/help', category: 'CUENTA' },
 ];
 
 export class WorkspaceNavigation {
@@ -69,10 +72,10 @@ export class WorkspaceNavigation {
 
   public render(width: number, maxHeight: number, isFocused: boolean = false): string[] {
     const lines: string[] = [];
-    const categories: Array<'WORKSPACE' | 'INTELIGENCIA ARTIFICIAL' | 'INTEGRACIONES' | 'CUENTA'> = [
-      'WORKSPACE',
-      'INTELIGENCIA ARTIFICIAL',
-      'INTEGRACIONES',
+    const categories: Array<'NOVELAS' | 'DOCUMENTOS' | 'PUBLICACIÓN' | 'CUENTA'> = [
+      'NOVELAS',
+      'DOCUMENTOS',
+      'PUBLICACIÓN',
       'CUENTA',
     ];
 
@@ -98,15 +101,17 @@ export class WorkspaceNavigation {
         }
 
         lines.push(padEndVisible(line, width));
+        if (lines.length >= maxHeight) break;
       }
 
-      lines.push(''); // small spacer between categories
+      lines.push('');
+      if (lines.length >= maxHeight) break;
     }
 
-    // Pad or trim to maxHeight
     while (lines.length < maxHeight) {
       lines.push(' '.repeat(width));
     }
+
     return lines.slice(0, maxHeight);
   }
 }

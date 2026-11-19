@@ -14,7 +14,7 @@ export class ProjectContext {
   public static render(props: ProjectContextProps, width: number, maxHeight: number): string[] {
     const lines: string[] = [];
 
-    lines.push(Chalk.dim(Chalk.bold('CONTEXTO CREATIVO')));
+    lines.push(Chalk.dim(Chalk.bold('NOVELA Y CAPÍTULO ACTIVO')));
     lines.push(Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(width)));
 
     if (props.activeStoryTitle) {
@@ -46,7 +46,7 @@ export class ProjectContext {
       lines.push(Chalk.dim('Sin novela activa.'));
       lines.push(Chalk.dim('Selecciona una novela con:'));
       lines.push(Chalk.hex(Theme.colors.textSecondary, '/story open NOV-xxxx'));
-      lines.push(Chalk.dim('o pulsa ') + Chalk.hex(Theme.colors.primary, 'Novelas') + Chalk.dim(' en el menú.'));
+      lines.push(Chalk.dim('o pulsa ') + Chalk.hex(Theme.colors.primary, 'Mis novelas') + Chalk.dim(' en el menú.'));
     }
 
     lines.push('');
@@ -54,8 +54,8 @@ export class ProjectContext {
     lines.push(Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(width)));
     lines.push(Chalk.dim('• ') + Chalk.hex(Theme.colors.textSecondary, '/stories') + Chalk.dim(' : Listar novelas'));
     lines.push(Chalk.dim('• ') + Chalk.hex(Theme.colors.textSecondary, '/chapters') + Chalk.dim(' : Ver capítulos'));
-    lines.push(Chalk.dim('• ') + Chalk.hex(Theme.colors.textSecondary, '/sync') + Chalk.dim(' : Sincronizar cloud'));
-    lines.push(Chalk.dim('• ') + Chalk.hex(Theme.colors.textSecondary, '/models') + Chalk.dim(' : Asistente IA'));
+    lines.push(Chalk.dim('• ') + Chalk.hex(Theme.colors.textSecondary, '/documents') + Chalk.dim(' : Árbol de manuscritos'));
+    lines.push(Chalk.dim('• ') + Chalk.hex(Theme.colors.textSecondary, '/publish status') + Chalk.dim(' : Estado publicaciones'));
 
     while (lines.length < maxHeight) {
       lines.push(' '.repeat(width));

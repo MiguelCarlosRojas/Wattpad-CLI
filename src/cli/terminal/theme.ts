@@ -123,7 +123,7 @@ export const Theme = {
     error: '#F97066',           // Error
     warning: '#FEC84B',         // Advertencia
     info: '#60A5FA',            // Información / Azul técnico
-    purple: '#A855F7',          // AI Models
+    purple: '#A855F7',          // Secondary / Accents
   },
   symbols: {
     arrow: '›',

@@ -2,26 +2,23 @@ import readline from 'readline';
 import { ResponsiveManager, ResponsiveLayoutConfig } from './responsive';
 import { Theme, Chalk, padEndVisible, stripAnsi } from './theme';
 import { ThemeManager } from './theme-manager';
-import { TerminalAdapter, RenderMode } from './terminal-adapter';
+import { TerminalAdapter } from './terminal-adapter';
 import { Header, HeaderProps } from './components/header';
 import { WorkspaceNavigation, NAV_ITEMS } from './components/workspace-navigation';
-import { ProjectContext } from './components/project-context';
 import { CommandInput } from './components/command-input';
 import { SuggestionsDropdown } from './components/suggestions';
 import { StatusBar } from './components/status-bar';
-import { WelcomeScreen } from './views/welcome-view';
 import { HomeView } from './views/home-view';
 import { LibraryView } from './views/library-view';
 import { ChapterView } from './views/chapter-view';
-import { AIModelsView, AI_MODELS } from './views/models-view';
-import { ConversationView, ChatMessage } from './views/conversation-view';
+import { DocumentsView } from './views/documents-view';
+import { CommandOutputView, OutputViewProps } from './views/output-view';
 import { Story, Chapter, WattpadUser } from '../../shared/types';
 import { CommandRegistry } from '../../commands/command-registry';
-import { CommandRouter } from '../../commands/command-router';
 import { CommandHistory } from '../../commands/history';
 import { CommandResult, Suggestion } from '../../types/command.types';
 
-export type ActiveView = 'home' | 'library' | 'chapters' | 'conversation' | 'models';
+export type ActiveView = 'home' | 'library' | 'chapters' | 'documents' | 'output' | 'models' | 'conversation';
 export type FocusArea = 'input' | 'navigation' | 'view';
 
 export class AppShell {
@@ -36,10 +33,8 @@ export class AppShell {
 
   private selectedStoryIndex: number = 0;
   private selectedChapterIndex: number = 0;
-  private selectedModelIndex: number = 0;
 
-  private messages: ChatMessage[] = [];
-  private isThinking: boolean = false;
+  private latestOutput: OutputViewProps | null = null;
   private notificationMessage: string | null = null;
   private notificationTimer?: any;
 
@@ -104,22 +99,31 @@ export class AppShell {
   }
 
   public addMessage(sender: 'user' | 'assistant' | 'system', content: string): void {
-    this.messages.push({
-      id: `msg_${Date.now()}_${Math.random()}`,
-      sender,
-      content,
-      timestamp: new Date().toISOString(),
-    });
-    this.activeView = 'conversation';
+    this.latestOutput = {
+      command: sender === 'user' ? content : 'Wattpad CLI',
+      result: {
+        success: true,
+        message: content,
+      },
+    };
+    this.activeView = 'output';
     if (this.isRunning) this.render();
   }
 
   public switchView(view: ActiveView): void {
-    this.activeView = view;
-    if (view === 'home') this.navigation.selectById('home');
-    if (view === 'library') this.navigation.selectById('library');
-    if (view === 'chapters') this.navigation.selectById('chapters');
-    if (view === 'models') this.navigation.selectById('models');
+    if (view === 'models') {
+      this.activeView = 'home';
+      this.navigation.selectById('home');
+    } else if (view === 'conversation') {
+      this.activeView = 'output';
+    } else {
+      this.activeView = view;
+      if (view === 'home') this.navigation.selectById('home');
+      if (view === 'library') this.navigation.selectById('stories');
+      if (view === 'chapters') this.navigation.selectById('chapters');
+      if (view === 'documents') this.navigation.selectById('documents');
+    }
+
     if (this.isRunning) this.render();
   }
 
@@ -265,8 +269,6 @@ export class AppShell {
           if (this.selectedStoryIndex > 0) this.selectedStoryIndex--;
         } else if (this.activeView === 'chapters') {
           if (this.selectedChapterIndex > 0) this.selectedChapterIndex--;
-        } else if (this.activeView === 'models') {
-          if (this.selectedModelIndex > 0) this.selectedModelIndex--;
         }
         this.render();
         return;
@@ -300,8 +302,6 @@ export class AppShell {
         } else if (this.activeView === 'chapters') {
           const chaps = this.getFilteredChapters();
           if (this.selectedChapterIndex < chaps.length - 1) this.selectedChapterIndex++;
-        } else if (this.activeView === 'models') {
-          if (this.selectedModelIndex < AI_MODELS.length - 1) this.selectedModelIndex++;
         }
         this.render();
         return;
@@ -340,12 +340,8 @@ export class AppShell {
             this.activeChapterId = chap.id;
             this.executeCommandString(`/chapter open ${chap.storyId} ${chap.id}`);
           }
-        } else if (this.activeView === 'models') {
-          const m = AI_MODELS[this.selectedModelIndex];
-          if (m) {
-            this.showNotification(`Modelo seleccionado: ${m.name}`);
-            this.switchView('conversation');
-          }
+        } else if (this.activeView === 'output') {
+          this.switchView('home');
         }
         return;
       }
@@ -427,8 +423,8 @@ export class AppShell {
       return;
     }
 
-    if (trimmed === '/clear') {
-      this.messages = [];
+    if (trimmed === '/clear' || trimmed === '/home') {
+      this.latestOutput = null;
       this.switchView('home');
       return;
     }
@@ -443,8 +439,8 @@ export class AppShell {
       return;
     }
 
-    if (trimmed === '/models') {
-      this.switchView('models');
+    if (trimmed === '/documents') {
+      this.switchView('documents');
       return;
     }
 
@@ -473,50 +469,28 @@ export class AppShell {
     }
 
     if (!trimmed.startsWith('/')) {
-      this.addMessage('user', trimmed);
-      this.isThinking = true;
-      this.activeView = 'conversation';
-      this.render();
-
-      setTimeout(() => {
-        this.isThinking = false;
-        this.addMessage(
-          'assistant',
-          `Idea registrada en tu estudio literario:\n\n"${trimmed}"\n\n¿Deseas iniciar una historia con esta premisa (/story new) o explorar tu biblioteca (/library)?`
-        );
-      }, 300);
+      this.showNotification(`Comando desconocido: "${trimmed}". Escribe /help para ver la lista de comandos.`);
       return;
     }
 
     // Execute via command router
     if (this.onCommandExecute) {
-      this.isThinking = true;
-      this.render();
-
       try {
         const res = await this.onCommandExecute(trimmed);
-        this.isThinking = false;
-
-        let content = '';
-        if (res.message) content += res.message + '\n';
-        if (res.blocks && res.blocks.length > 0) {
-          for (const b of res.blocks) {
-            if (b.title) content += `\n### ${b.title}\n`;
-            if (b.content) content += `${b.content}\n`;
-            if (b.fields) {
-              for (const f of b.fields) {
-                content += `• **${f.label}:** ${f.value}\n`;
-              }
-            }
-          }
-        }
-
-        this.addMessage('user', trimmed);
-        this.addMessage('assistant', content.trim() || 'Comando ejecutado con éxito.');
+        this.latestOutput = {
+          command: trimmed,
+          result: res,
+        };
+        this.switchView('output');
       } catch (err: any) {
-        this.isThinking = false;
-        this.addMessage('user', trimmed);
-        this.addMessage('assistant', `Error al ejecutar comando: ${err?.message || err}`);
+        this.latestOutput = {
+          command: trimmed,
+          result: {
+            success: false,
+            message: `Error al ejecutar comando: ${err?.message || err}`,
+          },
+        };
+        this.switchView('output');
       }
     }
   }
@@ -560,6 +534,8 @@ export class AppShell {
           stories: this.stories,
           chaptersCountByStoryId: this.getChaptersCountMap(),
           selectedIndex: this.focusArea === 'view' ? this.selectedStoryIndex : -1,
+          user: this.currentUser ? this.currentUser.username : null,
+          isAuthenticated: Boolean(this.currentUser),
         },
         mainWidth
       );
@@ -598,10 +574,31 @@ export class AppShell {
         },
         mainWidth
       );
-    } else if (this.activeView === 'models') {
-      viewLines = AIModelsView.render(this.selectedModelIndex, mainWidth);
-    } else if (this.activeView === 'conversation') {
-      viewLines = ConversationView.render(this.messages, this.isThinking, mainWidth);
+    } else if (this.activeView === 'documents') {
+      viewLines = DocumentsView.render(
+        {
+          stories: this.stories,
+          chapters: this.chapters,
+          wordConnected: true,
+          notepadConnected: true,
+          googleConnected: false,
+        },
+        mainWidth
+      );
+    } else if (this.activeView === 'output' && this.latestOutput) {
+      viewLines = CommandOutputView.render(this.latestOutput, mainWidth);
+    } else {
+      // Fallback to home
+      viewLines = HomeView.render(
+        {
+          stories: this.stories,
+          chaptersCountByStoryId: this.getChaptersCountMap(),
+          selectedIndex: -1,
+          user: this.currentUser ? this.currentUser.username : null,
+          isAuthenticated: Boolean(this.currentUser),
+        },
+        mainWidth
+      );
     }
 
     // Pad or slice view lines to fit midHeight

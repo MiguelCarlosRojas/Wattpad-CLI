@@ -24,20 +24,20 @@ export class HeaderBarRenderer {
     const width = config.width;
     const isCompact = config.width < 75 || config.compactHeader;
 
-    const brandName = Chalk.bold(Chalk.hex(Theme.colors.primary, 'Wattpad')) + ' ' + Chalk.bold(Chalk.hex(Theme.colors.white, 'Studio'));
+    const brandName = Chalk.bold(Chalk.hex(Theme.colors.primary, 'Wattpad')) + ' ' + Chalk.bold(Chalk.hex(Theme.colors.white, 'CLI'));
     const statusDot = state.serverOnline
       ? Chalk.hex(Theme.colors.success, '● ') + Chalk.hex(Theme.colors.text, 'Cloud Connected')
       : Chalk.hex(Theme.colors.warning, '○ ') + Chalk.hex(Theme.colors.textSecondary, 'Offline');
 
     const userBadge = state.isAuthenticated
       ? `@${state.user}`
-      : 'Invitado';
+      : 'Modo Local';
 
     if (isCompact) {
       // 1-line ultra-clean header for small windows
-      const left = ` ${brandName} ${Chalk.dim('·')} ${Chalk.hex(Theme.colors.muted, 'AI Writing Studio')}`;
+      const left = ` ${brandName} ${Chalk.dim('·')} ${Chalk.hex(Theme.colors.muted, 'Novelas & Capítulos')}`;
       const right = `${statusDot} `;
-      const rawLeftLen = 15 + 3 + 17;
+      const rawLeftLen = 15 + 3 + 19;
       const rawRightLen = 17;
       const spaces = Math.max(1, width - rawLeftLen - rawRightLen);
       lines.push(`${left}${' '.repeat(spaces)}${right}`);
@@ -54,7 +54,7 @@ export class HeaderBarRenderer {
     lines.push(`${row1Left}${' '.repeat(pad1)}${row1Right}`);
 
     // Row 2: Subtitle & Context / Session
-    let row2Subtitle = 'AI Writing Studio';
+    let row2Subtitle = 'Gestión de novelas y capítulos';
     if (state.activeStory) {
       row2Subtitle += ` · ${state.activeStory}`;
     }

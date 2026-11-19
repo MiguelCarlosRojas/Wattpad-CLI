@@ -6,6 +6,8 @@ export interface HomeViewProps {
   stories: Story[];
   chaptersCountByStoryId: Record<string, number>;
   selectedIndex?: number;
+  user?: string | null;
+  isAuthenticated?: boolean;
 }
 
 export class HomeView {
@@ -14,19 +16,26 @@ export class HomeView {
 
     // Title and Subtitle (Minimalist typography)
     lines.push('');
-    lines.push(padEndVisible(`  ${Chalk.bold(Chalk.hex(Theme.colors.text, '¿Qué vamos a escribir hoy?'))}`, width));
-    lines.push(padEndVisible(`  ${Chalk.dim('Tu espacio de trabajo creativo en Wattpad Cloud está listo.')}`, width));
+    lines.push(padEndVisible(`  ${Chalk.bold(Chalk.hex(Theme.colors.primary, 'Wattpad CLI'))}  ${Chalk.dim('│  Gestión integral de novelas, capítulos y manuscritos')}`, width));
+
+    let accountNotice: string;
+    if (props.isAuthenticated && props.user) {
+      accountNotice = `  ${Chalk.dim('Sesión Wattpad:')} ${Chalk.hex(Theme.colors.primary, `@${props.user}`)} ${Chalk.hex(Theme.colors.success, '● Conectada')}  ${Chalk.dim('(Usa /account o /logout)')}`;
+    } else {
+      accountNotice = `  ${Chalk.dim('Sesión Wattpad:')} ${Chalk.hex(Theme.colors.warning, '○ Modo Local / Desconectado')} — ${Chalk.dim('Inicia sesión con')} ${Chalk.hex(Theme.colors.primary, '/login')} ${Chalk.dim('o regístrate con')} ${Chalk.hex(Theme.colors.primary, '/register')}`;
+    }
+    lines.push(padEndVisible(accountNotice, width));
     lines.push('');
 
-    // Quick Actions Bar
+    // Recommended Actions Bar
     lines.push(padEndVisible(`  ${Chalk.dim(Chalk.bold('ACCIONES RÁPIDAS'))}`, width));
     const actions = [
-      { key: '1', label: 'Nueva novela', cmd: '/story new' },
-      { key: '2', label: 'Mi biblioteca', cmd: '/library' },
-      { key: '3', label: 'Continuar escribiendo', cmd: '/chapters' },
-      { key: '4', label: 'Mis capítulos', cmd: '/chapters' },
-      { key: '5', label: 'Asistente de IA', cmd: '/models' },
-      { key: '6', label: 'Sincronización', cmd: '/sync' },
+      { key: '1', label: 'Ver novelas', cmd: '/stories' },
+      { key: '2', label: 'Nueva novela', cmd: '/story new' },
+      { key: '3', label: 'Mis capítulos', cmd: '/chapters' },
+      { key: '4', label: 'Documentos', cmd: '/documents' },
+      { key: '5', label: 'Editores Word/Notepad', cmd: '/connect' },
+      { key: '6', label: 'Publicaciones', cmd: '/publish status' },
     ];
 
     let actionsRow = '  ';
@@ -45,13 +54,13 @@ export class HomeView {
     lines.push('');
 
     // Recent Projects Section
-    lines.push(padEndVisible(`  ${Chalk.dim(Chalk.bold('PROYECTOS RECIENTES'))}`, width));
+    lines.push(padEndVisible(`  ${Chalk.dim(Chalk.bold('BIBLIOTECA DE NOVELAS'))}`, width));
 
     if (!props.stories || props.stories.length === 0) {
       const empty = EmptyState.render(
-        'Sin proyectos recientes',
-        'Comienza tu primera historia literaria en la nube.',
-        'Escribe /story new "Mi Novela" para comenzar.',
+        'Sin novelas registradas',
+        'Crea tu primera historia literaria en la terminal.',
+        'Escribe /story new "Título de tu Novela" para comenzar.',
         width
       );
       lines.push(...empty);
@@ -68,7 +77,7 @@ export class HomeView {
 
         let statusBadge: string;
         if (s.status === 'published') {
-          statusBadge = Chalk.hex(Theme.colors.primary, '● Publicado');
+          statusBadge = Chalk.hex(Theme.colors.primary, '● Publicada');
         } else if (s.status === 'synced') {
           statusBadge = Chalk.hex(Theme.colors.success, '● Al día');
         } else {

@@ -82,17 +82,19 @@ export function createStoryCommands(): CommandDefinition[] {
 
     {
       name: '/story',
-      subcommands: ['new', 'open', 'info', 'edit', 'delete'],
+      subcommands: ['new', 'open', 'info', 'edit', 'delete', 'import', 'export'],
       category: 'stories',
-      description: 'Crea, abre, consulta detalles, edita o elimina una novela',
-      descriptionEn: 'Create, open, view info, edit or delete a story',
-      usage: '/story [new <título> | open NOV-xxxx | info NOV-xxxx | edit NOV-xxxx | delete NOV-xxxx]',
+      description: 'Crea, abre, consulta detalles, edita, elimina, importa o exporta una novela',
+      descriptionEn: 'Create, open, view info, edit, delete, import or export a story',
+      usage: '/story [new <título> | open NOV-xxxx | info NOV-xxxx | edit NOV-xxxx | delete NOV-xxxx | import <ruta> | export NOV-xxxx]',
       examples: [
         '/story new "El Reino de Cristal" --genre=Fantasia --pref=word',
         '/story open NOV-0001',
         '/story info NOV-0001',
         '/story edit NOV-0001 --title="Nuevo Título"',
-        '/story delete NOV-0001',
+        '/story delete NOV-0001 --confirm',
+        '/story import ./manuscrito.docx',
+        '/story export NOV-0001',
       ],
       execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
         const sub = parsed.subcommand;
@@ -341,13 +343,101 @@ export function createStoryCommands(): CommandDefinition[] {
           };
         }
 
+        // /story export NOV-xxxx
+        if (sub === 'export') {
+          const id = parsed.args[0] || app.currentStoryId;
+          if (!id) {
+            return {
+              success: false,
+              blocks: [{ type: 'error', title: 'ID requerido', content: 'Uso: /story export NOV-0001' }],
+            };
+          }
+
+          const story = app.storyRepo.findById(id);
+          if (!story) {
+            return {
+              success: false,
+              blocks: [{ type: 'error', title: 'No encontrada', content: `No existe la novela "${id}".` }],
+            };
+          }
+
+          const chapters = app.chapterRepo.findByStoryId(story.id);
+          for (const ch of chapters) {
+            if (story.editorPreference === 'word' && app.wordService) {
+              await app.wordService.exportChapterToDocx(story, ch);
+            } else if (story.editorPreference === 'notepad' && app.notepadService) {
+              app.notepadService.exportChapterToTxt(story, ch);
+            }
+          }
+
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: 'NOVELA EXPORTADA EXITOSAMENTE',
+                subtitle: `${story.title} [${story.id}]`,
+                statusBadge: 'EXPORTADO',
+                statusColor: '#28A745',
+                fields: [
+                  { label: 'Formato', value: story.editorPreference.toUpperCase() },
+                  { label: 'Capítulos exportados', value: `${chapters.length} capítulo(s)` },
+                  { label: 'Directorio', value: `Mis novelas/${story.title}/Capitulos/` },
+                ],
+              },
+            ],
+            message: `Novela "${story.title}" exportada en formato ${story.editorPreference.toUpperCase()}.`,
+          };
+        }
+
+        // /story import <ruta>
+        if (sub === 'import') {
+          const filePath = parsed.args[0];
+          if (!filePath) {
+            return {
+              success: false,
+              blocks: [{ type: 'error', title: 'Archivo requerido', content: 'Uso: /story import ./manuscrito.docx --title="Mi Novela"' }],
+            };
+          }
+
+          const title = (parsed.flags.title as string) || 'Novela Importada';
+          const genre = (parsed.flags.genre as string) || 'General';
+          const story = app.storyRepo.create({
+            title,
+            genre,
+            category: 'Novela',
+            language: 'es',
+            editorPreference: filePath.endsWith('.txt') ? 'notepad' : 'word',
+            status: 'draft',
+          });
+
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: 'MANUSCRITO IMPORTADO',
+                subtitle: `${story.title} [${story.id}]`,
+                statusBadge: 'CREADO',
+                statusColor: '#28A745',
+                fields: [
+                  { label: 'Archivo de origen', value: filePath },
+                  { label: 'ID asignado', value: story.id },
+                  { label: 'Siguiente paso', value: 'Usa /chapter new o /chapter import para estructurar los capítulos.' },
+                ],
+              },
+            ],
+            message: `Novela "${story.title}" [${story.id}] creada a partir de ${filePath}.`,
+          };
+        }
+
         return {
           success: false,
           blocks: [
             {
               type: 'error',
               title: 'Subcomando desconocido',
-              content: 'Subcomandos válidos para /story: new, open, info, edit, delete.\nEjemplo: /story new "Título"',
+              content: 'Subcomandos válidos para /story: new, open, info, edit, delete, import, export.\nEjemplo: /story new "Título"',
             },
           ],
         };
