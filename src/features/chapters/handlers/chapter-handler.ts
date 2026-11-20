@@ -58,6 +58,69 @@ export function createChapterCommands(): CommandDefinition[] {
           };
         }
 
+        // Si se solicita el modo selector interactivo con 4 flechas
+        if (parsed.flags.select || parsed.subcommand === 'select') {
+          if (app.appShell && typeof app.appShell.openItemSelector === 'function') {
+            app.appShell.openItemSelector({
+              title: `CAPÍTULOS: ${story.title}`,
+              subtitle: `Total: ${chapters.length} capítulo(s) · Navega con ↑/↓ y pulsa Enter para ver acciones`,
+              selectedIndex: 0,
+              items: chapters.map((ch) => ({
+                id: ch.id,
+                title: `Capítulo ${ch.chapterNumber}: ${ch.title}`,
+                subtitle: `${ch.wordCount.toLocaleString()} palabras · ${ch.status === 'published' ? 'Publicado' : 'Borrador'}`,
+                badge: ch.status === 'published' ? 'PUBLICADO' : 'BORRADOR',
+                badgeColor: ch.status === 'published' ? '#32D583' : '#808080',
+                data: ch,
+              })),
+              width: 80,
+              onAction: async (actionId: string, item: any) => {
+                const targetChapter = app.chapterRepo.findById(item.id);
+                if (!targetChapter) return;
+
+                if (actionId === 'cli_edit') {
+                  app.appShell.openTextEditor({
+                    title: `${targetChapter.title} [${targetChapter.id}]`,
+                    content: targetChapter.content || '',
+                    onSave: (newContent: string) => {
+                      app.chapterRepo.update(targetChapter.id, {
+                        content: newContent,
+                        wordCount: newContent.split(/\s+/).filter(Boolean).length,
+                      });
+                    },
+                  });
+                } else if (actionId === 'open_word') {
+                  const { filePath } = await app.wordService.exportChapterToDocx(story, targetChapter);
+                  if (process.platform === 'win32') {
+                    Bun.spawn(['cmd', '/c', 'start', '""', filePath]);
+                  }
+                  app.appShell.setNotification(`Abierto en Microsoft Word: ${path.basename(filePath)}`);
+                } else if (actionId === 'open_notepad') {
+                  const { filePath } = app.notepadService.exportChapterToTxt(story, targetChapter);
+                  if (process.platform === 'win32') {
+                    Bun.spawn(['notepad.exe', filePath]);
+                  }
+                  app.appShell.setNotification(`Abierto en Bloc de Notas: ${path.basename(filePath)}`);
+                } else if (actionId === 'open_google') {
+                  const isConn = await app.googleService.isConnected();
+                  if (isConn) {
+                    app.appShell.setNotification(`Sincronizado con Google Docs.`);
+                  } else {
+                    app.appShell.setNotification('Google Docs no está conectado. Usa /connect google.');
+                  }
+                } else if (actionId === 'view_content') {
+                  app.appShell.setNotification(`Capítulo: ${targetChapter.title} (${targetChapter.wordCount} palabras)`);
+                }
+              },
+            });
+
+            return {
+              success: true,
+              message: `Selector interactivo abierto para "${story.title}".`,
+            };
+          }
+        }
+
         const blocks: RenderBlock[] = [
           {
             type: 'card',
@@ -95,7 +158,7 @@ export function createChapterCommands(): CommandDefinition[] {
 
     {
       name: '/chapter',
-      subcommands: ['create', 'new', 'open', 'edit', 'delete', 'import', 'publish', 'status'],
+      subcommands: ['create', 'new', 'open', 'edit', 'delete', 'import', 'publish', 'status', 'select'],
       category: 'chapters',
       description: 'Crea, edita, elimina, importa desde documentos, consulta estado y publica capítulos',
       descriptionEn: 'Create, edit, delete, import from documents, check status and publish chapters',
@@ -596,9 +659,86 @@ export function createChapterCommands(): CommandDefinition[] {
           }
         }
 
+        // /chapter select: abre selector interactivo
+        if (sub === 'select') {
+          const chaptersCmd = createChapterCommands().find((c) => c.name === '/chapters');
+          if (chaptersCmd) {
+            return chaptersCmd.execute(app, {
+              ...parsed,
+              flags: { ...parsed.flags, select: true },
+            });
+          }
+        }
+
         return {
           success: false,
-          blocks: [{ type: 'error', title: 'Subcomando no reconocido', content: 'Uso: /chapter [create | edit | delete | import | publish | status]' }],
+          blocks: [{ type: 'error', title: 'Subcomando no reconocido', content: 'Uso: /chapter [create | edit | delete | import | publish | status | select]' }],
+        };
+      },
+    },
+
+    {
+      name: '/editor',
+      category: 'chapters',
+      description: 'Abre el editor de texto multilínea integrado en la terminal para editar un capítulo',
+      descriptionEn: 'Opens the built-in terminal multiline text editor to edit a chapter',
+      usage: '/editor [CAP-xxxx]',
+      examples: ['/editor', '/editor CAP-0001'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        const chapterId = parsed.subcommand || parsed.args[0] || app.currentChapterId;
+        if (!chapterId) {
+          return {
+            success: false,
+            blocks: [
+              {
+                type: 'error',
+                title: 'Capítulo no seleccionado',
+                content:
+                  'Debes abrir un capítulo con /chapter open CAP-xxxx o indicar el ID para editar.\n' +
+                  'Ejemplo: /editor CAP-0001',
+              },
+            ],
+            message: 'Indica un capítulo para editar: /editor CAP-0001',
+          };
+        }
+
+        const chapter = app.chapterRepo.findById(chapterId);
+        if (!chapter) {
+          return {
+            success: false,
+            blocks: [{ type: 'error', title: 'Capítulo no encontrado', content: `No existe el capítulo "${chapterId}".` }],
+          };
+        }
+
+        if (app.appShell && typeof app.appShell.openTextEditor === 'function') {
+          app.appShell.openTextEditor({
+            title: `${chapter.title} [${chapter.id}]`,
+            content: chapter.content || '',
+            onSave: (newContent: string) => {
+              app.chapterRepo.update(chapter.id, {
+                content: newContent,
+                wordCount: newContent.split(/\s+/).filter(Boolean).length,
+              });
+            },
+          });
+        }
+
+        return {
+          success: true,
+          blocks: [
+            {
+              type: 'card',
+              title: `EDITOR EN TERMINAL: ${chapter.title}`,
+              subtitle: `Identificador: ${chapter.id} · ${chapter.wordCount} palabras`,
+              statusBadge: 'EDITOR ACTIVO',
+              statusColor: '#32D583',
+              fields: [
+                { label: 'Capítulo', value: chapter.title },
+                { label: 'Atajos', value: 'Ctrl+S: Guardar | Ctrl+F: Buscar | Esc: Salir' },
+              ],
+            },
+          ],
+          message: `Editor multilínea abierto para "${chapter.title}".`,
         };
       },
     },

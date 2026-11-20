@@ -264,8 +264,8 @@ export function createAuthCommands(): CommandDefinition[] {
     {
       name: '/profile',
       category: 'auth',
-      description: 'Consulta el perfil real de la cuenta de Wattpad conectada',
-      descriptionEn: 'Views real profile of the connected Wattpad account',
+      description: 'Consulta el perfil real de la cuenta de Wattpad conectada con avatar y estadísticas',
+      descriptionEn: 'Views real profile of the connected Wattpad account with avatar and statistics',
       usage: '/profile',
       examples: ['/profile'],
       execute: async (app): Promise<CommandResult> => {
@@ -291,6 +291,8 @@ export function createAuthCommands(): CommandDefinition[] {
           };
         }
 
+        const avatarLocalPath = await app.wattpadService.downloadAndCacheAvatar(user.username, user.avatar);
+
         return {
           success: true,
           blocks: [
@@ -299,17 +301,223 @@ export function createAuthCommands(): CommandDefinition[] {
               title: `PERFIL OFICIAL: @${user.username}`,
               subtitle: user.name ? `${user.name}` : `@${user.username}`,
               statusBadge: 'CONECTADO',
-              statusColor: '#28A745',
+              statusColor: '#32D583',
               fields: [
                 { label: 'Usuario', value: `@${user.username}` },
                 { label: 'Nombre', value: user.name || user.username },
                 { label: 'Biografía', value: user.description || 'Sin biografía' },
                 { label: 'Obras en Wattpad', value: `${user.numStories || 0} historia(s)` },
-                { label: 'Seguidores', value: `${user.numFollowers || 0}` },
-                { label: 'Votos recibidos', value: `${user.votesReceived || 0}` },
+                { label: 'Seguidores', value: `${(user.numFollowers || 0).toLocaleString()} seguidores` },
+                { label: 'Siguiendo', value: `${(user.numFollowing || 0).toLocaleString()} autores` },
+                { label: 'Listas de lectura', value: `${user.numLists || 0} listas` },
+                { label: 'Votos recibidos', value: `${(user.votesReceived || 0).toLocaleString()} votos` },
+                { label: 'Avatar en caché', value: avatarLocalPath || 'Avatar estándar' },
+                { label: 'Miembro desde', value: user.created ? user.created.slice(0, 10) : 'Cuenta activa' },
               ],
             },
           ],
+        };
+      },
+    },
+
+    {
+      name: '/inbox',
+      category: 'account',
+      description: 'Consulta las notificaciones y mensajes de tu cuenta oficial de Wattpad',
+      descriptionEn: 'Views notifications and messages of your official Wattpad account',
+      usage: '/inbox',
+      examples: ['/inbox'],
+      execute: async (app): Promise<CommandResult> => {
+        if (!app.currentUser) {
+          return {
+            success: false,
+            blocks: [
+              {
+                type: 'error',
+                title: 'SESIÓN REQUERIDA',
+                content: 'Debes iniciar sesión con tu cuenta de Wattpad para consultar tu bandeja de entrada.\nUsa /login.',
+              },
+            ],
+            message: 'Inicia sesión con /login para ver tu bandeja de entrada.',
+          };
+        }
+
+        const inbox = await app.wattpadService.getInbox();
+
+        return {
+          success: true,
+          blocks: [
+            {
+              type: 'card',
+              title: `BANDEJA DE ENTRADA: @${app.currentUser.username}`,
+              subtitle: 'Notificaciones y mensajes de Wattpad',
+              statusBadge: 'SINCRONIZADO',
+              statusColor: '#32D583',
+              fields: [
+                { label: 'Notificaciones', value: `${inbox.notifications.length} notificación(es)` },
+                { label: 'Mensajes privados', value: `${inbox.messages.length} mensaje(s) directos` },
+                { label: 'Privacidad y seguridad', value: 'Wattpad gestiona la mensajería privada desde la web oficial por políticas anti-spam.' },
+              ],
+            },
+            ...inbox.notifications.map((n) => ({
+              type: 'card' as const,
+              title: `Notificación: ${n.type.toUpperCase()}`,
+              subtitle: n.text,
+              statusBadge: 'NUEVA',
+              statusColor: '#FF6122',
+              fields: [
+                { label: 'Fecha', value: n.date.slice(0, 16).replace('T', ' ') },
+              ],
+            })),
+          ],
+          message: `Bandeja de entrada sincronizada para @${app.currentUser.username}.`,
+        };
+      },
+    },
+
+    {
+      name: '/library',
+      category: 'account',
+      description: 'Consulta tus listas de lectura y novelas guardadas en la biblioteca de Wattpad',
+      descriptionEn: 'Views reading lists and saved stories in your Wattpad library',
+      usage: '/library',
+      examples: ['/library'],
+      execute: async (app): Promise<CommandResult> => {
+        if (!app.currentUser) {
+          return {
+            success: false,
+            blocks: [
+              {
+                type: 'error',
+                title: 'SESIÓN REQUERIDA',
+                content: 'Debes iniciar sesión con tu cuenta de Wattpad para consultar tu biblioteca.\nUsa /login.',
+              },
+            ],
+            message: 'Inicia sesión con /login para ver tu biblioteca.',
+          };
+        }
+
+        const library = await app.wattpadService.getLibrary();
+
+        return {
+          success: true,
+          blocks: [
+            {
+              type: 'card',
+              title: `BIBLIOTECA DE @${app.currentUser.username}`,
+              subtitle: `${library.readingLists.length} lista(s) de lectura registradas`,
+              statusBadge: 'BIBLIOTECA',
+              statusColor: '#FF6122',
+            },
+            ...library.readingLists.map((l) => ({
+              type: 'card' as const,
+              title: `Lista: ${l.name}`,
+              subtitle: `${l.storyCount} historia(s) guardadas`,
+              statusBadge: 'LISTA',
+              statusColor: '#32D583',
+              fields: [
+                { label: 'ID', value: l.id },
+                { label: 'Historias', value: `${l.storyCount}` },
+              ],
+            })),
+          ],
+          message: `Biblioteca cargada para @${app.currentUser.username}.`,
+        };
+      },
+    },
+
+    {
+      name: '/myworks',
+      category: 'account',
+      description: 'Muestra exclusivamente tus novelas publicadas y borradores guardados en Wattpad',
+      descriptionEn: 'Displays exclusively your published stories and drafts saved in Wattpad',
+      usage: '/myworks [--published] [--drafts]',
+      examples: ['/myworks', '/myworks --published', '/myworks --drafts'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        if (!app.currentUser) {
+          return {
+            success: false,
+            blocks: [
+              {
+                type: 'error',
+                title: 'SESIÓN REQUERIDA',
+                content: 'Debes iniciar sesión con tu cuenta de Wattpad para consultar tus obras en la plataforma.\nUsa /login.',
+              },
+            ],
+            message: 'Inicia sesión con /login para ver tus obras.',
+          };
+        }
+
+        const remote = await app.wattpadService.fetchRemoteWorks();
+        const published = (remote.stories || []).filter((s) => s.published);
+        const drafts = (remote.stories || []).filter((s) => !s.published);
+
+        const onlyPublished = Boolean(parsed.flags.published || parsed.flags.p);
+        const onlyDrafts = Boolean(parsed.flags.drafts || parsed.flags.d);
+
+        const blocks: any[] = [
+          {
+            type: 'card',
+            title: `MIS OBRAS EN WATTPAD (@${app.currentUser.username})`,
+            subtitle: `${published.length} publicada(s) · ${drafts.length} borrador(es) en Wattpad`,
+            statusBadge: 'WATTPAD',
+            statusColor: '#FF6122',
+          },
+        ];
+
+        if (!onlyDrafts && published.length > 0) {
+          blocks.push({
+            type: 'card',
+            title: 'NOVELAS PUBLICADAS EN WATTPAD',
+            subtitle: `${published.length} obra(s) visibles para los lectores`,
+            statusBadge: 'PUBLICADAS',
+            statusColor: '#32D583',
+          });
+          for (const s of published) {
+            blocks.push({
+              type: 'card',
+              title: `${s.title} [${s.id}]`,
+              subtitle: s.description ? s.description.slice(0, 100) + '...' : 'Sin sinopsis',
+              statusBadge: 'PUBLICADA',
+              statusColor: '#32D583',
+              fields: [
+                { label: 'Capítulos', value: `${s.numParts}` },
+                { label: 'Lecturas', value: (s.readCount || 0).toLocaleString() },
+                { label: 'Votos', value: (s.voteCount || 0).toLocaleString() },
+                { label: 'Enlace', value: s.url },
+              ],
+            });
+          }
+        }
+
+        if (!onlyPublished && drafts.length > 0) {
+          blocks.push({
+            type: 'card',
+            title: 'BORRADORES EN WATTPAD (NO PUBLICADOS)',
+            subtitle: `${drafts.length} borrador(es) en tu cuenta de Wattpad`,
+            statusBadge: 'BORRADOR EN WATTPAD',
+            statusColor: '#FEC84B',
+          });
+          for (const s of drafts) {
+            blocks.push({
+              type: 'card',
+              title: `${s.title} [${s.id}]`,
+              subtitle: s.description ? s.description.slice(0, 100) + '...' : 'Sin sinopsis',
+              statusBadge: 'BORRADOR EN WATTPAD',
+              statusColor: '#FEC84B',
+              fields: [
+                { label: 'Partes en borrador', value: `${s.numParts}` },
+                { label: 'Última modificación', value: s.lastModified ? s.lastModified.slice(0, 16).replace('T', ' ') : 'Reciente' },
+                { label: 'Enlace', value: s.url },
+              ],
+            });
+          }
+        }
+
+        return {
+          success: true,
+          blocks,
+          message: `Mis obras en Wattpad: ${published.length} publicadas, ${drafts.length} borradores.`,
         };
       },
     },

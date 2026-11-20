@@ -70,6 +70,7 @@ export function createConnectCommands(): CommandDefinition[] {
           try {
             const isConnected = await app.googleService.isConnected();
             if (isConnected) {
+              const profile = await app.googleService.getAccountProfile();
               const files = await app.googleService.listDocuments(5).catch(() => []);
               return {
                 success: true,
@@ -77,58 +78,66 @@ export function createConnectCommands(): CommandDefinition[] {
                   {
                     type: 'card',
                     title: 'GOOGLE DOCS / DRIVE (OAUTH 2.0)',
-                    subtitle: 'Conexión oficial autorizada con permisos mínimos de lectura',
+                    subtitle: profile?.email ? `Cuenta conectada: ${profile.email}` : 'Conexión oficial autorizada con permisos mínimos de lectura',
                     statusBadge: 'CONECTADO',
                     statusColor: '#28A745',
                     fields: [
-                      { label: 'Estado', value: 'Autorizado y conectado' },
-                      { label: 'Permisos', value: 'Solo lectura de documentos y metadatos de Drive' },
-                      { label: 'Documentos recientes', value: files.length > 0 ? files.map((f: any) => f.name).join(', ') : 'Sin documentos recientes' },
+                      { label: 'Cuenta', value: profile?.email || 'Cuenta Google Autorizada' },
+                      { label: 'Estado', value: 'Conectado mediante OAuth 2.0 Desktop PKCE' },
+                      { label: 'Permisos', value: 'documents.readonly, drive.metadata.readonly' },
+                      {
+                        label: 'Documentos recientes',
+                        value: files.length > 0 ? files.map((f: any) => `• ${f.name} [ID: ${f.id}]`).join('\n') : 'Sin documentos recientes en Google Drive',
+                      },
+                      { label: 'Comandos disponibles', value: '/google documents · /google status · /disconnect google' },
                       { label: 'Importación', value: 'Ejecuta /chapter import google:<docId> para importar un documento' },
                     ],
                   },
                 ],
-                message: 'Google Docs está conectado y listo para importar novelas y capítulos.',
+                message: `Google Docs conectado como ${profile?.email || 'usuario autor'}.`,
               };
             }
 
-            const { authUrl, waitForAuth } = await app.googleService.initiateAuth();
-
-            // Abrir navegador si no estamos en entorno de prueba
-            if (env.NODE_ENV !== 'test') {
-              if (process.platform === 'win32') {
-                Bun.spawn(['cmd', '/c', 'start', '""', authUrl], { detached: true });
-              } else if (process.platform === 'darwin') {
-                Bun.spawn(['open', authUrl], { detached: true });
-              } else {
-                Bun.spawn(['xdg-open', authUrl], { detached: true });
-              }
-
-              // Esperar en segundo plano
-              waitForAuth().then((success) => {
-                if (success) {
-                  app.connRepo.setConnected('google', 'Google Docs / Drive', true, 'Cuenta Google Autorizada');
+            const { authUrl, browserFound, browserPath, waitForAuth } = await app.googleService.initiateAuth({
+              onBrowserLaunched: (url, browser) => {
+                if (app.appShell && typeof (app.appShell as any).setNotification === 'function') {
+                  (app.appShell as any).setNotification(
+                    browser ? `Abriendo navegador dedicado (${path.basename(browser)}) para Google OAuth...` : 'Abriendo autorización de Google Docs...'
+                  );
                 }
-              }).catch(() => {});
-            }
+              },
+            });
+
+            // Esperar en segundo plano la respuesta del servidor loopback local
+            waitForAuth().then(async (success) => {
+              if (success) {
+                const profile = await app.googleService.getAccountProfile();
+                app.connRepo.setConnected('google', 'Google Docs / Drive', true, profile?.email || 'Cuenta Google');
+                if (app.appShell && typeof (app.appShell as any).setNotification === 'function') {
+                  (app.appShell as any).setNotification(`✓ Google Docs conectado exitosamente como ${profile?.email || 'usuario autor'}.`);
+                }
+              }
+            }).catch(() => {});
 
             return {
               success: true,
               blocks: [
                 {
                   type: 'card',
-                  title: 'AUTORIZACIÓN DE GOOGLE DOCS (OAUTH 2.0)',
+                  title: 'AUTORIZACIÓN DE GOOGLE DOCS (OAUTH 2.0 DESKTOP PKCE)',
                   subtitle: 'Permisos mínimos necesarios para seleccionar e importar documentos',
                   statusBadge: 'AUTORIZACIÓN PENDIENTE',
                   statusColor: '#FF6122',
                   fields: [
+                    { label: 'Navegador Dedicado', value: browserFound ? `Detectado: ${browserPath}` : 'No se detectó Chrome/Edge. Copia la URL en tu navegador.' },
+                    { label: 'Perfil Independiente', value: 'Aislado en profiles/google/ (No interfiere con Wattpad)' },
+                    { label: 'Flujo de Seguridad', value: 'Desktop App Loopback (RFC 8252) con PKCE S256' },
                     { label: 'URL de Autorización', value: authUrl },
-                    { label: 'Alcance', value: 'documents.readonly, drive.readonly' },
-                    { label: 'Instrucciones', value: 'Inicia sesión en Google y autoriza la lectura de documentos.' },
+                    { label: 'Instrucciones', value: 'Completa la autorización en la ventana del navegador. La terminal detectará la conexión automáticamente.' },
                   ],
                 },
               ],
-              message: 'Se ha abierto la página de autorización de Google Docs en tu navegador.',
+              message: 'Se ha abierto la página de autorización de Google Docs en un navegador dedicado e independiente.',
             };
           } catch (err: any) {
             return {
@@ -270,6 +279,7 @@ export function createConnectCommands(): CommandDefinition[] {
               content: `La conexión con ${target} ha sido desactivada. Tus archivos locales permanecen intactos.`,
             },
           ],
+          message: `La integración con ${target} ha sido desconectada exitosamente.`,
         };
       },
     },
@@ -331,6 +341,140 @@ export function createConnectCommands(): CommandDefinition[] {
         return {
           success: true,
           blocks,
+        };
+      },
+    },
+
+    {
+      name: '/google',
+      subcommands: ['status', 'documents', 'docs', 'disconnect'],
+      category: 'connections',
+      description: 'Administra la conexión y documentos de Google Docs',
+      descriptionEn: 'Manages Google Docs connection and documents',
+      usage: '/google [status | documents | disconnect]',
+      examples: ['/google status', '/google documents', '/google disconnect'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        const sub = (parsed.subcommand || parsed.args[0] || 'status').toLowerCase();
+
+        if (sub === 'disconnect') {
+          await app.googleService.disconnect();
+          app.connRepo.setConnected('google', 'Google Docs / Drive', false);
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: 'GOOGLE DOCS DESCONECTADO',
+                subtitle: 'Tokens y sesión revocados',
+                statusBadge: 'DESCONECTADO',
+                statusColor: '#808080',
+                content: 'La conexión con Google Docs ha sido revocada de forma segura. Tu cuenta Wattpad y archivos locales permanecen intactos.',
+              },
+            ],
+            message: 'Google Docs desconectado exitosamente.',
+          };
+        }
+
+        if (sub === 'documents' || sub === 'docs') {
+          const isConnected = await app.googleService.isConnected();
+          if (!isConnected) {
+            return {
+              success: false,
+              blocks: [
+                {
+                  type: 'error',
+                  title: 'Google Docs no conectado',
+                  content: 'Para consultar tus documentos de Google Docs primero debes conectar tu cuenta con /connect google.',
+                },
+              ],
+              message: 'Google Docs no conectado. Usa /connect google.',
+            };
+          }
+
+          try {
+            const docs = await app.googleService.listDocuments(20);
+            const profile = await app.googleService.getAccountProfile();
+
+            if (docs.length === 0) {
+              return {
+                success: true,
+                blocks: [
+                  {
+                    type: 'card',
+                    title: 'GOOGLE DOCS — MIS DOCUMENTOS',
+                    subtitle: profile?.email ? `Cuenta: ${profile.email}` : 'Google Drive',
+                    statusBadge: '0 DOCUMENTOS',
+                    statusColor: '#808080',
+                    content: 'No se encontraron documentos de texto en tu unidad de Google Drive.',
+                  },
+                ],
+                message: 'No se encontraron documentos en Google Drive.',
+              };
+            }
+
+            const blocks: RenderBlock[] = [
+              {
+                type: 'card',
+                title: 'GOOGLE DOCS — DOCUMENTOS DISPONIBLES',
+                subtitle: profile?.email ? `Cuenta: ${profile.email} · ${docs.length} documento(s)` : `${docs.length} documento(s)`,
+                statusBadge: `${docs.length} DOCUMENTOS`,
+                statusColor: '#28A745',
+              },
+            ];
+
+            for (const doc of docs) {
+              blocks.push({
+                type: 'card',
+                title: doc.name,
+                subtitle: `ID: ${doc.id}`,
+                statusBadge: 'GOOGLE DOC',
+                statusColor: '#4285F4',
+                fields: [
+                  { label: 'Identificador', value: doc.id },
+                  {
+                    label: 'Última modificación',
+                    value: doc.modifiedTime ? new Date(doc.modifiedTime).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No disponible',
+                  },
+                  { label: 'Cómo importar', value: `/chapter import google:${doc.id}` },
+                  { label: 'Enlace', value: `https://docs.google.com/document/d/${doc.id}/edit` },
+                ],
+              });
+            }
+
+            return {
+              success: true,
+              blocks,
+              message: `Se encontraron ${docs.length} documentos en Google Drive.`,
+            };
+          } catch (err: any) {
+            return {
+              success: false,
+              blocks: [{ type: 'error', title: 'Error al consultar Google Docs', content: err.message }],
+            };
+          }
+        }
+
+        // Caso /google status
+        const isConnected = await app.googleService.isConnected();
+        const profile = await app.googleService.getAccountProfile();
+
+        return {
+          success: true,
+          blocks: [
+            {
+              type: 'card',
+              title: 'ESTADO DE CONEXIÓN CON GOOGLE DOCS',
+              subtitle: isConnected ? `Conectado como ${profile?.email || 'Cuenta Google'}` : 'Sin conexión autorizada',
+              statusBadge: isConnected ? 'CONECTADO' : 'DESCONECTADO',
+              statusColor: isConnected ? '#28A745' : '#808080',
+              fields: [
+                { label: 'Cuenta', value: profile?.email || (isConnected ? 'Cuenta Autorizada' : 'No conectada') },
+                { label: 'Estado', value: isConnected ? 'Sesión activa mediante OAuth 2.0 Desktop PKCE' : 'Desconectado (Ejecuta /connect google)' },
+                { label: 'Permisos', value: isConnected ? 'Lectura de documentos y metadatos de Drive' : 'Ninguno' },
+                { label: 'Comandos disponibles', value: isConnected ? '/google documents · /disconnect google' : '/connect google' },
+              ],
+            },
+          ],
         };
       },
     },

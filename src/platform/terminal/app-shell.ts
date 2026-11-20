@@ -11,6 +11,8 @@ import { StatusBar } from './components/status-bar';
 import { CommandOutput, OutputViewProps } from './components/command-output';
 import { HomeView } from './components/home-view';
 import { CommandPalette } from './components/command-palette';
+import { ItemSelector, SelectorProps, SelectorItem, CHAPTER_ACTIONS } from './components/item-selector';
+import { TextEditor } from './components/text-editor';
 import { Story, RemoteWattpadStory, LocalManuscript } from '../../features/stories/types/story.types';
 import { Chapter } from '../../features/chapters/types/chapter.types';
 import { WattpadUser } from '../../features/account/types/account.types';
@@ -38,7 +40,7 @@ export class AppShell {
   private activeChapterId: string | null = null;
   private serverOnline: boolean = true;
   private serverUrl: string = 'https://wattpad-cli.onrender.com';
-  private version: string = '1.2.0';
+  private version: string = '1.3.0';
 
   // Motor de desplazamiento y vista visual VIPCode
   private viewMode: 'completa' | 'compacta' | 'zen' = 'completa';
@@ -48,6 +50,14 @@ export class AppShell {
   private isPaletteOpen: boolean = false;
   private paletteQuery: string = '';
   private paletteSelectedIndex: number = 0;
+
+  // Selector interactivo con 4 flechas
+  private activeSelector: (SelectorProps & { onAction?: (actionId: string, item: SelectorItem) => Promise<void> | void }) | null = null;
+
+  // Editor interactivo multilínea en terminal
+  private activeEditor: TextEditor | null = null;
+  private editorSaveHandler?: (content: string) => Promise<void> | void;
+  private editorDiscardPrompt: boolean = false;
 
   private resizeUnsubscribe?: () => void;
   private exitResolver?: () => void;
@@ -111,6 +121,47 @@ export class AppShell {
   public setTokenSubmitHandler(_handler: any): void {}
   public openAuthModal(_onTokenSubmit?: any): void {}
   public closeAuthModal(): void {}
+
+  public openTextEditor(options: {
+    title: string;
+    content: string;
+    sourcePath?: string;
+    onSave?: (content: string) => Promise<void> | void;
+  }): void {
+    this.activeEditor = new TextEditor(options);
+    this.editorSaveHandler = options.onSave;
+    this.editorDiscardPrompt = false;
+    this.latestOutput = null;
+    this.render();
+  }
+
+  public closeTextEditor(): void {
+    this.activeEditor = null;
+    this.editorSaveHandler = undefined;
+    this.editorDiscardPrompt = false;
+    this.render();
+  }
+
+  public getActiveEditor(): TextEditor | null {
+    return this.activeEditor;
+  }
+
+  public openItemSelector(options: SelectorProps & {
+    onAction?: (actionId: string, item: SelectorItem) => Promise<void> | void;
+  }): void {
+    this.activeSelector = options;
+    this.latestOutput = null;
+    this.render();
+  }
+
+  public closeItemSelector(): void {
+    this.activeSelector = null;
+    this.render();
+  }
+
+  public getActiveSelector(): any {
+    return this.activeSelector;
+  }
 
   public switchView(_viewName?: string): void {
     if (this.isRunning) this.render();
@@ -231,6 +282,14 @@ export class AppShell {
 
     // Salir de forma segura con Ctrl+C o Ctrl+D
     if ((key.ctrl && key.name === 'c') || (key.ctrl && key.name === 'd')) {
+      if (this.activeEditor) {
+        this.closeTextEditor();
+        return;
+      }
+      if (this.activeSelector) {
+        this.closeItemSelector();
+        return;
+      }
       if (this.isPaletteOpen) {
         this.isPaletteOpen = false;
         this.render();
@@ -245,6 +304,200 @@ export class AppShell {
       }
       this.exit();
       process.exit(0);
+      return;
+    }
+
+    // =========================================================================
+    // ENTRADA CUANDO EL EDITOR MULTILÍNEA DE TERMINAL ESTÁ ACTIVO
+    // =========================================================================
+    if (this.activeEditor) {
+      if (key.ctrl && key.name === 's') {
+        const res = this.activeEditor.saveWithBackup();
+        if (this.editorSaveHandler) {
+          try {
+            this.editorSaveHandler(this.activeEditor.getContent());
+          } catch {}
+        }
+        this.setNotification(
+          res.success
+            ? `✓ Guardado exitosamente${res.backupPath ? ` (Copia .bak: ${path.basename(res.backupPath)})` : ''}`
+            : res.error || 'Error al guardar archivo'
+        );
+        this.render();
+        return;
+      }
+
+      if (key.ctrl && key.name === 'f') {
+        this.activeEditor.toggleSearch();
+        this.render();
+        return;
+      }
+
+      if (key.name === 'escape') {
+        if (this.activeEditor.getState().searchOpen) {
+          this.activeEditor.toggleSearch();
+          this.render();
+          return;
+        }
+        if (this.activeEditor.isDirty() && !this.editorDiscardPrompt) {
+          this.editorDiscardPrompt = true;
+          this.setNotification('¿Descartar cambios no guardados? Pulsa Esc nuevamente para confirmar.');
+          this.render();
+          return;
+        }
+        this.closeTextEditor();
+        this.setNotification('Editor cerrado.');
+        return;
+      }
+
+      if (this.activeEditor.getState().searchOpen) {
+        if (key.name === 'return') {
+          this.activeEditor.findNext();
+          this.render();
+          return;
+        }
+        if (key.name === 'backspace') {
+          const q = this.activeEditor.getState().searchQuery;
+          this.activeEditor.setSearchQuery(q.slice(0, -1));
+          this.render();
+          return;
+        }
+        if (str && !key.ctrl && !key.meta) {
+          const q = this.activeEditor.getState().searchQuery;
+          this.activeEditor.setSearchQuery(q + str);
+          this.render();
+          return;
+        }
+        return;
+      }
+
+      // Navegación y edición normal en el buffer
+      if (key.name === 'up') {
+        this.activeEditor.moveCursor('up');
+        this.render();
+        return;
+      }
+      if (key.name === 'down') {
+        this.activeEditor.moveCursor('down');
+        this.render();
+        return;
+      }
+      if (key.name === 'left') {
+        this.activeEditor.moveCursor('left');
+        this.render();
+        return;
+      }
+      if (key.name === 'right') {
+        this.activeEditor.moveCursor('right');
+        this.render();
+        return;
+      }
+      if (key.name === 'pageup') {
+        this.activeEditor.pageUp();
+        this.render();
+        return;
+      }
+      if (key.name === 'pagedown') {
+        this.activeEditor.pageDown();
+        this.render();
+        return;
+      }
+      if (key.name === 'home') {
+        this.activeEditor.moveToLineStart();
+        this.render();
+        return;
+      }
+      if (key.name === 'end') {
+        this.activeEditor.moveToLineEnd();
+        this.render();
+        return;
+      }
+      if (key.name === 'return') {
+        this.activeEditor.insertNewline();
+        this.render();
+        return;
+      }
+      if (key.name === 'backspace') {
+        this.activeEditor.backspace();
+        this.render();
+        return;
+      }
+      if (key.name === 'delete') {
+        this.activeEditor.deleteChar();
+        this.render();
+        return;
+      }
+      if (str && !key.ctrl && !key.meta) {
+        this.activeEditor.insertChar(str);
+        this.render();
+        return;
+      }
+      return;
+    }
+
+    // =========================================================================
+    // ENTRADA CUANDO EL SELECTOR INTERACTIVO CON 4 FLECHAS ESTÁ ACTIVO
+    // =========================================================================
+    if (this.activeSelector) {
+      if (key.name === 'escape') {
+        if (this.activeSelector.actionMenuOpen) {
+          this.activeSelector.actionMenuOpen = false;
+          this.render();
+          return;
+        }
+        this.closeItemSelector();
+        this.setNotification('Selector cerrado.');
+        return;
+      }
+
+      if (key.name === 'up') {
+        if (this.activeSelector.actionMenuOpen) {
+          this.activeSelector.actionMenuIndex = Math.max(0, (this.activeSelector.actionMenuIndex || 0) - 1);
+        } else {
+          this.activeSelector.selectedIndex = Math.max(0, this.activeSelector.selectedIndex - 1);
+        }
+        this.render();
+        return;
+      }
+
+      if (key.name === 'down') {
+        if (this.activeSelector.actionMenuOpen) {
+          this.activeSelector.actionMenuIndex = Math.min(CHAPTER_ACTIONS.length - 1, (this.activeSelector.actionMenuIndex || 0) + 1);
+        } else {
+          this.activeSelector.selectedIndex = Math.min(this.activeSelector.items.length - 1, this.activeSelector.selectedIndex + 1);
+        }
+        this.render();
+        return;
+      }
+
+      if (key.name === 'left' || key.name === 'right') {
+        this.activeSelector.activePanel = this.activeSelector.activePanel === 'list' ? 'details' : 'list';
+        this.render();
+        return;
+      }
+
+      if (key.name === 'return') {
+        if (!this.activeSelector.actionMenuOpen) {
+          this.activeSelector.actionMenuOpen = true;
+          this.activeSelector.actionMenuIndex = 0;
+          this.render();
+          return;
+        }
+
+        const action = CHAPTER_ACTIONS[this.activeSelector.actionMenuIndex || 0];
+        const item = this.activeSelector.items[this.activeSelector.selectedIndex];
+        const onAction = this.activeSelector.onAction;
+        this.activeSelector = null;
+        this.render();
+
+        if (onAction && action && item) {
+          try {
+            onAction(action.id, item);
+          } catch {}
+        }
+        return;
+      }
+
       return;
     }
 
@@ -542,7 +795,7 @@ export class AppShell {
 
     // 1. Fixed Header con Brand Logo y Estado de Conexión
     const headerProps: HeaderProps = {
-      version: this.version || '1.2.0',
+      version: this.version || '1.3.0',
       user: this.currentUser ? this.currentUser.username : null,
       displayName: this.currentUser?.name,
       isAuthenticated: Boolean(this.currentUser && this.currentUser.username),
@@ -557,16 +810,25 @@ export class AppShell {
     output.push(...headerLines);
 
     // 2. Cálculo de alturas de la interfaz soberana
-    const inputHeight = 5;
+    const isEditorActive = Boolean(this.activeEditor);
+    const inputHeight = isEditorActive ? 2 : 5;
     const statusBarHeight = 1;
-    const suggestionsHeight = this.suggestions.length > 0 ? Math.min(6, this.suggestions.length + 2) : 0;
+    const suggestionsHeight = !isEditorActive && this.suggestions.length > 0 ? Math.min(6, this.suggestions.length + 2) : 0;
     const reservedVertical = headerLines.length + inputHeight + statusBarHeight + suggestionsHeight + 1;
     const midHeight = Math.max(6, config.height - reservedVertical);
 
-    // 3. Área Central: CommandOutput o HomeView
+    // 3. Área Central: TextEditor, ItemSelector, CommandOutput o HomeView
     let allContentLines: string[] = [];
 
-    if (this.latestOutput) {
+    if (this.activeEditor) {
+      allContentLines = this.activeEditor.render(config.width, midHeight);
+    } else if (this.activeSelector) {
+      allContentLines = ItemSelector.render({
+        ...this.activeSelector,
+        width: config.width,
+        height: midHeight,
+      });
+    } else if (this.latestOutput) {
       allContentLines = CommandOutput.render(this.latestOutput, config.width);
     } else {
       allContentLines = HomeView.render({
@@ -634,14 +896,21 @@ export class AppShell {
     output.push(...viewportLines.map((l) => padEndVisible(l, config.width)));
 
     // 4. Suggestions Dropdown (si el usuario está escribiendo /...)
-    if (this.suggestions.length > 0) {
+    if (!isEditorActive && this.suggestions.length > 0) {
       const sugLines = SuggestionsDropdown.render(this.suggestions, this.selectedSuggestionIndex, config.width);
       output.push(...sugLines);
     }
 
     // 5. Fixed Command Input Box
-    const inputLines = CommandInput.render(this.inputValue, this.cursorIndex, config.width, !this.isPaletteOpen);
-    output.push(...inputLines);
+    if (isEditorActive) {
+      output.push(
+        Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(config.width)),
+        padEndVisible(Chalk.dim('  [Modo Editor Activo]  Ctrl+S: Guardar  ·  Ctrl+F: Buscar  ·  Esc: Salir'), config.width)
+      );
+    } else {
+      const inputLines = CommandInput.render(this.inputValue, this.cursorIndex, config.width, !this.isPaletteOpen);
+      output.push(...inputLines);
+    }
 
     // 6. Permanent Bottom Status Bar
     const statusLines = StatusBar.render(config, {

@@ -17,6 +17,8 @@ import { createChapterCommands } from '../../features/chapters/handlers/chapter-
 import { createConnectCommands } from '../../features/connections/handlers/connect-handler';
 import { createSyncCommands } from '../../features/documents/handlers/sync-handler';
 import { createPublishCommands } from '../../features/publishing/handlers/publish-handler';
+import { createDiscoveryCommands } from '../../features/discovery/handlers/discovery-handler';
+import { WattpadDiscoveryService } from '../wattpad/wattpad-discovery';
 import { CommandResult } from '../../core/types/command.types';
 import { CredentialStore } from '../../core/security/credential-store';
 import { FileSystemManager } from '../filesystem/file-system';
@@ -34,6 +36,7 @@ export class Application {
   public notepadService: NotepadService;
   public googleService: GoogleService;
   public wattpadService: WattpadService;
+  public discoveryService: WattpadDiscoveryService;
 
   public credentialStore: CredentialStore;
   public fsManager: FileSystemManager;
@@ -103,6 +106,7 @@ export class Application {
     this.notepadService = new NotepadService(this.fsManager);
     this.googleService = new GoogleService(this.credentialStore);
     this.wattpadService = new WattpadService(this.credentialStore, this.fsManager);
+    this.discoveryService = new WattpadDiscoveryService(this.wattpadService.getBrowserAuth(), this.credentialStore);
 
     // Initializing sovereign workspace managers (no database engine)
     this.storyRepo = new StoryManager();
@@ -142,6 +146,7 @@ export class Application {
       createConnectCommands(),
       createSyncCommands(),
       createPublishCommands(),
+      createDiscoveryCommands(),
     ];
 
     for (const list of commandLists) {
@@ -199,7 +204,7 @@ export class Application {
       remoteStories: this.remoteStories,
       localManuscripts: this.localManuscripts,
       currentUser: this.currentUser,
-      version: '1.2.0',
+      version: '1.3.0',
     });
 
     // 7. Conectar router de comandos con la terminal interactiva

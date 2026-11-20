@@ -23,7 +23,7 @@ export class Header {
     // Modo ZEN: Ultra minimalista, una sola línea elegante
     if (mode === 'zen') {
       const brand = Chalk.bold(Chalk.hex(Theme.colors.primary, 'WATTPAD CLI'));
-      const version = Chalk.dim(`v${props.version || '1.2.0'}`);
+      const version = Chalk.dim(`v${props.version || '1.3.0'}`);
       const userText = props.isAuthenticated && props.user
         ? Chalk.hex(Theme.colors.success, `● @${props.user.replace(/^@/, '')}`)
         : Chalk.dim('○ Sin conexión');
@@ -34,13 +34,14 @@ export class Header {
     }
 
     const brand = Chalk.bold(Chalk.hex(Theme.colors.primary, 'WATTPAD CLI'));
-    const version = Chalk.dim(`v${props.version || '1.2.0'}`);
-    const isFullMode = mode === 'completa' && width >= 68 && !config.isCompact;
+    const version = Chalk.dim(`v${props.version || '1.3.0'}`);
+    const isFullMode = mode === 'completa' && width >= 85 && !config.isCompact;
+    const isMediumMode = mode === 'completa' && width >= 65 && width < 85 && !config.isCompact;
 
     // Logotipo icónico oficial de Wattpad en ANSI TrueColor
-    const logo1 = isFullMode ? Chalk.bold(Chalk.hex(Theme.colors.primary, '██╗    ██╗  ')) : '';
-    const logo2 = isFullMode ? Chalk.bold(Chalk.hex(Theme.colors.primary, '██║ █╗ ██║  ')) : '';
-    const logo3 = isFullMode ? Chalk.bold(Chalk.hex(Theme.colors.primary, '╚███╔███╔╝  ')) : '';
+    const logo1 = isFullMode ? Chalk.bold(Chalk.hex(Theme.colors.primary, '██╗    ██╗  ')) : (isMediumMode ? Chalk.bold(Chalk.hex(Theme.colors.primary, '█W█ ')) : '');
+    const logo2 = isFullMode ? Chalk.bold(Chalk.hex(Theme.colors.primary, '██║ █╗ ██║  ')) : (isMediumMode ? '    ' : '');
+    const logo3 = isFullMode ? Chalk.bold(Chalk.hex(Theme.colors.primary, '╚███╔███╔╝  ')) : (isMediumMode ? '    ' : '');
 
     const leftText = `${logo1}${brand} ${version}`;
 
@@ -62,10 +63,20 @@ export class Header {
 
     const leftLen = stripAnsi(leftText).length;
     const rightLen = stripAnsi(rightStatus).length;
-    const spacing = Math.max(4, width - leftLen - rightLen);
+    const available = width - leftLen - rightLen;
 
     // Línea 1 (Contiene Brand, Versión y Estado de conexión)
-    lines.push(`${leftText}${' '.repeat(spacing)}${rightStatus}`);
+    if (available >= 2) {
+      lines.push(`${leftText}${' '.repeat(available)}${rightStatus}`);
+    } else {
+      // Si el ancho no permite todo el texto, compactar rightStatus para evitar saltos de línea
+      const compactUser = props.isAuthenticated && props.user
+        ? Chalk.hex(Theme.colors.success, `● @${props.user.replace(/^@/, '')}`)
+        : Chalk.dim('○ Desconectado');
+      const cLen = stripAnsi(compactUser).length;
+      const cSpacing = Math.max(1, width - leftLen - cLen);
+      lines.push(padEndVisible(`${leftText}${' '.repeat(cSpacing)}${compactUser}`, width));
+    }
 
     // Línea 2 (Subinformación de cuenta y autor oficial)
     if (props.isAuthenticated) {

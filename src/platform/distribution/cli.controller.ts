@@ -28,7 +28,7 @@ export class CliController {
   public static getPublicConfig(): PublicCliConfig {
     const env = getEnv();
     const manifest = this.getManifest();
-    const version = manifest?.version || '1.2.0';
+    const version = manifest?.version || '1.3.0';
 
     const binaries: Record<string, any> = {};
     if (manifest && manifest.binaries) {
@@ -44,8 +44,8 @@ export class CliController {
       // Fallback seguro si aún no se ha compilado el manifiesto
       binaries['win32-x64'] = {
         filename: 'wattpad.exe',
-        sha256: 'fe1601513d87e9fa68a2cac72a1c6dde5451958f05af416b41ea640b744a4b96',
-        size: 156960256,
+        sha256: '8f222c0695a30c7af1f3ac01ee4b08cd08b03853c0951f4c9360212e066b4d2b',
+        size: 123934208,
         downloadUrl: `${env.WATTPAD_API_BASE_URL}/cli/download/win32-x64`,
       };
     }
@@ -109,7 +109,7 @@ export class CliController {
 
   public static getDownloadUrl(target: string): string {
     const manifest = this.getManifest();
-    const version = manifest?.version || '1.2.0';
+    const version = manifest?.version || '1.3.0';
     const filename = target.includes('win') ? 'wattpad.exe' : `wattpad-${target}`;
     return `https://github.com/MiguelCarlosRojas/Wattpad-CLI/releases/download/v${version}/${filename}`;
   }

@@ -5,7 +5,7 @@ import { defaultConfig } from '../../../core/config/config';
 import { sha256 } from '../../../core/security/crypto-utils';
 import { executeRefresh } from '../../stories/handlers/story-handler';
 
-const INSTALLED_VERSION = '1.2.0';
+const INSTALLED_VERSION = '1.3.0';
 const GITHUB_REPO = 'MiguelCarlosRojas/Wattpad-CLI';
 
 interface ReleaseInfo {
@@ -35,10 +35,10 @@ async function fetchLatestRelease(): Promise<ReleaseInfo | null> {
   // En pruebas, simular respuesta rápida
   if (process.env.NODE_ENV === 'test') {
     return {
-      version: '1.2.0',
-      name: 'Wattpad CLI v1.2.0',
-      publishedAt: '2026-11-20T16:00:00Z',
-      body: 'Versión v1.2.0: Rediseño visual VIPCode, corrección de identidad @AnMigz y paleta de comandos Ctrl+P.',
+      version: '1.3.0',
+      name: 'Wattpad CLI v1.3.0',
+      publishedAt: '2026-11-20T18:00:00Z',
+      body: 'Versión v1.3.0: Google Docs PKCE Desktop, buscador de Wattpad, editor multilínea y perfil completo.',
       assetName: 'wattpad.exe',
       assetSize: 156910080,
       downloadUrl: `https://github.com/${GITHUB_REPO}/releases/latest/download/wattpad.exe`,

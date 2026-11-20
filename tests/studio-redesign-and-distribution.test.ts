@@ -61,7 +61,7 @@ describe('WATTPAD CLI — Motores de Terminal y Distribución Oficial v1.0.0', (
       const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
 
       expect(pkg.name).toBe('@wattpad/cli');
-      expect(pkg.version).toMatch(/1\.[0-2]\.0/);
+      expect(pkg.version).toMatch(/1\.[0-3]\.0/);
       expect(pkg.bin.wattpad).toBe('bin/wattpad.cjs');
       expect(pkg.files).toContain('bin');
     });

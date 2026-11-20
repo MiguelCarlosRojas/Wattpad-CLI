@@ -5,8 +5,12 @@ import { env } from './env';
 
 export interface AppConfig {
   appDir: string;
+  profilesDir: string;
   browserProfileDir: string;
+  wattpadProfileDir: string;
+  googleProfileDir: string;
   cacheDir: string;
+  avatarsDir: string;
   logsDir: string;
   configDir: string;
   docsDir: string;
@@ -31,8 +35,14 @@ export interface AppConfig {
 
 const homeDir = os.homedir();
 const appDir = env.WATTPAD_APP_DIR || path.join(homeDir, '.wattpad-cli');
-const browserProfileDir = path.join(appDir, 'browser-profile');
+const profilesDir = path.join(appDir, 'profiles');
+const wattpadProfileDir = path.join(profilesDir, 'wattpad');
+const googleProfileDir = path.join(profilesDir, 'google');
+const legacyProfileDir = path.join(appDir, 'browser-profile');
+// Prefer wattpadProfileDir if it exists, otherwise fall back to legacyProfileDir
+const browserProfileDir = fs.existsSync(wattpadProfileDir) ? wattpadProfileDir : (fs.existsSync(legacyProfileDir) ? legacyProfileDir : wattpadProfileDir);
 const cacheDir = path.join(appDir, 'cache');
+const avatarsDir = path.join(cacheDir, 'avatars');
 const logsDir = path.join(appDir, 'logs');
 const configDir = path.join(appDir, 'config');
 const docsDir = env.WATTPAD_DOCS_DIR || path.join(homeDir, 'Documents', 'Wattpad', 'Novelas');
@@ -41,8 +51,11 @@ const backupDir = path.join(appDir, 'backups');
 export function ensureDirectories(): void {
   const dirs = [
     appDir,
-    browserProfileDir,
+    profilesDir,
+    wattpadProfileDir,
+    googleProfileDir,
     cacheDir,
+    avatarsDir,
     logsDir,
     configDir,
     docsDir,
@@ -56,12 +69,23 @@ export function ensureDirectories(): void {
       } catch {}
     }
   }
+
+  // Si existe el perfil previo en ~/.wattpad-cli/browser-profile y aún no en profiles/wattpad, copiarlo
+  if (fs.existsSync(legacyProfileDir) && (!fs.existsSync(wattpadProfileDir) || fs.readdirSync(wattpadProfileDir).length === 0)) {
+    try {
+      fs.cpSync(legacyProfileDir, wattpadProfileDir, { recursive: true });
+    } catch {}
+  }
 }
 
 export const defaultConfig: AppConfig = {
   appDir,
+  profilesDir,
   browserProfileDir,
+  wattpadProfileDir,
+  googleProfileDir,
   cacheDir,
+  avatarsDir,
   logsDir,
   configDir,
   docsDir,

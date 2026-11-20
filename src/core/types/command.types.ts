@@ -1,6 +1,7 @@
 export type CommandCategory =
   | 'general'
   | 'auth'
+  | 'account'
   | 'profile'
   | 'language'
   | 'library'
@@ -9,6 +10,7 @@ export type CommandCategory =
   | 'connections'
   | 'sync'
   | 'explore'
+  | 'discovery'
   | 'publish';
 
 export interface CommandArgument {
