@@ -41,6 +41,13 @@ export class WattpadService {
       return cached.user;
     }
 
+    if (this.browserAuth.hasPersistentProfile() && process.env.NODE_ENV !== 'test') {
+      try {
+        const res = await this.fetchRemoteWorks({ force: false });
+        if (res.user) return res.user;
+      } catch {}
+    }
+
     return null;
   }
 
@@ -103,15 +110,24 @@ export class WattpadService {
   }
 
   /**
-   * Método de compatibilidad para autenticación mediante token directo o pruebas
+   * Método exclusivo de pruebas para simular autenticación en suites automatizadas
    */
   public async loginWithToken(token: string): Promise<AuthSession> {
+    if (process.env.NODE_ENV !== 'test') {
+      throw new Error(
+        'El inicio de sesión mediante token directo no está permitido en producción. Utiliza /login para iniciar sesión de forma segura e interactiva en Wattpad.'
+      );
+    }
+
+    const rawUname = token.startsWith('cloud_') ? 'autor_test' : (token.includes('_') ? token.split('_').pop() || 'autor_test' : 'autor_oficial');
+    const safeUsername = (rawUname === 'token' || rawUname === 'wattpad' || rawUname.length <= 1) ? 'autor_test' : rawUname;
+
     const testUser: WattpadUser = {
       id: 'usr_token_auth',
-      username: token.startsWith('cloud_') ? 'wattpad_author' : (token.includes('_') ? token.split('_')[1] : 'autor_oficial'),
-      name: 'Autor Wattpad',
+      username: safeUsername,
+      name: 'Autor de Prueba',
       avatar: null,
-      description: 'Sesión autenticada en Wattpad CLI',
+      description: 'Sesión de pruebas automatizadas',
       numStories: 1,
       numFollowing: 0,
       numFollowers: 0,

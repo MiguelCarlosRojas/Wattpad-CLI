@@ -1,11 +1,11 @@
 {
-  "version": "1.1.0",
-  "generatedAt": "2026-11-19T17:48:25.153Z",
+  "version": "1.2.0",
+  "generatedAt": "2026-11-20T21:22:42.032Z",
   "binaries": {
     "win32-x64": {
       "filename": "wattpad.exe",
-      "sha256": "46667382cfb28aeaeac4f8eb2c48e1616063cc101adff6e71dfc9cd51e0f5bd3",
-      "size": 156901376
+      "sha256": "2d0959346f6ef1af719dbfb6b0532a4f435bddb91c948cb8186fc92c2a54b116",
+      "size": 156960256
     }
   }
 }

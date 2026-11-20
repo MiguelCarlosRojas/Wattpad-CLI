@@ -11,20 +11,42 @@ export interface HeaderProps {
   serverOnline?: boolean;
   activeStory?: string | null;
   activeChapter?: string | null;
+  mode?: 'completa' | 'compacta' | 'zen';
 }
 
 export class Header {
   public static render(props: HeaderProps, config: ResponsiveLayoutConfig): string[] {
     const lines: string[] = [];
     const width = Math.max(50, config.width || 80);
+    const mode = props.mode || 'completa';
+
+    // Modo ZEN: Ultra minimalista, una sola línea elegante
+    if (mode === 'zen') {
+      const brand = Chalk.bold(Chalk.hex(Theme.colors.primary, 'WATTPAD CLI'));
+      const version = Chalk.dim(`v${props.version || '1.2.0'}`);
+      const userText = props.isAuthenticated && props.user
+        ? Chalk.hex(Theme.colors.success, `● @${props.user.replace(/^@/, '')}`)
+        : Chalk.dim('○ Sin conexión');
+      const zenLine = `${brand} ${version}  ·  ${userText}`;
+      lines.push(padEndVisible(zenLine, width));
+      lines.push(Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(width)));
+      return lines;
+    }
 
     const brand = Chalk.bold(Chalk.hex(Theme.colors.primary, 'WATTPAD CLI'));
-    const version = Chalk.dim(`v${props.version || '1.1.0'}`);
-    const leftText = `${brand} ${version}`;
+    const version = Chalk.dim(`v${props.version || '1.2.0'}`);
+    const isFullMode = mode === 'completa' && width >= 68 && !config.isCompact;
+
+    // Logotipo icónico oficial de Wattpad en ANSI TrueColor
+    const logo1 = isFullMode ? Chalk.bold(Chalk.hex(Theme.colors.primary, '██╗    ██╗  ')) : '';
+    const logo2 = isFullMode ? Chalk.bold(Chalk.hex(Theme.colors.primary, '██║ █╗ ██║  ')) : '';
+    const logo3 = isFullMode ? Chalk.bold(Chalk.hex(Theme.colors.primary, '╚███╔███╔╝  ')) : '';
+
+    const leftText = `${logo1}${brand} ${version}`;
 
     // Estado superior:
-    // Conectado:   WATTPAD CLI v1.1.0                         ● @usuario_real     Conectado
-    // Desconectado: WATTPAD CLI v1.1.0                         ○ Sin conexión
+    // Conectado:   ● @usuario_real     Conectado
+    // Desconectado: ○ Sin conexión
     let rightStatus: string;
     if (props.isAuthenticated && props.user && props.user !== 'Desconectado' && props.user !== 'Sin conectar') {
       const username = props.user.startsWith('@') ? props.user : `@${props.user}`;
@@ -42,34 +64,36 @@ export class Header {
     const rightLen = stripAnsi(rightStatus).length;
     const spacing = Math.max(4, width - leftLen - rightLen);
 
+    // Línea 1 (Contiene Brand, Versión y Estado de conexión)
     lines.push(`${leftText}${' '.repeat(spacing)}${rightStatus}`);
 
-    // Línea de identidad real del usuario autenticado:
-    // Cuenta: @usuario_real · Nombre visible del autor
-    // O si falló la verificación:
-    // Cuenta: No se pudo verificar el perfil
+    // Línea 2 (Subinformación de cuenta y autor oficial)
     if (props.isAuthenticated) {
       if (props.profileVerified === false) {
         const warnInfo = Chalk.hex(Theme.colors.warning, 'Cuenta: No se pudo verificar el perfil');
-        lines.push(padEndVisible(warnInfo, width));
+        lines.push(padEndVisible(`${logo2}${warnInfo}`, width));
       } else if (props.user && props.user !== 'Desconectado' && props.user !== 'Sin conectar') {
         const rawUser = props.user.startsWith('@') ? props.user.slice(1) : props.user;
         const displayName = props.displayName || (props.serverOnline ? 'Wattpad conectado ◉' : rawUser);
         const accountInfo = Chalk.dim(`Cuenta: @${rawUser} · ${displayName}`);
-        lines.push(padEndVisible(accountInfo, width));
+        lines.push(padEndVisible(`${logo2}${accountInfo}`, width));
       } else {
         const warnInfo = Chalk.hex(Theme.colors.warning, 'Cuenta: No se pudo verificar el perfil');
-        lines.push(padEndVisible(warnInfo, width));
+        lines.push(padEndVisible(`${logo2}${warnInfo}`, width));
       }
+    } else if (isFullMode) {
+      lines.push(padEndVisible(`${logo2}${Chalk.dim('Sesión de Wattpad desconectada · Ejecuta /login')}`, width));
     }
 
-    // Contexto activo si existe (novela y capítulo)
+    // Línea 3 (Base del logotipo o contexto activo)
     if (props.activeStory) {
       const activeCtx =
         Chalk.dim('Novela: ') +
         Chalk.hex(Theme.colors.primary, props.activeStory) +
         (props.activeChapter ? Chalk.dim(' · Cap: ') + Chalk.hex(Theme.colors.text, props.activeChapter) : '');
-      lines.push(padEndVisible(activeCtx, width));
+      lines.push(padEndVisible(`${logo3}${activeCtx}`, width));
+    } else if (isFullMode) {
+      lines.push(padEndVisible(logo3, width));
     }
 
     // Línea separadora sutil

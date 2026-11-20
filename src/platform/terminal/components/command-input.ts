@@ -56,10 +56,10 @@ export class CommandInput {
     // Padding line 2
     lines.push(padRow(' '));
 
-    // Bottom border: ╰─ ? Ayuda · / Comandos · ↑↓ Historial · Tab Autocompletar · Ctrl+C Salir ──╯
-    let footerText = ' ? Ayuda · / Comandos · ↑↓ Historial · Tab Autocompletar · Ctrl+C Salir ';
-    if (boxWidth < 78) {
-      footerText = ' ? Ayuda · / Comandos · Ctrl+C Salir ';
+    // Bottom border: ╰─ ? Ayuda · / Comandos · ↑↓ Historial · Tab Completar · Ctrl+P Paleta · Ctrl+C Salir ──╯
+    let footerText = ' ? Ayuda · / Comandos · ↑↓ Historial · Tab Completar · Ctrl+P Paleta · Ctrl+C Salir ';
+    if (boxWidth < 80) {
+      footerText = ' ? Ayuda · / Comandos · Ctrl+P Paleta · Ctrl+C Salir ';
     }
     const bottomBarLength = Math.max(2, boxWidth - 3 - footerText.length);
     const line5 =

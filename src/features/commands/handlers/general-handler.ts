@@ -5,7 +5,7 @@ import { defaultConfig } from '../../../core/config/config';
 import { sha256 } from '../../../core/security/crypto-utils';
 import { executeRefresh } from '../../stories/handlers/story-handler';
 
-const INSTALLED_VERSION = '1.1.0';
+const INSTALLED_VERSION = '1.2.0';
 const GITHUB_REPO = 'MiguelCarlosRojas/Wattpad-CLI';
 
 interface ReleaseInfo {
@@ -35,10 +35,10 @@ async function fetchLatestRelease(): Promise<ReleaseInfo | null> {
   // En pruebas, simular respuesta rápida
   if (process.env.NODE_ENV === 'test') {
     return {
-      version: '1.1.0',
-      name: 'Wattpad CLI v1.1.0',
-      publishedAt: '2026-11-19T14:00:00Z',
-      body: 'Versión v1.1.0 con rediseño visual profesional, TUI soberano y ventana emergente de autenticación independiente.',
+      version: '1.2.0',
+      name: 'Wattpad CLI v1.2.0',
+      publishedAt: '2026-11-20T16:00:00Z',
+      body: 'Versión v1.2.0: Rediseño visual VIPCode, corrección de identidad @AnMigz y paleta de comandos Ctrl+P.',
       assetName: 'wattpad.exe',
       assetSize: 156910080,
       downloadUrl: `https://github.com/${GITHUB_REPO}/releases/latest/download/wattpad.exe`,
@@ -471,6 +471,68 @@ export function createGeneralCommands(): CommandDefinition[] {
       examples: ['/refresh', '/refresh --force'],
       execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
         return await executeRefresh(app, parsed);
+      },
+    },
+
+    {
+      name: '/interface',
+      category: 'general',
+      description: 'Cambia el modo visual de la interfaz (completa, compacta, zen)',
+      descriptionEn: 'Switches the interface visual mode (completa, compacta, zen)',
+      usage: '/interface [completa|compacta|zen]',
+      examples: ['/interface completa', '/interface compacta', '/interface zen'],
+      execute: (app, parsed: ParsedCommand): CommandResult => {
+        const mode = (parsed.subcommand || parsed.args[0] || '').toLowerCase();
+        if (mode === 'completa' || mode === 'compacta' || mode === 'zen') {
+          if (app.appShell && typeof (app.appShell as any).setViewMode === 'function') {
+            (app.appShell as any).setViewMode(mode);
+          }
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: 'MODO DE INTERFAZ ACTUALIZADO',
+                subtitle: `Diseño visual configurado en modo: ${mode.toUpperCase()}`,
+                statusBadge: mode.toUpperCase(),
+                statusColor: '#FF6122',
+                fields: [
+                  { label: 'Modo visual', value: mode },
+                  {
+                    label: 'Descripción',
+                    value:
+                      mode === 'zen'
+                        ? 'Vista minimalista sin distracciones ni marcos pesados'
+                        : mode === 'compacta'
+                        ? 'Vista condensada para terminales de menor tamaño'
+                        : 'Vista completa enriquecida estilo VIPCode con grid de novelas',
+                  },
+                ],
+              },
+            ],
+            message: `Modo de interfaz cambiado a "${mode}".`,
+          };
+        }
+
+        const currentMode = app.appShell ? (app.appShell as any).getViewMode?.() || 'completa' : 'completa';
+        return {
+          success: true,
+          blocks: [
+            {
+              type: 'card',
+              title: 'CONFIGURACIÓN DE INTERFAZ',
+              subtitle: `Modo actual: ${currentMode.toUpperCase()}`,
+              statusBadge: currentMode.toUpperCase(),
+              statusColor: '#FF6122',
+              fields: [
+                { label: 'Modo actual', value: currentMode },
+                { label: 'Modos disponibles', value: 'completa, compacta, zen' },
+                { label: 'Instrucción', value: 'Ejecuta /interface completa | /interface compacta | /interface zen' },
+              ],
+            },
+          ],
+          message: `Modo visual actual: ${currentMode}. Usa /interface [completa|compacta|zen] para cambiar.`,
+        };
       },
     },
 

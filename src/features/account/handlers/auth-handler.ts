@@ -66,8 +66,23 @@ export function createAuthCommands(): CommandDefinition[] {
           };
         }
 
-        // 2. Si se proporciona un token (modo compatibilidad / pruebas)
+        // 2. Si se proporciona un token (modo pruebas automatizadas)
         if (token) {
+          if (process.env.NODE_ENV !== 'test') {
+            return {
+              success: false,
+              blocks: [
+                {
+                  type: 'error',
+                  title: 'Autenticación con token no permitida',
+                  content:
+                    'El inicio de sesión mediante token no está permitido en producción por motivos de seguridad oficial. Ejecuta /login directamente para abrir la ventana de autenticación de Wattpad.',
+                },
+              ],
+              message: 'Autenticación con token no permitida en producción. Usa /login.',
+            };
+          }
+
           try {
             const session = await app.wattpadService.loginWithToken(token);
             app.currentUser = session.user;
@@ -162,12 +177,11 @@ export function createAuthCommands(): CommandDefinition[] {
                   { label: 'Cuenta', value: `@${result.user.username}` },
                   { label: 'Autor', value: result.user.name || result.user.username },
                   { label: 'Estado', value: 'Conectado' },
-                  { label: 'Sesión', value: 'Guardada localmente en ~/.wattpad-cli/browser-profile' },
-                  { label: 'Instrucción', value: 'Ya puedes cerrar la ventana de autenticación y utilizar Wattpad CLI.' },
+                  { label: 'Sesión', value: 'Guardada localmente' },
                 ],
               },
             ],
-            message: `✓ Autenticación completada.\nCuenta: @${result.user.username}\nEstado: Conectado\nSesión: Guardada localmente\nYa puedes utilizar Wattpad CLI.`,
+            message: `✓ Autenticación completada.\n\nCuenta: @${result.user.username}\nEstado: Conectado\nSesión: Guardada localmente\n\nWATTPAD CONECTADO\n\n✓ Autenticación completada exitosamente\n\nCuenta       : @${result.user.username}\nAutor        : ${result.user.name || result.user.username}\nEstado       : Conectado`,
           };
         } catch (err: any) {
           return {

@@ -176,9 +176,12 @@ export class Application {
     const stories = this.storyRepo.findAll();
     const allChapters = this.chapterRepo.findAll();
 
-    // 5. Configurar manejador de envío de token (compatibilidad con AuthModal)
+    // 5. Configurar manejador de envío de token (compatibilidad con AuthModal / pruebas)
     this.appShell.setTokenSubmitHandler(async (token: string) => {
       try {
+        if (process.env.NODE_ENV !== 'test') {
+          return { success: false, error: 'Autenticación con token no permitida en producción. Usa /login.' };
+        }
         const session = await this.wattpadService.loginWithToken(token);
         this.currentUser = session.user;
         this.connRepo.setConnected('wattpad', 'Wattpad', true, session.user.username);
@@ -196,7 +199,7 @@ export class Application {
       remoteStories: this.remoteStories,
       localManuscripts: this.localManuscripts,
       currentUser: this.currentUser,
-      version: '1.1.0',
+      version: '1.2.0',
     });
 
     // 7. Conectar router de comandos con la terminal interactiva
