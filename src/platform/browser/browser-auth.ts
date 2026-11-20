@@ -50,7 +50,7 @@ export function isInvalidUsername(username?: string | null): boolean {
   if (process.env.NODE_ENV === 'test') {
     return clean === 'wattpad' || clean === 'token' || clean.length <= 1;
   }
-  return invalid.includes(clean) || clean.length <= 1;
+  return invalid.includes(clean) || clean.length <= 1 || /^\d+$/.test(clean);
 }
 
 export function mapWattpadCategory(category: any): string {

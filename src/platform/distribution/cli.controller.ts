@@ -44,7 +44,7 @@ export class CliController {
       // Fallback seguro si aún no se ha compilado el manifiesto
       binaries['win32-x64'] = {
         filename: 'wattpad.exe',
-        sha256: '2d0959346f6ef1af719dbfb6b0532a4f435bddb91c948cb8186fc92c2a54b116',
+        sha256: 'fe1601513d87e9fa68a2cac72a1c6dde5451958f05af416b41ea640b744a4b96',
         size: 156960256,
         downloadUrl: `${env.WATTPAD_API_BASE_URL}/cli/download/win32-x64`,
       };
