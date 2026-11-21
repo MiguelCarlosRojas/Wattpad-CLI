@@ -15,10 +15,29 @@ export interface HomeViewProps {
   recentCommands: string[];
   width: number;
   mode?: 'completa' | 'compacta' | 'zen';
+  minimalist?: boolean;
 }
 
 export class HomeView {
+  public static renderMinimal(props: HomeViewProps): string[] {
+    const lines: string[] = [];
+    lines.push('');
+    lines.push(`  ${Chalk.bold(Chalk.hex(Theme.colors.white, 'Bienvenido a Wattpad CLI.'))}`);
+    lines.push('');
+    lines.push(`  ${Chalk.hex(Theme.colors.textSecondary, 'Gestiona tus novelas, capítulos y manuscritos.')}`);
+    lines.push(
+      `  ${Chalk.hex(Theme.colors.textSecondary, 'Escribe ')}${Chalk.bold(Chalk.hex(Theme.colors.primary, '/help'))}${Chalk.hex(Theme.colors.textSecondary, ' para consultar los comandos disponibles.')}`
+    );
+    lines.push('');
+    return lines;
+  }
+
   public static render(props: HomeViewProps): string[] {
+    // Por defecto en v1.0.1: Pantalla de inicio minimalista y espaciosa
+    if (props.minimalist !== false) {
+      return this.renderMinimal(props);
+    }
+
     const lines: string[] = [];
     const width = Math.max(50, props.width || 80);
     const borderColor = Theme.colors.surfaceBorder;

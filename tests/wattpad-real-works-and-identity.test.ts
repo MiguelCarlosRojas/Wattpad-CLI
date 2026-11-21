@@ -321,6 +321,7 @@ describe('WATTPAD CLI — Identidad Real, Obras de Wattpad y Catálogo Unificado
         localManuscripts: manuscripts, // 3 manuscritos locales
         recentCommands: [],
         width: 80,
+        minimalist: false,
       });
 
       const fullText = stripAnsi(lines.join('\n'));

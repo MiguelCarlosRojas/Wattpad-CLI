@@ -13,7 +13,15 @@ export class SuggestionsDropdown {
     const boxWidth = Math.max(40, width);
     const borderColor = Theme.colors.primary;
 
-    const title = ' Comandos ';
+    const MAX_VISIBLE = 8;
+    let startIndex = 0;
+    if (selectedIndex >= MAX_VISIBLE) {
+      startIndex = Math.min(selectedIndex - MAX_VISIBLE + 1, suggestions.length - MAX_VISIBLE);
+    }
+    startIndex = Math.max(0, startIndex);
+    const visibleList = suggestions.slice(startIndex, startIndex + MAX_VISIBLE);
+
+    const title = ' Sugerencias ';
     const topBarLen = Math.max(2, boxWidth - 3 - title.length);
     lines.push(
       Chalk.hex(borderColor, Theme.borders.topLeft + Theme.borders.horizontal) +
@@ -32,27 +40,29 @@ export class SuggestionsDropdown {
       );
     };
 
-    const displayList = suggestions.slice(0, 5);
-    for (let i = 0; i < displayList.length; i++) {
-      const s = displayList[i];
-      const isSelected = i === selectedIndex;
+    for (let idx = 0; idx < visibleList.length; idx++) {
+      const actualIndex = startIndex + idx;
+      const item = visibleList[idx];
+      const isSelected = actualIndex === selectedIndex;
 
       let rowContent: string;
+      const cmdPadded = item.command.padEnd(16);
       if (isSelected) {
-        const arrow = Chalk.bold(Chalk.hex(Theme.colors.primary, '› '));
-        const cmd = Chalk.bold(Chalk.hex(Theme.colors.white, s.command.padEnd(20)));
-        const desc = Chalk.hex(Theme.colors.textSecondary, s.description);
-        rowContent = ` ${arrow}${cmd} ${desc}`;
+        const arrow = Chalk.bold(Chalk.hex(Theme.colors.primary, ' › '));
+        const cmd = Chalk.bold(Chalk.hex(Theme.colors.primary, cmdPadded));
+        const desc = Chalk.bold(Chalk.hex(Theme.colors.white, item.description));
+        rowContent = `${arrow}${cmd} ${desc}`;
       } else {
-        const cmd = Chalk.hex(Theme.colors.primary, s.command.padEnd(20));
-        const desc = Chalk.dim(s.description);
-        rowContent = `   ${cmd} ${desc}`;
+        const arrow = '   ';
+        const cmd = Chalk.hex(Theme.colors.textSecondary, cmdPadded);
+        const desc = Chalk.dim(item.description);
+        rowContent = `${arrow}${cmd} ${desc}`;
       }
 
       lines.push(padRow(rowContent));
     }
 
-    const footerText = ' ↑↓ Navegar · Tab Autocompletar · Esc Cerrar ';
+    const footerText = ' ↑↓ Navegar · Tab Completar · Enter Ejecutar · Esc Cerrar ';
     const botBarLen = Math.max(2, boxWidth - 3 - footerText.length);
     lines.push(
       Chalk.hex(borderColor, Theme.borders.bottomLeft + Theme.borders.horizontal) +

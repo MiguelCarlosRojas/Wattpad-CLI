@@ -646,27 +646,126 @@ export class AppShell {
     }
 
     // =========================================================================
-    // DESPLAZAMIENTO VERTICAL (PageUp / PageDown / Shift+Arrows)
+    // DESPLAZAMIENTO VERTICAL (PageUp / PageDown / Shift+Arrows / Ctrl+Home/End / Rueda)
     // =========================================================================
-    if (key.name === 'pageup' || (key.ctrl && key.name === 'up')) {
-      this.scrollOffset = Math.max(0, this.scrollOffset - 4);
+    if (key.ctrl && key.name === 'home') {
+      this.scrollOffset = 0;
       this.render();
       return;
     }
 
-    if (key.name === 'pagedown' || (key.ctrl && key.name === 'down')) {
-      this.scrollOffset += 4;
+    if (key.ctrl && key.name === 'end') {
+      this.scrollOffset = 999999;
       this.render();
       return;
     }
 
-    // Escape para cerrar sugerencias o limpiar vista de salida
-    if (key.name === 'escape') {
-      if (this.suggestions.length > 0) {
+    if (key.name === 'pageup') {
+      this.scrollOffset = Math.max(0, this.scrollOffset - 10);
+      this.render();
+      return;
+    }
+
+    if (key.name === 'pagedown') {
+      this.scrollOffset += 10;
+      this.render();
+      return;
+    }
+
+    if (key.shift && key.name === 'up') {
+      this.scrollOffset = Math.max(0, this.scrollOffset - 1);
+      this.render();
+      return;
+    }
+
+    if (key.shift && key.name === 'down') {
+      this.scrollOffset += 1;
+      this.render();
+      return;
+    }
+
+    // Soporte para secuencias ANSI de rueda del ratón si están disponibles
+    if (str && (str.includes('\x1b[<64;') || str.includes('wheelup'))) {
+      this.scrollOffset = Math.max(0, this.scrollOffset - 3);
+      this.render();
+      return;
+    }
+    if (str && (str.includes('\x1b[<65;') || str.includes('wheeldown'))) {
+      this.scrollOffset += 3;
+      this.render();
+      return;
+    }
+
+    // =========================================================================
+    // NAVEGACIÓN Y AUTOCOMPLETADO CUANDO EL MENÚ DE SUGERENCIAS ESTÁ ABIERTO
+    // =========================================================================
+    if (this.suggestions.length > 0) {
+      if (key.name === 'escape') {
         this.suggestions = [];
         this.render();
         return;
       }
+
+      if (key.name === 'up') {
+        if (this.selectedSuggestionIndex > 0) {
+          this.selectedSuggestionIndex--;
+          this.render();
+        }
+        return;
+      }
+
+      if (key.name === 'down') {
+        if (this.selectedSuggestionIndex < this.suggestions.length - 1) {
+          this.selectedSuggestionIndex++;
+          this.render();
+        }
+        return;
+      }
+
+      if (key.name === 'tab') {
+        const picked = this.suggestions[this.selectedSuggestionIndex];
+        if (picked) {
+          this.inputValue = `${picked.command} `;
+          this.cursorIndex = this.inputValue.length;
+          this.suggestions = [];
+          this.render();
+          return;
+        }
+        return;
+      }
+
+      if (key.name === 'return') {
+        const picked = this.suggestions[this.selectedSuggestionIndex];
+        if (picked) {
+          const baseName = picked.command.split(' ')[0];
+          const cmdDef = this.registry.get(baseName);
+          const requiresArgs =
+            cmdDef && ((cmdDef.minArgs && cmdDef.minArgs > 0) || cmdDef.usage?.includes('<'));
+
+          if (requiresArgs) {
+            this.inputValue = `${picked.command} `;
+            this.cursorIndex = this.inputValue.length;
+            this.suggestions = [];
+            this.render();
+            return;
+          } else {
+            const cmdToExec = picked.command;
+            this.inputValue = '';
+            this.cursorIndex = 0;
+            this.suggestions = [];
+            this.history.push(cmdToExec);
+            this.executeCommandString(cmdToExec);
+            return;
+          }
+        }
+      }
+    }
+
+    // =========================================================================
+    // ENTRADA NORMAL DE COMANDOS (LÍNEA DE COMANDOS INFERIOR)
+    // =========================================================================
+    // Escape para limpiar vista de salida si sugerencias no están abiertas
+    if (key.name === 'escape') {
       if (this.latestOutput) {
         this.latestOutput = null;
         this.scrollOffset = 0;
@@ -677,28 +776,21 @@ export class AppShell {
       return;
     }
 
-    // Tab para autocompletar sugerencia
-    if (key.name === 'tab') {
-      if (this.suggestions.length > 0) {
-        const picked = this.suggestions[this.selectedSuggestionIndex];
-        if (picked) {
-          this.inputValue = picked.command;
-          this.cursorIndex = this.inputValue.length;
-          this.suggestions = [];
-          this.render();
-          return;
-        }
-      }
+    // Inicio / Fin en la línea de comando (sin Ctrl)
+    if (key.name === 'home') {
+      this.cursorIndex = 0;
+      this.render();
       return;
     }
 
-    // Flecha Arriba
+    if (key.name === 'end') {
+      this.cursorIndex = this.inputValue.length;
+      this.render();
+      return;
+    }
+
+    // Flecha Arriba en entrada normal: navegar historial hacia atrás
     if (key.name === 'up') {
-      if (this.suggestions.length > 0) {
-        if (this.selectedSuggestionIndex > 0) this.selectedSuggestionIndex--;
-        this.render();
-        return;
-      }
       const prev = this.history.navigateUp(this.inputValue);
       if (prev !== null) {
         this.inputValue = prev;
@@ -708,13 +800,8 @@ export class AppShell {
       return;
     }
 
-    // Flecha Abajo
+    // Flecha Abajo en entrada normal: navegar historial hacia adelante
     if (key.name === 'down') {
-      if (this.suggestions.length > 0) {
-        if (this.selectedSuggestionIndex < this.suggestions.length - 1) this.selectedSuggestionIndex++;
-        this.render();
-        return;
-      }
       const next = this.history.navigateDown();
       if (next !== null) {
         this.inputValue = next;
@@ -724,19 +811,8 @@ export class AppShell {
       return;
     }
 
-    // Enter para ejecutar comando o seleccionar sugerencia
+    // Enter para ejecutar comando escrito directamente
     if (key.name === 'return') {
-      if (this.suggestions.length > 0) {
-        const picked = this.suggestions[this.selectedSuggestionIndex];
-        if (picked) {
-          this.inputValue = picked.command;
-          this.cursorIndex = this.inputValue.length;
-          this.suggestions = [];
-          this.render();
-          return;
-        }
-      }
-
       const cmd = this.inputValue.trim();
       this.inputValue = '';
       this.cursorIndex = 0;
@@ -748,11 +824,21 @@ export class AppShell {
       return;
     }
 
-    // Backspace
+    // Backspace: borrar carácter a la izquierda del cursor
     if (key.name === 'backspace') {
       if (this.cursorIndex > 0) {
         this.inputValue = this.inputValue.slice(0, this.cursorIndex - 1) + this.inputValue.slice(this.cursorIndex);
         this.cursorIndex--;
+        this.updateSuggestions();
+        this.render();
+      }
+      return;
+    }
+
+    // Delete: borrar carácter bajo el cursor
+    if (key.name === 'delete') {
+      if (this.cursorIndex < this.inputValue.length) {
+        this.inputValue = this.inputValue.slice(0, this.cursorIndex) + this.inputValue.slice(this.cursorIndex + 1);
         this.updateSuggestions();
         this.render();
       }
@@ -789,17 +875,50 @@ export class AppShell {
   private updateSuggestions(): void {
     if (this.inputValue.startsWith('/')) {
       const q = this.inputValue.toLowerCase();
-      this.suggestions = this.registry
-        .getAll()
-        .filter((c) => c.name.toLowerCase().startsWith(q))
-        .map((c) => ({
-          command: c.name,
-          description: c.description,
-          category: c.category || 'General',
-        }));
-      this.selectedSuggestionIndex = 0;
+      const priority = [
+        '/stories',
+        '/profile',
+        '/discover',
+        '/chapter',
+        '/publish',
+        '/connect',
+        '/refresh',
+        '/help',
+        '/config',
+        '/settings',
+        '/story',
+        '/chapters',
+        '/login',
+        '/status',
+        '/version',
+        '/clear',
+        '/exit',
+      ];
+
+      const all = this.registry.getAll();
+      const matches = all.filter((c) => c.name.toLowerCase().startsWith(q));
+
+      matches.sort((a, b) => {
+        const pA = priority.indexOf(a.name.toLowerCase());
+        const pB = priority.indexOf(b.name.toLowerCase());
+        if (pA !== -1 && pB !== -1) return pA - pB;
+        if (pA !== -1) return -1;
+        if (pB !== -1) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      this.suggestions = matches.map((c) => ({
+        command: c.name,
+        description: c.description,
+        category: c.category || 'general',
+      }));
+
+      if (this.selectedSuggestionIndex >= this.suggestions.length) {
+        this.selectedSuggestionIndex = 0;
+      }
     } else {
       this.suggestions = [];
+      this.selectedSuggestionIndex = 0;
     }
   }
 
@@ -866,7 +985,7 @@ export class AppShell {
 
     // 1. Fixed Header con Brand Logo y Estado de Conexión
     const headerProps: HeaderProps = {
-      version: this.version || '1.3.0',
+      version: this.version || APP_VERSION,
       user: this.currentUser ? this.currentUser.username : null,
       displayName: this.currentUser?.name,
       isAuthenticated: Boolean(this.currentUser && this.currentUser.username),
@@ -884,11 +1003,11 @@ export class AppShell {
     const isEditorActive = Boolean(this.activeEditor);
     const activeView = this.getActiveView();
     const isSpecialView = Boolean(isEditorActive || activeView);
-    const inputHeight = isSpecialView ? 2 : 5;
+    const inputHeight = isSpecialView ? 0 : 5;
     const statusBarHeight = 1;
-    const suggestionsHeight = !isSpecialView && this.suggestions.length > 0 ? Math.min(6, this.suggestions.length + 2) : 0;
+    const suggestionsHeight = !isSpecialView && this.suggestions.length > 0 ? Math.min(10, this.suggestions.length + 2) : 0;
     const reservedVertical = headerLines.length + inputHeight + statusBarHeight + suggestionsHeight + 1;
-    const midHeight = Math.max(6, config.height - reservedVertical);
+    const midHeight = Math.max(5, config.height - reservedVertical);
 
     // 3. Área Central: TextEditor, ItemSelector, InteractiveView, CommandOutput o HomeView
     let allContentLines: string[] = [];
@@ -970,33 +1089,48 @@ export class AppShell {
 
     output.push(...viewportLines.map((l) => padEndVisible(l, config.width)));
 
-    // 4. Suggestions Dropdown (si el usuario está escribiendo /...)
-    if (!isEditorActive && this.suggestions.length > 0) {
-      const sugLines = SuggestionsDropdown.render(this.suggestions, this.selectedSuggestionIndex, config.width);
-      output.push(...sugLines);
-    }
-
-    // 5. Fixed Command Input Box / Interactive View Status Line
-    if (isEditorActive) {
-      output.push(
-        Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(config.width)),
-        padEndVisible(Chalk.dim('  [Modo Editor Activo]  Ctrl+S: Guardar  ·  Ctrl+F: Buscar  ·  Esc: Salir'), config.width)
+    // 4. Fixed Command Input Box (solo cuando no hay vista especial activa)
+    if (!isSpecialView) {
+      const inputLines = CommandInput.render(
+        this.inputValue,
+        this.cursorIndex,
+        config.width,
+        !this.isPaletteOpen,
+        false
       );
-    } else if (activeView) {
-      const hint = activeView.getStatusBarHint ? activeView.getStatusBarHint() : '↑/↓ Navegar  ·  ←/→ Cambiar  ·  Enter Confirmar  ·  Esc Volver';
-      output.push(
-        Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(config.width)),
-        padEndVisible(Chalk.hex(Theme.colors.info, `  ${hint}`), config.width)
-      );
-    } else {
-      const inputLines = CommandInput.render(this.inputValue, this.cursorIndex, config.width, !this.isPaletteOpen);
       output.push(...inputLines);
+
+      // Suggestions Dropdown (si el usuario está escribiendo /...)
+      if (this.suggestions.length > 0) {
+        const sugLines = SuggestionsDropdown.render(this.suggestions, this.selectedSuggestionIndex, config.width);
+        output.push(...sugLines);
+      }
     }
 
-    // 6. Permanent Bottom Status Bar
+    // 5. Barra de Estado Única y Soberana en la Parte Inferior
+    let activeContext = 'normal';
+    let customHint: string | null = null;
+    if (isEditorActive) {
+      activeContext = 'editor';
+    } else if (this.activeSelector) {
+      activeContext = 'selector';
+    } else if (activeView) {
+      activeContext = 'interactive';
+      customHint = activeView.getStatusBarHint ? activeView.getStatusBarHint() : null;
+    } else if (this.isPaletteOpen) {
+      activeContext = 'palette';
+    } else if (this.suggestions.length > 0) {
+      activeContext = 'suggestions';
+    }
+
     const statusLines = StatusBar.render(config, {
       notification: this.notificationMessage,
+      activeContext,
+      customHint,
       mode: this.viewMode,
+      isAuthenticated: Boolean(this.currentUser && this.currentUser.username),
+      user: this.currentUser?.username,
+      serverOnline: this.serverOnline,
     });
     output.push(...statusLines);
 

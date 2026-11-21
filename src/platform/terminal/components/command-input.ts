@@ -5,7 +5,8 @@ export class CommandInput {
     value: string,
     cursorIndex: number,
     width: number = 80,
-    isFocused: boolean = true
+    isFocused: boolean = true,
+    showFooter: boolean = true
   ): string[] {
     const lines: string[] = [];
     const boxWidth = Math.max(40, width);
@@ -57,16 +58,24 @@ export class CommandInput {
     lines.push(padRow(' '));
 
     // Bottom border: ╰─ ? Ayuda · / Comandos · ↑↓ Historial · Tab Completar · Ctrl+P Paleta · Ctrl+C Salir ──╯
-    let footerText = ' ? Ayuda · / Comandos · ↑↓ Historial · Tab Completar · Ctrl+P Paleta · Ctrl+C Salir ';
-    if (boxWidth < 80) {
-      footerText = ' ? Ayuda · / Comandos · Ctrl+P Paleta · Ctrl+C Salir ';
+    if (showFooter) {
+      let footerText = ' ? Ayuda · / Comandos · ↑↓ Historial · Tab Completar · Ctrl+P Paleta · Ctrl+C Salir ';
+      if (boxWidth < 80) {
+        footerText = ' ? Ayuda · / Comandos · Ctrl+P Paleta · Ctrl+C Salir ';
+      }
+      const bottomBarLength = Math.max(2, boxWidth - 3 - footerText.length);
+      const line5 =
+        Chalk.hex(borderColor, Theme.borders.bottomLeft + Theme.borders.horizontal) +
+        Chalk.dim(footerText) +
+        Chalk.hex(borderColor, Theme.borders.horizontal.repeat(bottomBarLength) + Theme.borders.bottomRight);
+      lines.push(line5);
+    } else {
+      const line5 = Chalk.hex(
+        borderColor,
+        Theme.borders.bottomLeft + Theme.borders.horizontal.repeat(boxWidth - 2) + Theme.borders.bottomRight
+      );
+      lines.push(line5);
     }
-    const bottomBarLength = Math.max(2, boxWidth - 3 - footerText.length);
-    const line5 =
-      Chalk.hex(borderColor, Theme.borders.bottomLeft + Theme.borders.horizontal) +
-      Chalk.dim(footerText) +
-      Chalk.hex(borderColor, Theme.borders.horizontal.repeat(bottomBarLength) + Theme.borders.bottomRight);
-    lines.push(line5);
 
     return lines;
   }
