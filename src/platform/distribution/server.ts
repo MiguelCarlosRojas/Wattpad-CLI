@@ -1,5 +1,3 @@
-import fs from 'fs';
-import nodePath from 'path';
 import { getEnv } from '../../core/config/env';
 import { CliController } from './cli.controller';
 
@@ -85,18 +83,6 @@ export class WattpadCloudApiServer {
           // --- BINARY DOWNLOAD ENDPOINT ---
           if (path.startsWith('/cli/download/') && (method === 'GET' || method === 'HEAD')) {
             const target = path.replace('/cli/download/', '');
-            const filename = target.includes('win') ? 'wattpad.exe' : `wattpad-${target}`;
-            const localFile = nodePath.resolve(process.cwd(), `dist/${filename}`);
-            if (fs.existsSync(localFile)) {
-              const fileBuffer = fs.readFileSync(localFile);
-              return new Response(method === 'HEAD' ? null : fileBuffer, {
-                headers: {
-                  'Content-Type': 'application/octet-stream',
-                  'Content-Disposition': `attachment; filename="${nodePath.basename(localFile)}"`,
-                  'Cache-Control': 'no-cache, no-store, must-revalidate',
-                },
-              });
-            }
             const releaseUrl = CliController.getDownloadUrl(target);
             return new Response(null, {
               status: 302,

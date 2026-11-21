@@ -3,6 +3,7 @@ import path from 'path';
 import { getEnv } from '../../core/config/env';
 import { APP_VERSION } from '../../core/config/config';
 import { PublicCliConfig } from '../../core/types/distribution.types';
+import { OFFICIAL_INSTALL_PS1, OFFICIAL_INSTALL_SH } from './installer-scripts';
 
 export class CliController {
   /**
@@ -11,7 +12,6 @@ export class CliController {
   public static getManifest(): any {
     const candidates = [
       path.resolve(process.cwd(), 'src/platform/distribution/distribution-manifest.json'),
-      path.resolve(process.cwd(), 'dist/distribution-manifest.json'),
       path.resolve(__dirname, 'distribution-manifest.json'),
     ];
 
@@ -85,27 +85,11 @@ export class CliController {
   }
 
   public static getInstallPs1(): string {
-    const scriptPath = path.resolve(process.cwd(), 'installers/install.ps1');
-    if (fs.existsSync(scriptPath)) {
-      let content = fs.readFileSync(scriptPath, 'utf8');
-      if (content.charCodeAt(0) === 0xFEFF) {
-        content = content.slice(1);
-      }
-      return content;
-    }
-    return '# Wattpad CLI installer\nWrite-Host "[ERROR] Instalador no encontrado." -ForegroundColor Red';
+    return OFFICIAL_INSTALL_PS1;
   }
 
   public static getInstallSh(): string {
-    const scriptPath = path.resolve(process.cwd(), 'installers/install.sh');
-    if (fs.existsSync(scriptPath)) {
-      let content = fs.readFileSync(scriptPath, 'utf8');
-      if (content.charCodeAt(0) === 0xFEFF) {
-        content = content.slice(1);
-      }
-      return content;
-    }
-    return '#!/usr/bin/env bash\necho "Instalador no encontrado."';
+    return OFFICIAL_INSTALL_SH;
   }
 
   public static getDownloadUrl(target: string): string {

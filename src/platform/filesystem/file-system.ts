@@ -16,12 +16,6 @@ export class FileSystemManager {
       const localMisNovelas = path.resolve(process.cwd(), 'Mis novelas');
       this.baseDocsDir = localMisNovelas;
     }
-
-    if (!fs.existsSync(this.baseDocsDir)) {
-      try {
-        fs.mkdirSync(this.baseDocsDir, { recursive: true });
-      } catch {}
-    }
   }
 
   public getBaseDir(): string {

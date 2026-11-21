@@ -112,8 +112,8 @@
 El backend en Render opera de forma 100% autónoma y no depende de GitHub Actions:
 1. Conecta el repositorio `https://github.com/MiguelCarlosRojas/Wattpad-CLI` en el panel de Render.
 2. Selecciona **Web Service** con runtime nativo **Bun** (o Dockerfile con Bun v1.4.4).
-3. **Comando de Compilación (Build Command):** `bun install && bun run build:api` (o `bun run build`).
-4. **Comando de Inicio (Start Command):** `bun run start:api` (ejecuta `dist/server.js` optimizado).
+3. **Comando de Compilación (Build Command):** `bun install`.
+4. **Comando de Inicio (Start Command):** `bun run start:api` (ejecuta `src/platform/distribution/server.ts` con Bun).
 5. Añade un **PostgreSQL Database** en Render y vincula automáticamente la variable `DATABASE_URL`.
 6. Define las variables secretas (`JWT_ACCESS_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, etc.) en la pestaña **Environment** de Render.
 7. Los despliegues se disparan automáticamente en Render con cada commit a `main`, sin depender de pipelines o runners externos.

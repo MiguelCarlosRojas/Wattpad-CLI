@@ -1,2 +1,0 @@
-#!/usr/bin/env sh
-exec bun run "$(dirname "$0")/../src/cli/main.ts" "$@"
