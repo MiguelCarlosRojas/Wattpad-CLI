@@ -680,5 +680,123 @@ export function createGeneralCommands(): CommandDefinition[] {
         };
       },
     },
+
+    {
+      name: '/actualizar',
+      category: 'general',
+      description: 'Actualiza y sincroniza todo el catálogo y métricas de Wattpad',
+      descriptionEn: 'Refreshes and syncs catalog and metrics from Wattpad',
+      usage: '/actualizar',
+      examples: ['/actualizar'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        return await executeRefresh(app, parsed);
+      },
+    },
+
+    {
+      name: '/stats',
+      category: 'general',
+      description: 'Consulta lecturas, votos, comentarios y estadísticas de tus obras',
+      descriptionEn: 'View reads, votes, comments and statistics of your stories',
+      usage: '/stats [NOV-xxxx | storyId]',
+      examples: ['/stats', '/stats NOV-0001'],
+      execute: (app, parsed: ParsedCommand): CommandResult => {
+        const targetId = parsed.subcommand || parsed.args[0] || app.currentStoryId;
+        const remoteStories = app.remoteStories || [];
+        const localStories = app.storyRepo.findAll();
+
+        if (targetId) {
+          const remote = remoteStories.find((s: any) => String(s.id) === String(targetId) || s.title?.toLowerCase().includes(targetId.toLowerCase()));
+          const local = localStories.find((s: any) => s.id === targetId || s.title?.toLowerCase().includes(targetId.toLowerCase()));
+
+          const title = remote?.title || local?.title || targetId;
+          const reads = remote?.readCount || 0;
+          const votes = remote?.voteCount || 0;
+          const comments = remote?.commentCount || 0;
+          const parts = remote?.numParts || (local ? app.chapterRepo.findByStoryId(local.id).length : 0);
+
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: `ESTADÍSTICAS: ${title}`,
+                subtitle: `Identificador: ${remote?.id || local?.id || targetId}`,
+                statusBadge: remote?.published ? 'PUBLICADA' : 'BORRADOR',
+                statusColor: remote?.published ? '#28A745' : '#FF6122',
+                fields: [
+                  { label: 'Lecturas totales', value: `${reads.toLocaleString()} lecturas` },
+                  { label: 'Votos recibidos', value: `${votes.toLocaleString()} votos` },
+                  { label: 'Comentarios', value: `${comments.toLocaleString()} comentarios` },
+                  { label: 'Partes / Capítulos', value: `${parts} capítulos` },
+                  { label: 'Género', value: remote?.genre || local?.genre || 'Ficción' },
+                  { label: 'Última modificación', value: remote?.lastModified || (local?.updatedAt ? new Date(local.updatedAt).toLocaleDateString() : 'Reciente') },
+                ],
+              },
+            ],
+            message: `Estadísticas de "${title}": ${reads} lecturas, ${votes} votos, ${comments} comentarios.`,
+          };
+        }
+
+        // Estadísticas agregadas globales
+        let totalReads = 0;
+        let totalVotes = 0;
+        let totalComments = 0;
+        let totalParts = 0;
+
+        for (const s of remoteStories) {
+          totalReads += s.readCount || 0;
+          totalVotes += s.voteCount || 0;
+          totalComments += s.commentCount || 0;
+          totalParts += s.numParts || 0;
+        }
+
+        const publishedCount = remoteStories.filter((s: any) => s.published).length;
+        const draftCount = remoteStories.filter((s: any) => !s.published).length + localStories.length;
+
+        const storyItems = remoteStories.map((s: any) => ({
+          primary: `${s.title} [${s.published ? 'Publicada' : 'Borrador'}]`,
+          secondary: `${(s.readCount || 0).toLocaleString()} lecturas · ${(s.voteCount || 0).toLocaleString()} votos · ${(s.commentCount || 0).toLocaleString()} comentarios`,
+          badge: s.numParts ? `${s.numParts} caps` : '0 caps',
+        }));
+
+        return {
+          success: true,
+          blocks: [
+            {
+              type: 'card',
+              title: 'ESTADÍSTICAS GENERALES DE AUTOR',
+              subtitle: app.currentUser ? `Autor: @${app.currentUser.username}` : 'Catálogo local y remoto',
+              statusBadge: `${totalReads.toLocaleString()} LECTURAS`,
+              statusColor: '#28A745',
+              fields: [
+                { label: 'Lecturas acumuladas', value: `${totalReads.toLocaleString()} lecturas` },
+                { label: 'Votos acumulados', value: `${totalVotes.toLocaleString()} votos` },
+                { label: 'Comentarios', value: `${totalComments.toLocaleString()} comentarios` },
+                { label: 'Obras Publicadas', value: `${publishedCount} obra(s)` },
+                { label: 'Borradores', value: `${draftCount} obra(s)` },
+                { label: 'Total Capítulos', value: `${totalParts} partes` },
+              ],
+              items: storyItems.length > 0 ? storyItems.slice(0, 6) : undefined,
+            },
+          ],
+          message: `Resumen de estadísticas: ${totalReads.toLocaleString()} lecturas, ${totalVotes.toLocaleString()} votos, ${totalComments.toLocaleString()} comentarios.`,
+        };
+      },
+    },
+
+    {
+      name: '/estadisticas',
+      category: 'general',
+      description: 'Consulta lecturas, votos y comentarios de tus obras',
+      descriptionEn: 'View reads, votes and comments of your stories',
+      usage: '/estadisticas [NOV-xxxx]',
+      examples: ['/estadisticas'],
+      execute: (app, parsed: ParsedCommand): CommandResult => {
+        const statsCmd = app.registry.get('/stats');
+        if (statsCmd) return statsCmd.execute(app, parsed) as any;
+        return { success: false, message: 'Comando no disponible' };
+      },
+    },
   ];
 }

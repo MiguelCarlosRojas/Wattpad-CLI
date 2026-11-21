@@ -259,11 +259,14 @@ describe('WATTPAD CLI v1.0.1 — Motor de Comandos Interactivos con 4 Flechas', 
       let rendered = stripAnsi(view.render(80, 24).join('\n'));
       expect(rendered).toContain('OPCIONES PARA: Novela Épica');
       expect(rendered).toContain('1. Abrir novela');
-      expect(rendered).toContain('2. Editar información');
-      expect(rendered).toContain('3. Ver capítulos');
-      expect(rendered).toContain('4. Publicar / Actualizar');
-      expect(rendered).toContain('5. Exportar a Word (.docx)');
-      expect(rendered).toContain('6. Eliminar');
+      expect(rendered).toContain('2. Ver capítulos');
+      expect(rendered).toContain('3. Crear capítulo');
+      expect(rendered).toContain('4. Editar información');
+      expect(rendered).toContain('5. Publicar cambios');
+      expect(rendered).toContain('6. Sincronizar');
+      expect(rendered).toContain('7. Consultar estadísticas');
+      expect(rendered).toContain('8. Exportar novela');
+      expect(rendered).toContain('9. Eliminar novela');
 
       // Confirmar primera acción (abrir)
       view.handleKeyPress('', { name: 'return' } as any);

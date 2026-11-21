@@ -13,6 +13,7 @@ export interface HeaderProps {
   activeStory?: string | null;
   activeChapter?: string | null;
   activePath?: string | null;
+  localChanges?: string | null;
   mode?: 'completa' | 'compacta' | 'zen';
 }
 
@@ -88,15 +89,24 @@ export class Header {
     }
     lines.push(padEndVisible(`${logo2}${line2Content}`, width));
 
-    // Línea 3: Contexto activo o ruta de documentos ~/Documents/Wattpad/Novelas
-    let line3Content: string;
+    // Línea 3: Contexto activo o ruta de documentos ~/Documents/Wattpad/Novelas [+ Indicador de cambios locales]
+    let line3Left: string;
     if (props.activeStory) {
       const storyName = Chalk.hex(Theme.colors.primary, props.activeStory);
       const chapterPart = props.activeChapter ? Chalk.dim(' · Cap: ') + Chalk.hex(Theme.colors.text, props.activeChapter) : '';
-      line3Content = Chalk.dim('Novela: ') + storyName + chapterPart;
+      line3Left = Chalk.dim('Novela: ') + storyName + chapterPart;
     } else {
       const pathText = props.activePath || '~/Documents/Wattpad/Novelas';
-      line3Content = Chalk.hex(Theme.colors.textSecondary, pathText);
+      line3Left = Chalk.hex(Theme.colors.textSecondary, pathText);
+    }
+
+    let line3Content = line3Left;
+    if (props.localChanges) {
+      const changesText = Chalk.hex(Theme.colors.warning, props.localChanges);
+      const availableL3 = width - logoPrefixLen - stripAnsi(line3Left).length - stripAnsi(changesText).length;
+      if (availableL3 >= 2) {
+        line3Content = `${line3Left}${' '.repeat(availableL3)}${changesText}`;
+      }
     }
     lines.push(padEndVisible(`${logo3}${line3Content}`, width));
 

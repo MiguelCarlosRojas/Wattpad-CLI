@@ -18,11 +18,14 @@ export class InteractiveCatalogView implements InteractiveView {
 
   private contextActions = [
     { id: 'open', label: '1. Abrir novela' },
-    { id: 'edit', label: '2. Editar información' },
-    { id: 'chapters', label: '3. Ver capítulos' },
-    { id: 'publish', label: '4. Publicar / Actualizar' },
-    { id: 'export_word', label: '5. Exportar a Word (.docx)' },
-    { id: 'delete', label: '6. Eliminar' },
+    { id: 'chapters', label: '2. Ver capítulos' },
+    { id: 'create_chapter', label: '3. Crear capítulo' },
+    { id: 'edit_info', label: '4. Editar información' },
+    { id: 'publish', label: '5. Publicar cambios' },
+    { id: 'sync', label: '6. Sincronizar' },
+    { id: 'stats', label: '7. Consultar estadísticas' },
+    { id: 'export', label: '8. Exportar novela' },
+    { id: 'delete', label: '9. Eliminar novela' },
   ];
 
   constructor(private props: CatalogViewProps) {}
@@ -149,18 +152,19 @@ export class InteractiveCatalogView implements InteractiveView {
         const isSelected = absIdx === this.selectedIndex;
         const marker = isSelected ? Chalk.bold(Chalk.hex(Theme.colors.primary, ' › ')) : '   ';
 
-        const title = it.title || it.fileName || 'Sin título';
-        const idBadge = it.id ? Chalk.dim(`[${it.id}] `) : (it.format ? Chalk.dim(`[${it.format.toUpperCase()}] `) : '');
-        const titleStyled = isSelected ? Chalk.bold(Chalk.hex(Theme.colors.primary, title)) : Chalk.hex(Theme.colors.text, title);
+        const rawTitle = it.title || it.detectedTitle || it.fileName || 'Sin título';
+        const title = rawTitle.slice(0, 26).padEnd(28);
+        const caps = it.chaptersCount ?? it.numParts ?? it.chapterCount ?? (it.parts ? it.parts.length : 0);
+        const pubStatus = it.published ? 'Publicada' : 'Borrador';
+        const syncStatus = it.synced === false ? '2 cambios locales' : 'Sincronizada';
+        const meta = `${caps} caps · ${pubStatus} · ${syncStatus}`;
 
-        let extraMeta = '';
-        if (it.chaptersCount !== undefined) extraMeta += ` ${it.chaptersCount} caps`;
-        if (it.totalWords !== undefined) extraMeta += ` · ${it.totalWords} palabras`;
-        if (it.genre) extraMeta += ` · ${it.genre}`;
+        const titleStyled = isSelected ? Chalk.bold(Chalk.hex(Theme.colors.primary, title)) : Chalk.hex(Theme.colors.text, title);
+        const metaStyled = isSelected ? Chalk.hex(Theme.colors.white, meta) : Chalk.dim(meta);
 
         lines.push(
           Chalk.hex(Theme.colors.surfaceBorder, '│ ') +
-          padEndVisible(`${marker}${idBadge}${titleStyled}${Chalk.dim(extraMeta)}`, innerW) +
+          padEndVisible(`${marker}${titleStyled}${metaStyled}`, innerW) +
           Chalk.hex(Theme.colors.surfaceBorder, ' │')
         );
       });
@@ -178,14 +182,15 @@ export class InteractiveCatalogView implements InteractiveView {
     lines.push(Chalk.hex(Theme.colors.surfaceBorder, `├${'─'.repeat(w - 2)}┤`));
     const selectedItem = currentList[this.selectedIndex];
     if (selectedItem) {
-      const itemTitle = selectedItem.title || selectedItem.fileName || 'Novela';
-      const itemStatus = selectedItem.status || (this.activeTab === 'published' ? 'Publicada' : (this.activeTab === 'drafts' ? 'Borrador en Wattpad' : 'Manuscrito local'));
-      const itemCaps = selectedItem.chaptersCount ?? selectedItem.chapters?.length ?? 'N/D';
-      const itemWords = selectedItem.totalWords ?? selectedItem.wordCount ?? 'N/D';
-      const updated = selectedItem.updatedAt ? new Date(selectedItem.updatedAt).toLocaleDateString() : 'Reciente';
+      const itemTitle = selectedItem.title || selectedItem.detectedTitle || selectedItem.fileName || 'Novela';
+      const itemGenre = selectedItem.genre || 'Ficción';
+      const itemStatus = selectedItem.published ? 'Publicada' : (selectedItem.status || 'Borrador');
+      const itemCaps = selectedItem.chaptersCount ?? selectedItem.numParts ?? selectedItem.chapterCount ?? '0';
+      const updated = selectedItem.lastModified || (selectedItem.updatedAt ? new Date(selectedItem.updatedAt).toLocaleDateString() : 'Reciente');
+      const syncStatus = selectedItem.synced === false ? 'Cambios pendientes' : 'Sincronizada';
 
-      const infoLine1 = `Novela: ${itemTitle}  ·  Estado: ${itemStatus}  ·  Actualizado: ${updated}`;
-      const infoLine2 = `Capítulos: ${itemCaps}  ·  Palabras: ${itemWords}  ·  Enter: Menú de acciones`;
+      const infoLine1 = `Nombre: ${itemTitle} · Género: ${itemGenre} · Caps: ${itemCaps} · Estado: ${itemStatus}`;
+      const infoLine2 = `Actualizado: ${updated} · Sincronización: ${syncStatus} · Enter: Panel de administración`;
 
       lines.push(
         Chalk.hex(Theme.colors.surfaceBorder, '│ ') +

@@ -586,7 +586,35 @@ export function createStoryCommands(): CommandDefinition[] {
                   app.appShell.setNotification(`✓ Novela activa: ${item.title || item.id}`);
                 } else if (actionId === 'chapters') {
                   const chapCmd = app.registry.get('/chapters');
-                  if (chapCmd) chapCmd.execute(app, { command: '/chapters', args: [], flags: {} });
+                  if (chapCmd) chapCmd.execute(app, { raw: `/chapters ${item.id}`, name: '/chapters', args: [item.id], flags: {} });
+                } else if (actionId === 'create_chapter') {
+                  app.currentStoryId = item.id;
+                  const chapCmd = app.registry.get('/chapter');
+                  if (chapCmd) chapCmd.execute(app, { raw: `/chapter create "Nuevo Capítulo"`, name: '/chapter', subcommand: 'create', args: ['Nuevo Capítulo'], flags: {} });
+                } else if (actionId === 'edit_info') {
+                  app.currentStoryId = item.id;
+                  const storyCmd = app.registry.get('/story');
+                  if (storyCmd) storyCmd.execute(app, { raw: `/story info ${item.id}`, name: '/story', subcommand: 'info', args: [item.id], flags: {} });
+                } else if (actionId === 'publish') {
+                  const pubCmd = app.registry.get('/publish');
+                  if (pubCmd) pubCmd.execute(app, { raw: `/publish story ${item.id}`, name: '/publish', subcommand: 'story', args: [item.id], flags: {} });
+                } else if (actionId === 'sync') {
+                  const syncCmd = app.registry.get('/sync');
+                  if (syncCmd) syncCmd.execute(app, { raw: `/sync story ${item.id}`, name: '/sync', subcommand: 'story', args: [item.id], flags: {} });
+                } else if (actionId === 'stats') {
+                  const statsCmd = app.registry.get('/stats');
+                  if (statsCmd) statsCmd.execute(app, { raw: `/stats ${item.id}`, name: '/stats', args: [item.id], flags: {} });
+                } else if (actionId === 'export') {
+                  if (app.wordService && item.id) {
+                    const story = app.storyRepo.findById(item.id);
+                    if (story) {
+                      app.wordService.exportStoryToDocx(story, app.chapterRepo.findByStoryId(item.id));
+                      app.appShell.setNotification(`✓ Novela exportada a Word: ${story.title}.docx`);
+                    }
+                  }
+                } else if (actionId === 'delete' && item.id) {
+                  const storyCmd = app.registry.get('/story');
+                  if (storyCmd) storyCmd.execute(app, { raw: `/story delete ${item.id} --confirm`, name: '/story', subcommand: 'delete', args: [item.id], flags: { confirm: true } });
                 }
               },
             })
@@ -1063,6 +1091,96 @@ export function createStoryCommands(): CommandDefinition[] {
         return {
           success: false,
           blocks: [{ type: 'error', title: 'Subcomando no reconocido', content: `Uso: /story [create | open | info | edit | delete | privacy]` }],
+        };
+      },
+    },
+
+    {
+      name: '/novelas',
+      subcommands: ['search', 'drafts', 'published', 'borradores', 'publicadas', 'local', 'manuscritos', 'refresh', 'all'],
+      category: 'stories',
+      description: 'Listar y abrir una novela del directorio',
+      descriptionEn: 'List and open a story from directory',
+      usage: '/novelas [--published | --drafts | --local | --all]',
+      examples: ['/novelas', '/novelas --published', '/novelas --drafts'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        const storiesCmd = app.registry.get('/stories');
+        if (storiesCmd) {
+          return await storiesCmd.execute(app, parsed);
+        }
+        return { success: false, message: 'Comando no disponible' };
+      },
+    },
+
+    {
+      name: '/novela',
+      subcommands: ['create', 'new', 'open', 'info', 'edit', 'delete', 'privacy'],
+      category: 'stories',
+      description: 'Administración y detalles de una novela específica',
+      descriptionEn: 'Management and details of a specific story',
+      usage: '/novela [create <título> | open NOV-xxxx | info NOV-xxxx | edit NOV-xxxx | delete NOV-xxxx]',
+      examples: ['/novela create "Mi Novela"', '/novela open NOV-0001', '/novela info NOV-0001'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        const storyCmd = app.registry.get('/story');
+        if (storyCmd) {
+          return await storyCmd.execute(app, parsed);
+        }
+        return { success: false, message: 'Comando no disponible' };
+      },
+    },
+
+    {
+      name: '/nuevo',
+      subcommands: ['novela', 'capitulo', 'capítulo'],
+      category: 'stories',
+      description: 'Crear una nueva novela o capítulo en local',
+      descriptionEn: 'Create a new story or chapter locally',
+      usage: '/nuevo [novela <título> | capitulo <título>]',
+      examples: ['/nuevo', '/nuevo novela "Mi Nueva Novela"', '/nuevo capitulo "Capítulo 1"'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        const type = (parsed.subcommand || parsed.args[0] || '').toLowerCase();
+        const titleArg = parsed.subcommand ? parsed.args.join(' ') : parsed.args.slice(1).join(' ');
+        const finalTitle = titleArg.trim() || 'Nueva Obra';
+
+        if (type === 'novela' || type === 'story') {
+          const storyCmd = app.registry.get('/story');
+          return await storyCmd.execute(app, {
+            raw: `/story create "${finalTitle}"`,
+            name: '/story',
+            subcommand: 'create',
+            args: [finalTitle],
+            flags: {},
+          });
+        }
+
+        if (type === 'capitulo' || type === 'capítulo' || type === 'chapter') {
+          const chapCmd = app.registry.get('/chapter');
+          return await chapCmd.execute(app, {
+            raw: `/chapter create "${finalTitle}"`,
+            name: '/chapter',
+            subcommand: 'create',
+            args: [finalTitle],
+            flags: {},
+          });
+        }
+
+        return {
+          success: true,
+          blocks: [
+            {
+              type: 'card',
+              title: 'CREACIÓN RÁPIDA LOCAL',
+              subtitle: 'Elige qué deseas crear en tu catálogo',
+              statusBadge: 'NUEVO',
+              statusColor: '#FF6122',
+              fields: [
+                { label: 'Crear Novela', value: '/nuevo novela "Título de tu Novela"' },
+                { label: 'Crear Capítulo', value: '/nuevo capitulo "Título del Capítulo"' },
+                { label: 'Novela Activa', value: app.currentStoryId || 'Ninguna seleccionada' },
+              ],
+            },
+          ],
+          message: 'Usa /nuevo novela "Título" o /nuevo capitulo "Título" para crear contenido.',
         };
       },
     },

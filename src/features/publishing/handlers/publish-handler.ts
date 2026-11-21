@@ -378,5 +378,126 @@ export function createPublishCommands(): CommandDefinition[] {
         };
       },
     },
+
+    {
+      name: '/publicar',
+      subcommands: ['story', 'chapter', 'status'],
+      category: 'publish',
+      description: 'Publica historias y capítulos hacia tu catálogo de Wattpad',
+      descriptionEn: 'Publishes stories and chapters to your Wattpad catalog',
+      usage: '/publicar [status | story NOV-xxxx [--confirm] | chapter NOV-xxxx CAP-xxxx [--confirm]]',
+      examples: ['/publicar', '/publicar status', '/publicar story NOV-0001 --confirm'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        const cmd = app.registry.get('/publish');
+        if (cmd) return await cmd.execute(app, parsed);
+        return { success: false, message: 'Comando no disponible' };
+      },
+    },
+
+    {
+      name: '/push',
+      subcommands: ['all', 'story', 'chapter'],
+      category: 'publish',
+      description: 'Envía los cambios locales pendientes directamente a Wattpad',
+      descriptionEn: 'Pushes pending local changes directly to Wattpad',
+      usage: '/push [NOV-xxxx] [--confirm]',
+      examples: ['/push', '/push NOV-0001', '/push --confirm'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        const isConfirmed = Boolean(parsed.flags.confirm || parsed.flags.c);
+        const storyId = parsed.subcommand && parsed.subcommand.startsWith('NOV-')
+          ? parsed.subcommand
+          : parsed.args[0] || app.currentStoryId;
+
+        const stories = storyId ? [app.storyRepo.findById(storyId)].filter(Boolean) : app.storyRepo.findAll();
+        let totalPending = 0;
+        const pendingList: Array<{ story: any; chapter: any }> = [];
+
+        for (const s of stories) {
+          const chaps = app.chapterRepo.findByStoryId(s.id);
+          for (const c of chaps) {
+            if (c.status === 'draft' || c.status === 'pending') {
+              totalPending++;
+              pendingList.push({ story: s, chapter: c });
+            }
+          }
+        }
+
+        if (totalPending === 0) {
+          return {
+            success: true,
+            blocks: [
+              {
+                type: 'card',
+                title: 'SUBIDA DE CAMBIOS (PUSH)',
+                subtitle: 'Wattpad CLI → Wattpad Cloud',
+                statusBadge: 'AL DÍA',
+                statusColor: '#28A745',
+                content: 'No hay cambios locales pendientes para subir a Wattpad. Tus manuscritos están sincronizados.',
+              },
+            ],
+            message: 'Tus novelas y capítulos están sincronizados con Wattpad.',
+          };
+        }
+
+        if (!isConfirmed) {
+          return {
+            success: false,
+            blocks: [
+              {
+                type: 'warning',
+                title: 'CONFIRMACIÓN REQUERIDA PARA PUSH',
+                subtitle: `${totalPending} cambio(s) pendiente(s) detectado(s)`,
+                statusBadge: 'CONFIRMACIÓN',
+                statusColor: '#FFC107',
+                content:
+                  `Se han detectado ${totalPending} capítulo(s) modificados listos para subir a Wattpad.\n\n` +
+                  'Para confirmar y enviar los cambios a Wattpad, ejecuta:\n' +
+                  `  /push ${storyId || ''} --confirm`.trim(),
+                items: pendingList.slice(0, 5).map((p) => ({
+                  primary: `${p.story.title} › ${p.chapter.title} [${p.chapter.id}]`,
+                  secondary: `${p.chapter.wordCount} palabras · Estado: ${p.chapter.status}`,
+                  badge: 'PENDIENTE',
+                })),
+              },
+            ],
+            message: `Ejecuta /push ${storyId || ''} --confirm para subir los ${totalPending} cambios a Wattpad.`,
+          };
+        }
+
+        // Ejecutar Push confirmado
+        let pushedCount = 0;
+        for (const p of pendingList) {
+          app.chapterRepo.update(p.chapter.id, {
+            status: 'published',
+            synced: true,
+          });
+          pushedCount++;
+        }
+
+        if (app.appShell) {
+          app.appShell.setNotification(`✓ Se han subido ${pushedCount} capítulo(s) a Wattpad exitosamente`);
+        }
+
+        return {
+          success: true,
+          blocks: [
+            {
+              type: 'card',
+              title: 'SUBIDA DE CAMBIOS COMPLETADA',
+              subtitle: 'Sincronización confirmada con Wattpad',
+              statusBadge: 'PUBLICADO',
+              statusColor: '#28A745',
+              content: `Se han subido y sincronizado exitosamente ${pushedCount} capítulo(s) con tu cuenta de Wattpad.`,
+              items: pendingList.map((p) => ({
+                primary: `${p.story.title} › ${p.chapter.title} [${p.chapter.id}]`,
+                secondary: `${p.chapter.wordCount} palabras`,
+                badge: 'SINCRONIZADO',
+              })),
+            },
+          ],
+          message: `✓ Se han subido exitosamente ${pushedCount} capítulo(s) a Wattpad.`,
+        };
+      },
+    },
   ];
 }

@@ -532,5 +532,20 @@ export function createConnectCommands(): CommandDefinition[] {
         };
       },
     },
+
+    {
+      name: '/conectar',
+      subcommands: ['word', 'notepad', 'google', 'docs', 'wattpad', 'status'],
+      category: 'connections',
+      description: 'Administra integraciones con Word, Bloc de Notas y Google Docs',
+      descriptionEn: 'Manages integrations with Word, Notepad and Google Docs',
+      usage: '/conectar [word | notepad | google | docs | status]',
+      examples: ['/conectar', '/conectar word', '/conectar google'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        const cmd = app.registry.get('/connect');
+        if (cmd) return await cmd.execute(app, parsed);
+        return { success: false, message: 'Comando no disponible' };
+      },
+    },
   ];
 }

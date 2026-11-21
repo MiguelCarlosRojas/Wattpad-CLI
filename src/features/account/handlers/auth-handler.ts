@@ -636,5 +636,33 @@ export function createAuthCommands(): CommandDefinition[] {
         return { success: false, message: 'Comando no disponible.' };
       },
     },
+
+    {
+      name: '/biblioteca',
+      category: 'account',
+      description: 'Consulta tus listas de lectura y novelas guardadas en la biblioteca de Wattpad',
+      descriptionEn: 'Views reading lists and saved stories in your Wattpad library',
+      usage: '/biblioteca',
+      examples: ['/biblioteca'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        const cmd = app.registry.get('/library');
+        if (cmd) return await cmd.execute(app, parsed);
+        return { success: false, message: 'Comando no disponible' };
+      },
+    },
+
+    {
+      name: '/mensajes',
+      category: 'account',
+      description: 'Consulta tu buzón de notificaciones y mensajes en Wattpad',
+      descriptionEn: 'Views notifications and messages from Wattpad',
+      usage: '/mensajes',
+      examples: ['/mensajes'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        const cmd = app.registry.get('/inbox');
+        if (cmd) return await cmd.execute(app, parsed);
+        return { success: false, message: 'Comando no disponible' };
+      },
+    },
   ];
 }

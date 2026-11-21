@@ -82,4 +82,48 @@ describe('Application Command Execution', () => {
     expect(res.success).toBe(true);
     expect(res.exitApp).toBe(true);
   });
+
+  it('debe ejecutar /novelas, /novela, /nuevo, /stats, /push y /capitulos', async () => {
+    // 1. /nuevo novela
+    const resNuevoStory = await app.executeCommand('/nuevo novela "Aventuras de Avalon"');
+    expect(resNuevoStory.success).toBe(true);
+    expect(app.currentStoryId).toBe('NOV-0001');
+
+    // 2. /novelas
+    const resNovelas = await app.executeCommand('/novelas');
+    expect(resNovelas.success).toBe(true);
+    expect(resNovelas.blocks!.length).toBeGreaterThan(0);
+
+    // 3. /novela
+    const resNovela = await app.executeCommand('/novela info NOV-0001');
+    expect(resNovela.success).toBe(true);
+    expect(resNovela.blocks![0].title).toContain('Aventuras de Avalon');
+    expect(resNovela.blocks![0].subtitle).toContain('NOV-0001');
+
+    // 4. /nuevo capitulo
+    const resNuevoCap = await app.executeCommand('/nuevo capitulo "Capítulo Primero"');
+    expect(resNuevoCap.success).toBe(true);
+
+    // 5. /capitulos
+    const resCaps = await app.executeCommand('/capitulos');
+    expect(resCaps.success).toBe(true);
+    expect(resCaps.blocks!.some((b) => b.title?.includes('CAP-0001'))).toBe(true);
+
+    // 6. /capitulo
+    const resCap = await app.executeCommand('/capitulo info CAP-0001');
+    expect(resCap.success).toBe(true);
+
+    // 7. /stats
+    const resStats = await app.executeCommand('/stats');
+    expect(resStats.success).toBe(true);
+    expect(resStats.blocks![0].title).toContain('ESTADÍSTICAS');
+
+    // 8. /push (requiere confirmación)
+    const resPushWarn = await app.executeCommand('/push');
+    expect(resPushWarn.blocks![0].type).toBe('warning');
+
+    const resPushConfirm = await app.executeCommand('/push --confirm');
+    expect(resPushConfirm.success).toBe(true);
+    expect(resPushConfirm.blocks![0].statusBadge).toBe('PUBLICADO');
+  });
 });

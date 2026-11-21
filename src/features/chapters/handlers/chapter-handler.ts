@@ -183,6 +183,10 @@ export function createChapterCommands(): CommandDefinition[] {
           sub = 'status';
         }
 
+        if (sub === 'info' || sub === 'detalle' || sub === 'detalles') {
+          sub = 'status';
+        }
+
         // Si no hay subcomando pero hay capítulo activo, mostrar status
         if (!sub && app.currentChapterId) {
           sub = 'status';
@@ -778,12 +782,67 @@ export function createChapterCommands(): CommandDefinition[] {
               statusColor: '#32D583',
               fields: [
                 { label: 'Capítulo', value: chapter.title },
-                { label: 'Atajos', value: 'Ctrl+S: Guardar | Ctrl+F: Buscar | Esc: Salir' },
+                { label: 'Atajos', value: 'Ctrl+S: Guardar | Ctrl+F: Buscar | Esc Salir' },
               ],
             },
           ],
           message: `Editor multilínea abierto para "${chapter.title}".`,
         };
+      },
+    },
+
+    {
+      name: '/capitulos',
+      category: 'chapters',
+      description: 'Lista los capítulos de la novela activa con su estado, palabras y versiones',
+      descriptionEn: 'Lists chapters of the active story with their status and word count',
+      usage: '/capitulos [NOV-xxxx]',
+      examples: ['/capitulos', '/capitulos NOV-0001'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        const cmd = app.registry.get('/chapters');
+        if (cmd) return await cmd.execute(app, parsed);
+        return { success: false, message: 'Comando no disponible' };
+      },
+    },
+
+    {
+      name: '/capitulo',
+      subcommands: ['nuevo', 'editar', 'eliminar', 'exportar', 'importar', 'abrir', 'info', 'publicar', 'estado', 'versiones'],
+      category: 'chapters',
+      description: 'Administración de capítulos (crear, editar, eliminar, exportar, importar)',
+      descriptionEn: 'Chapter management (create, edit, delete, export, import)',
+      usage: '/capitulo [nuevo <título> | editar <id> | eliminar <id> | exportar <id> | importar <archivo>]',
+      examples: [
+        '/capitulo nuevo "Capítulo 1"',
+        '/capitulo editar CAP-0001',
+        '/capitulo exportar CAP-0001',
+        '/capitulo importar manuscrito.docx',
+      ],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        // Mapear subcomandos en español a sus equivalentes en inglés si aplica
+        const subMap: Record<string, string> = {
+          nuevo: 'create',
+          editar: 'edit',
+          eliminar: 'delete',
+          exportar: 'export',
+          importar: 'import',
+          abrir: 'open',
+          publicar: 'publish',
+          estado: 'status',
+          versiones: 'versions',
+        };
+
+        const sub = (parsed.subcommand || '').toLowerCase();
+        const mappedSub = subMap[sub] || sub;
+
+        const cmd = app.registry.get('/chapter');
+        if (cmd) {
+          return await cmd.execute(app, {
+            ...parsed,
+            subcommand: mappedSub,
+          });
+        }
+        return { success: false, message: 'Comando no disponible' };
       },
     },
   ];

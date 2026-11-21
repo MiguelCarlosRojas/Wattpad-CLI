@@ -226,5 +226,19 @@ export function createDiscoveryCommands(): CommandDefinition[] {
         };
       },
     },
+
+    {
+      name: '/buscar',
+      category: 'discovery',
+      description: 'Busca novelas y autores directamente en Wattpad',
+      descriptionEn: 'Searches stories and authors directly on Wattpad',
+      usage: '/buscar <término> [--genre=Fantasía] [--completed]',
+      examples: ['/buscar misterio', '/buscar romance --completed'],
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        const cmd = app.registry.get('/search');
+        if (cmd) return await cmd.execute(app, parsed);
+        return { success: false, message: 'Comando no disponible' };
+      },
+    },
   ];
 }

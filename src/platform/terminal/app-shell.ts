@@ -876,6 +876,11 @@ export class AppShell {
     if (this.inputValue.startsWith('/')) {
       const q = this.inputValue.toLowerCase();
       const priority = [
+        '/novelas',
+        '/nuevo',
+        '/push',
+        '/sync',
+        '/stats',
         '/stories',
         '/profile',
         '/discover',
@@ -888,6 +893,8 @@ export class AppShell {
         '/settings',
         '/story',
         '/chapters',
+        '/capitulos',
+        '/capitulo',
         '/login',
         '/status',
         '/version',
@@ -983,6 +990,16 @@ export class AppShell {
     const activeStory = this.stories.find((s) => s.id === this.activeStoryId) || null;
     const activeChapter = this.chapters.find((c) => c.id === this.activeChapterId) || null;
 
+    // Indicador permanente de cambios locales (Prompt Maestro Sección 11)
+    const chapters = this.chapters || [];
+    const pendingChaps = chapters.filter((c) => c.status === 'draft' || c.status === 'pending');
+    let localChangesText: string | null = null;
+    if (pendingChaps.length > 0) {
+      const activeChap = chapters.find((c) => c.id === this.activeChapterId) || pendingChaps[0];
+      const chapName = activeChap ? `${activeChap.id || 'cap'}.md` : 'manuscrito';
+      localChangesText = `${pendingChaps.length} cambios locales · ${chapName}`;
+    }
+
     // 1. Fixed Header con Brand Logo y Estado de Conexión
     const headerProps: HeaderProps = {
       version: this.version || APP_VERSION,
@@ -994,6 +1011,7 @@ export class AppShell {
       serverOnline: this.serverOnline,
       activeStory: activeStory ? `${activeStory.title} [${activeStory.id}]` : null,
       activeChapter: activeChapter ? `${activeChapter.title} [${activeChapter.id}]` : null,
+      localChanges: localChangesText,
       mode: this.viewMode,
     };
     const headerLines = Header.render(headerProps, config);
