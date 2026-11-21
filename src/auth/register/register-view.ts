@@ -4,7 +4,6 @@ import { FooterComponent } from '../../platform/terminal/components/footer';
 import { MenuListComponent } from '../../platform/terminal/components/menu-list';
 import { AuthService } from '../auth-service';
 import { COLORS } from '../../shared/constants/colors.constants';
-import { padCenter } from '../../shared/utils/ansi';
 
 export class RegisterView implements ViewInterface {
   public id = 'register' as const;
@@ -30,20 +29,23 @@ export class RegisterView implements ViewInterface {
 
     lines.push(...HeaderComponent.render({ width }));
 
-    lines.push(padCenter(`${COLORS.BOLD}${COLORS.TEXT_MAIN}Crear Cuenta en Wattpad${COLORS.RESET}`, width));
+    lines.push(`  ${COLORS.BOLD}${COLORS.TEXT_MAIN}Crear cuenta en Wattpad${COLORS.RESET}`);
     lines.push('');
-    lines.push(padCenter(`${COLORS.TEXT_MUTED}El registro se completa de forma oficial y segura en Wattpad.${COLORS.RESET}`, width));
+    lines.push(`  ${COLORS.TEXT_MUTED}El registro se completa de forma oficial y segura en Wattpad.${COLORS.RESET}`);
     lines.push('');
 
     if (this.isLoading) {
-      lines.push(padCenter(`${COLORS.ORANGE}⏳ Abriendo registro oficial en el navegador... Completa el proceso allí.${COLORS.RESET}`, width));
+      lines.push(`  ${COLORS.ORANGE}⏳ Abriendo registro oficial en el navegador... Completa el proceso allí.${COLORS.RESET}`);
       lines.push('');
     } else if (this.statusMessage) {
-      lines.push(padCenter(this.statusMessage, width));
+      lines.push(`  ${this.statusMessage}`);
       lines.push('');
     }
 
-    const menuLines = MenuListComponent.render(this.items, this.selectedIndex, Math.max(8, Math.floor(width / 2) - 18));
+    const menuLines = MenuListComponent.render(this.items, this.selectedIndex, {
+      indent: 2,
+      extraSpacing: true,
+    });
     lines.push(...menuLines);
 
     const currentLines = lines.length;

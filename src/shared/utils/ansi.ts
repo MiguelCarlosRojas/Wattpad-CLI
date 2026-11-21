@@ -9,7 +9,7 @@ import { COLORS } from '../constants/colors.constants';
  */
 export function stripAnsi(str: string): string {
   // eslint-disable-next-line no-control-regex
-  return str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\].*?\x07/g, '');
+  return str.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\].*?\x07/g, '');
 }
 
 /**
@@ -59,8 +59,9 @@ export function padCenter(str: string, targetLength: number): string {
 }
 
 /**
- * Crea una línea divisoria continua
+ * Crea una línea divisoria continua ajustada a la terminal
  */
-export function divider(width: number = 78, char: string = '─'): string {
-  return `${COLORS.BORDER}${char.repeat(width)}${COLORS.RESET}`;
+export function divider(width: number = 80, char: string = '─'): string {
+  const safeWidth = Math.max(10, width);
+  return `${COLORS.BORDER}${char.repeat(safeWidth)}${COLORS.RESET}`;
 }

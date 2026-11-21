@@ -65,7 +65,7 @@ export class ChapterListView implements ViewInterface {
 
         const paddedNum = String(ch.number).padStart(2, '0');
         lines.push(`  ${pointer}${titleStyle}Capítulo ${paddedNum}: ${ch.title}${COLORS.RESET}   ${statusBadge}`);
-        lines.push(`     ${COLORS.TEXT_MUTED}${ch.wordsCount} palabras · ${ch.charsCount} caracteres · ${COLORS.TEXT_DIM}Modificado: ${formatDate(ch.updatedAt)}${COLORS.RESET}`);
+        lines.push(`      ${COLORS.TEXT_MUTED}${ch.wordsCount} palabras · ${ch.charsCount} caracteres · ${COLORS.TEXT_DIM}Modificado: ${formatDate(ch.updatedAt)}${COLORS.RESET}`);
         lines.push('');
       });
     }

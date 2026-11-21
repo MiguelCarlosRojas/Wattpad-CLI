@@ -30,6 +30,8 @@ export class AppShell {
   private isRunning: boolean = false;
   private isPaletteOpen: boolean = false;
   private paletteIndex: number = 0;
+  private isRendering: boolean = false;
+  private renderPending: boolean = false;
 
   private paletteCommands = [
     { label: '1. Buscar novelas', action: () => this.openSearch() },
@@ -42,12 +44,19 @@ export class AppShell {
   ];
 
   constructor() {
-    this.nav = new NavigationManager(() => this.requestRender());
+    this.nav = new NavigationManager(
+      () => this.requestRender(),
+      () => this.handleViewTransition()
+    );
   }
 
   public async start(): Promise<void> {
     this.isRunning = true;
     TerminalAdapter.enterAltBuffer();
+    TerminalAdapter.clearScreen();
+
+    // Registrar escucha centralizada de redimensionamiento de ventana
+    TerminalAdapter.onResize(() => this.handleResize());
 
     // Comprobar si existe una sesión válida previamente guardada
     const hasSession = await SessionManager.init();
@@ -59,33 +68,63 @@ export class AppShell {
     }
 
     KeyboardListener.start(this.handleKeyPress);
-    this.requestRender();
+    this.handleViewTransition();
   }
 
   public shutdown(): void {
     this.isRunning = false;
     KeyboardListener.stop();
+    TerminalAdapter.removeResizeListener();
     TerminalAdapter.exitAltBuffer();
+    TerminalAdapter.showCursor();
     process.exit(0);
+  }
+
+  private handleResize(): void {
+    if (!this.isRunning) return;
+    AnsiRenderer.reset();
+    TerminalAdapter.clearScreen();
+    this.requestRender();
+  }
+
+  private handleViewTransition(): void {
+    if (!this.isRunning) return;
+    AnsiRenderer.reset();
+    TerminalAdapter.clearScreen();
+    this.requestRender();
   }
 
   private requestRender(): void {
     if (!this.isRunning) return;
 
-    const width = TerminalAdapter.getWidth();
-    const height = TerminalAdapter.getHeight();
-    const activeView = this.nav.getActiveView();
-
-    if (!activeView) return;
-
-    let lines = activeView.render(width, height);
-
-    // Si la paleta Ctrl+P está abierta, superponer diálogo
-    if (this.isPaletteOpen) {
-      lines = this.renderCommandPalette(lines, width);
+    if (this.isRendering) {
+      this.renderPending = true;
+      return;
     }
 
-    AnsiRenderer.render(lines);
+    this.isRendering = true;
+    try {
+      const width = TerminalAdapter.getWidth();
+      const height = TerminalAdapter.getHeight();
+      const activeView = this.nav.getActiveView();
+
+      if (!activeView) return;
+
+      let lines = activeView.render(width, height);
+
+      // Si la paleta Ctrl+P está abierta, superponer diálogo
+      if (this.isPaletteOpen) {
+        lines = this.renderCommandPalette(lines, width);
+      }
+
+      AnsiRenderer.render(lines);
+    } finally {
+      this.isRendering = false;
+      if (this.renderPending) {
+        this.renderPending = false;
+        this.requestRender();
+      }
+    }
   }
 
   private handleKeyPress = async (event: KeyPressEvent): Promise<void> => {
@@ -166,7 +205,7 @@ export class AppShell {
   private createLoginView(): LoginView {
     return new LoginView(
       () => {
-        // Al iniciar sesión con éxito, abrir Menú Principal
+        // Al iniciar sesión con éxito, abrir Menú Principal de forma limpia
         this.nav.setRoot(this.createMainMenuView());
       },
       () => {

@@ -43,17 +43,17 @@ export class CreateStoryWizard implements ViewInterface {
       lines.push(`  ${COLORS.TEXT_MUTED}Usa ↑↓ para cambiar de campo, escribe tu texto y presiona Enter al terminar.${COLORS.RESET}`);
       lines.push('');
 
-      const f0Pointer = this.activeFieldIdx === 0 ? `${COLORS.ORANGE}❯ Título:${COLORS.RESET}` : `  Título:`;
-      lines.push(`  ${f0Pointer} ${COLORS.TEXT_MAIN}${this.title}${this.activeFieldIdx === 0 ? '_' : ''}${COLORS.RESET}`);
+      const f0Pointer = this.activeFieldIdx === 0 ? `${COLORS.ORANGE}❯${COLORS.RESET} ` : '  ';
+      lines.push(`  ${f0Pointer}${COLORS.TEXT_MUTED}Título:${COLORS.RESET} ${COLORS.TEXT_MAIN}${this.title}${this.activeFieldIdx === 0 ? '_' : ''}${COLORS.RESET}`);
 
-      const f1Pointer = this.activeFieldIdx === 1 ? `${COLORS.ORANGE}❯ Descripción:${COLORS.RESET}` : `  Descripción:`;
-      lines.push(`  ${f1Pointer} ${COLORS.TEXT_MAIN}${this.description}${this.activeFieldIdx === 1 ? '_' : ''}${COLORS.RESET}`);
+      const f1Pointer = this.activeFieldIdx === 1 ? `${COLORS.ORANGE}❯${COLORS.RESET} ` : '  ';
+      lines.push(`  ${f1Pointer}${COLORS.TEXT_MUTED}Descripción:${COLORS.RESET} ${COLORS.TEXT_MAIN}${this.description}${this.activeFieldIdx === 1 ? '_' : ''}${COLORS.RESET}`);
 
-      const f2Pointer = this.activeFieldIdx === 2 ? `${COLORS.ORANGE}❯ Género:${COLORS.RESET}` : `  Género:`;
-      lines.push(`  ${f2Pointer} ${COLORS.ORANGE}◄ ${this.genre} ►${COLORS.RESET} ${COLORS.TEXT_DIM}(Usa ←→ para cambiar)${COLORS.RESET}`);
+      const f2Pointer = this.activeFieldIdx === 2 ? `${COLORS.ORANGE}❯${COLORS.RESET} ` : '  ';
+      lines.push(`  ${f2Pointer}${COLORS.TEXT_MUTED}Género:${COLORS.RESET} ${COLORS.ORANGE}◄ ${this.genre} ►${COLORS.RESET} ${COLORS.TEXT_DIM}(Usa ←→ para cambiar)${COLORS.RESET}`);
 
-      const f3Pointer = this.activeFieldIdx === 3 ? `${COLORS.ORANGE}❯ Etiquetas:${COLORS.RESET}` : `  Etiquetas:`;
-      lines.push(`  ${f3Pointer} ${COLORS.TEXT_MAIN}${this.tagsStr}${this.activeFieldIdx === 3 ? '_' : ''}${COLORS.RESET} ${COLORS.TEXT_DIM}(separadas por comas)${COLORS.RESET}`);
+      const f3Pointer = this.activeFieldIdx === 3 ? `${COLORS.ORANGE}❯${COLORS.RESET} ` : '  ';
+      lines.push(`  ${f3Pointer}${COLORS.TEXT_MUTED}Etiquetas:${COLORS.RESET} ${COLORS.TEXT_MAIN}${this.tagsStr}${this.activeFieldIdx === 3 ? '_' : ''}${COLORS.RESET} ${COLORS.TEXT_DIM}(separadas por comas)${COLORS.RESET}`);
       lines.push('');
       lines.push(`  ${COLORS.TEXT_DIM}Presiona Tab para avanzar al Paso 2 cuando tengas el título listo.${COLORS.RESET}`);
     } else if (this.currentStep === 2) {

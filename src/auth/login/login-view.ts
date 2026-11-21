@@ -4,7 +4,6 @@ import { FooterComponent } from '../../platform/terminal/components/footer';
 import { MenuListComponent } from '../../platform/terminal/components/menu-list';
 import { AuthService } from '../auth-service';
 import { COLORS } from '../../shared/constants/colors.constants';
-import { padCenter } from '../../shared/utils/ansi';
 
 export class LoginView implements ViewInterface {
   public id = 'login' as const;
@@ -34,32 +33,35 @@ export class LoginView implements ViewInterface {
 
     lines.push(...HeaderComponent.render({ width }));
 
-    lines.push(padCenter(`${COLORS.BOLD}${COLORS.TEXT_MAIN}Iniciar Sesión en Wattpad${COLORS.RESET}`, width));
+    lines.push(`  ${COLORS.BOLD}${COLORS.TEXT_MAIN}Iniciar sesión en Wattpad${COLORS.RESET}`);
     lines.push('');
 
     if (this.isLoading) {
-      lines.push(padCenter(`${COLORS.ORANGE}⏳ Conectando con Wattpad... Por favor espera.${COLORS.RESET}`, width));
+      lines.push(`  ${COLORS.ORANGE}⏳ Conectando con Wattpad... Por favor espera.${COLORS.RESET}`);
       lines.push('');
     } else if (this.statusMessage) {
-      lines.push(padCenter(this.statusMessage, width));
+      lines.push(`  ${this.statusMessage}`);
       lines.push('');
     }
 
     if (this.inputMode === 'none') {
-      const menuLines = MenuListComponent.render(this.items, this.selectedIndex, Math.max(8, Math.floor(width / 2) - 18));
+      const menuLines = MenuListComponent.render(this.items, this.selectedIndex, {
+        indent: 2,
+        extraSpacing: true,
+      });
       lines.push(...menuLines);
     } else if (this.inputMode === 'token-user') {
-      lines.push('    Ingresa tu nombre de usuario de Wattpad:');
-      lines.push(`    ${COLORS.ORANGE}❯${COLORS.RESET} ${this.inputUser}_`);
+      lines.push('  Ingresa tu nombre de usuario de Wattpad:');
+      lines.push(`  ${COLORS.ORANGE}❯${COLORS.RESET} ${this.inputUser}_`);
       lines.push('');
-      lines.push(`    ${COLORS.TEXT_MUTED}[Presiona Enter para continuar, Esc para cancelar]${COLORS.RESET}`);
+      lines.push(`  ${COLORS.TEXT_MUTED}[Presiona Enter para continuar, Esc para cancelar]${COLORS.RESET}`);
     } else if (this.inputMode === 'token-val') {
-      lines.push(`    Usuario: @${this.inputUser}`);
-      lines.push('    Pega o introduce tu token de sesión:');
+      lines.push(`  Usuario: @${this.inputUser}`);
+      lines.push('  Pega o introduce tu token de sesión:');
       const masked = this.inputToken.length > 8 ? `${this.inputToken.substring(0, 4)}••••${this.inputToken.slice(-4)}` : this.inputToken;
-      lines.push(`    ${COLORS.ORANGE}❯${COLORS.RESET} ${masked}_`);
+      lines.push(`  ${COLORS.ORANGE}❯${COLORS.RESET} ${masked}_`);
       lines.push('');
-      lines.push(`    ${COLORS.TEXT_MUTED}[Presiona Enter para verificar, Esc para cancelar]${COLORS.RESET}`);
+      lines.push(`  ${COLORS.TEXT_MUTED}[Presiona Enter para verificar, Esc para cancelar]${COLORS.RESET}`);
     }
 
     const currentLines = lines.length;

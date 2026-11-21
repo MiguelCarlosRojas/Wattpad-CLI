@@ -3,7 +3,6 @@ import { HeaderComponent } from '../../platform/terminal/components/header';
 import { FooterComponent } from '../../platform/terminal/components/footer';
 import { MenuListComponent } from '../../platform/terminal/components/menu-list';
 import { COLORS } from '../../shared/constants/colors.constants';
-import { padCenter } from '../../shared/utils/ansi';
 
 export class WelcomeView implements ViewInterface {
   public id = 'welcome' as const;
@@ -23,28 +22,30 @@ export class WelcomeView implements ViewInterface {
   public render(width: number, height: number): string[] {
     const lines: string[] = [];
 
-    // Encabezado oficial no autenticado
+    // Encabezado oficial no autenticado (mantiene su diseño original)
     lines.push(...HeaderComponent.render({ width }));
 
-    // Título de bienvenida centrado
-    lines.push(padCenter(`${COLORS.BOLD}${COLORS.TEXT_MAIN}Bienvenido a Wattpad CLI${COLORS.RESET}`, width));
+    // Título y descripción con margen izquierdo uniforme de 2 espacios (sin centrado horizontal)
+    lines.push(`  ${COLORS.BOLD}${COLORS.TEXT_MAIN}Bienvenido a Wattpad CLI${COLORS.RESET}`);
     lines.push('');
-    lines.push(padCenter(`${COLORS.TEXT_MUTED}Escribe, descubre y administra tus historias.${COLORS.RESET}`, width));
-    lines.push('');
+    lines.push(`  ${COLORS.TEXT_MUTED}Escribe, descubre y administra tus historias.${COLORS.RESET}`);
     lines.push('');
 
-    // Menú de opciones
-    const menuLines = MenuListComponent.render(this.items, this.selectedIndex, Math.max(8, Math.floor(width / 2) - 16));
+    // Menú interactivo alineado a la izquierda con sangría consistente y cursor en la misma columna
+    const menuLines = MenuListComponent.render(this.items, this.selectedIndex, {
+      indent: 2,
+      extraSpacing: true,
+    });
     lines.push(...menuLines);
 
-    // Relleno hasta el pie
+    // Relleno proporcional dinámico para situar el pie en la parte inferior
     const currentLines = lines.length;
     const remaining = Math.max(1, height - currentLines - 4);
     for (let i = 0; i < remaining; i++) {
       lines.push('');
     }
 
-    // Pie con atajos
+    // Pie con navegación
     lines.push(...FooterComponent.render(['↑↓ Navegar', 'Enter Seleccionar', 'Esc Salir', 'Ctrl+C Salir'], width));
 
     return lines;

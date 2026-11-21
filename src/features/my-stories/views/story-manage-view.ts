@@ -59,7 +59,10 @@ export class StoryManageView implements ViewInterface {
     }
 
     if (this.viewMode === 'menu') {
-      const menuLines = MenuListComponent.render(this.items, this.selectedIndex, 2);
+      const menuLines = MenuListComponent.render(this.items, this.selectedIndex, {
+        indent: 2,
+        extraSpacing: true,
+      });
       lines.push(...menuLines);
     } else if (this.viewMode === 'info') {
       lines.push(`  ${COLORS.BOLD}${COLORS.TEXT_MAIN}Información del Manuscrito:${COLORS.RESET}`);

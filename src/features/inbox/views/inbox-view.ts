@@ -60,7 +60,7 @@ export class InboxView implements ViewInterface {
           const badge = c.unread ? `${COLORS.ORANGE_BG}${COLORS.TEXT_MAIN} Sin leer ${COLORS.RESET}` : `${COLORS.TEXT_DIM}Leído${COLORS.RESET}`;
 
           lines.push(`  ${pointer}${nameColor}Conversación con @${c.withUsername}${COLORS.RESET}    ${badge}`);
-          lines.push(`     ${COLORS.TEXT_DIM}${c.lastMessageSnippet} · ${formatDate(c.lastMessageDate)}${COLORS.RESET}`);
+          lines.push(`      ${COLORS.TEXT_DIM}${c.lastMessageSnippet} · ${formatDate(c.lastMessageDate)}${COLORS.RESET}`);
           lines.push('');
         });
       }
@@ -76,7 +76,7 @@ export class InboxView implements ViewInterface {
           const badge = !n.read ? `${COLORS.SUCCESS}● Nueva${COLORS.RESET}` : `${COLORS.TEXT_DIM}Vista${COLORS.RESET}`;
 
           lines.push(`  ${pointer}${nameColor}${n.title}${COLORS.RESET}    ${badge}`);
-          lines.push(`     ${COLORS.TEXT_DIM}${n.message} · ${formatDate(n.createdAt)}${COLORS.RESET}`);
+          lines.push(`      ${COLORS.TEXT_DIM}${n.message} · ${formatDate(n.createdAt)}${COLORS.RESET}`);
           lines.push('');
         });
       }

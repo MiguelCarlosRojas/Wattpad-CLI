@@ -38,7 +38,7 @@ export class StoryDetailView implements ViewInterface {
     lines.push(`  ${COLORS.TEXT_MUTED}Género:${COLORS.RESET} ${this.story.genre}   ${COLORS.TEXT_MUTED}Capítulos:${COLORS.RESET} ${this.story.chaptersCount} partes`);
     lines.push(`  ${COLORS.TEXT_DIM}Lecturas: ${formatNumber(this.story.reads)} · Votos: ${formatNumber(this.story.votes)} · Actualizada: ${formatDate(this.story.lastUpdated)}${COLORS.RESET}`);
 
-    if (this.story.tags.length > 0) {
+    if (this.story.tags && this.story.tags.length > 0) {
       lines.push(`  ${COLORS.TEXT_DIM}Etiquetas: #${this.story.tags.slice(0, 6).join(' #')}${COLORS.RESET}`);
     }
 
@@ -67,7 +67,11 @@ export class StoryDetailView implements ViewInterface {
     }
 
     lines.push(`  ${COLORS.BOLD}${COLORS.TEXT_MAIN}Acciones:${COLORS.RESET}`);
-    const menuLines = MenuListComponent.render(this.items, this.selectedIndex, 4);
+    lines.push('');
+    const menuLines = MenuListComponent.render(this.items, this.selectedIndex, {
+      indent: 2,
+      extraSpacing: true,
+    });
     lines.push(...menuLines);
 
     const currentLines = lines.length;

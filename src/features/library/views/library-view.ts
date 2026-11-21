@@ -69,8 +69,8 @@ export class LibraryView implements ViewInterface {
         const titleColor = isSelected ? `${COLORS.BOLD}${COLORS.ORANGE}` : COLORS.TEXT_MAIN;
 
         lines.push(`  ${pointer}${titleColor}${item.title}${COLORS.RESET}`);
-        lines.push(`     ${COLORS.TEXT_MUTED}Autor:${COLORS.RESET} @${item.authorUsername} · ${COLORS.TEXT_MUTED}Género:${COLORS.RESET} ${item.genre} · ${item.chaptersCount} partes`);
-        lines.push(`     ${COLORS.TEXT_DIM}Actualizada: ${formatDate(item.lastUpdated)}${COLORS.RESET}`);
+        lines.push(`      ${COLORS.TEXT_MUTED}Autor:${COLORS.RESET} @${item.authorUsername} · ${COLORS.TEXT_MUTED}Género:${COLORS.RESET} ${item.genre} · ${item.chaptersCount} partes`);
+        lines.push(`      ${COLORS.TEXT_DIM}Actualizada: ${formatDate(item.lastUpdated)}${COLORS.RESET}`);
         lines.push('');
       });
     }

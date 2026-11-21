@@ -82,9 +82,9 @@ export class SearchView implements ViewInterface {
         const titleStyle = isSelected ? `${COLORS.BOLD}${COLORS.ORANGE}` : COLORS.TEXT_MAIN;
 
         lines.push(`  ${pointer}${titleStyle}${item.title}${COLORS.RESET}`);
-        lines.push(`     ${COLORS.TEXT_MUTED}Autor:${COLORS.RESET} ${item.authorName} (@${item.authorUsername})   ${COLORS.TEXT_MUTED}Género:${COLORS.RESET} ${item.genre} · ${item.statusLabel}`);
-        lines.push(`     ${COLORS.TEXT_DIM}Lecturas: ${formatNumber(item.reads)} · Votos: ${formatNumber(item.votes)} · Partes: ${item.chaptersCount}${COLORS.RESET}`);
-        lines.push(`     ${COLORS.TEXT_DIM}${truncate(item.description, width - 8)}${COLORS.RESET}`);
+        lines.push(`      ${COLORS.TEXT_MUTED}Autor:${COLORS.RESET} ${item.authorName} (@${item.authorUsername})   ${COLORS.TEXT_MUTED}Género:${COLORS.RESET} ${item.genre} · ${item.statusLabel}`);
+        lines.push(`      ${COLORS.TEXT_DIM}Lecturas: ${formatNumber(item.reads)} · Votos: ${formatNumber(item.votes)} · Partes: ${item.chaptersCount}${COLORS.RESET}`);
+        lines.push(`      ${COLORS.TEXT_DIM}${truncate(item.description, width - 10)}${COLORS.RESET}`);
         lines.push('');
       });
     }

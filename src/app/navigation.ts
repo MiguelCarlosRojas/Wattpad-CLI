@@ -5,9 +5,11 @@ export class NavigationManager {
   private viewStack: ViewInterface[] = [];
   private activeView: ViewInterface | null = null;
   private onRenderNeeded: () => void;
+  private onViewTransition: () => void;
 
-  constructor(onRenderNeeded: () => void) {
+  constructor(onRenderNeeded: () => void, onViewTransition?: () => void) {
     this.onRenderNeeded = onRenderNeeded;
+    this.onViewTransition = onViewTransition || onRenderNeeded;
   }
 
   public getActiveView(): ViewInterface | null {
@@ -34,7 +36,8 @@ export class NavigationManager {
       await view.onEnter();
     }
 
-    this.onRenderNeeded();
+    // Notificar transición de vista limpia
+    this.onViewTransition();
     return true;
   }
 
@@ -52,7 +55,8 @@ export class NavigationManager {
       await view.onEnter();
     }
 
-    this.onRenderNeeded();
+    // Notificar transición de vista limpia
+    this.onViewTransition();
   }
 
   public async popView(): Promise<boolean> {
@@ -71,7 +75,8 @@ export class NavigationManager {
       await previous.onEnter();
     }
 
-    this.onRenderNeeded();
+    // Notificar transición de vista limpia
+    this.onViewTransition();
     return true;
   }
 }
