@@ -4,6 +4,7 @@ import path from 'path';
 import os from 'os';
 import { UserSession } from '../../shared/types/auth.types';
 import { FileManager } from '../filesystem/file-manager';
+import { env } from '../../shared/config/env.config';
 
 /**
  * Servicio de autenticación asistida mediante navegador oficial
@@ -11,6 +12,10 @@ import { FileManager } from '../filesystem/file-manager';
  */
 export class BrowserAuth {
   private static findBrowserExecutable(): string | undefined {
+    if (env.WATTPAD_BROWSER_EXECUTABLE_PATH && fs.existsSync(env.WATTPAD_BROWSER_EXECUTABLE_PATH)) {
+      return env.WATTPAD_BROWSER_EXECUTABLE_PATH;
+    }
+
     if (process.platform === 'win32') {
       const candidates = [
         'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
@@ -55,12 +60,12 @@ export class BrowserAuth {
       fs.mkdirSync(profileDir, { recursive: true });
     }
 
-    const targetUrl = mode === 'login' ? 'https://www.wattpad.com/login' : 'https://www.wattpad.com/register';
+    const targetUrl = mode === 'login' ? `${env.WATTPAD_BASE_URL}/login` : `${env.WATTPAD_BASE_URL}/register`;
 
     try {
       const context: BrowserContext = await chromium.launchPersistentContext(profileDir, {
         executablePath,
-        headless: false,
+        headless: env.WATTPAD_BROWSER_HEADLESS ?? false,
         viewport: { width: 1024, height: 768 },
         args: ['--disable-blink-features=AutomationControlled'],
       });

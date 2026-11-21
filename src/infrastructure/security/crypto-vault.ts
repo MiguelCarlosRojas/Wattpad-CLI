@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import os from 'os';
+import { env } from '../../shared/config/env.config';
 
 /**
  * Bóveda criptográfica ligera para proteger tokens de sesión locales.
@@ -8,7 +9,7 @@ import os from 'os';
 export class CryptoVault {
   private static getMachineKey(): Buffer {
     const salt = `${os.hostname()}-${os.platform()}-${os.userInfo().username}-wattpad-cli`;
-    return crypto.scryptSync(salt, 'wattpad-sovereign-salt', 32);
+    return crypto.scryptSync(salt, env.WATTPAD_VAULT_SALT || 'wattpad-sovereign-salt', 32);
   }
 
   /**

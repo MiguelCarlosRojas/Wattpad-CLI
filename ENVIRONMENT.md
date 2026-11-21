@@ -1,8 +1,8 @@
-# Configuración de Variables de Entorno — Wattpad CLI
+# Configuración de Variables de Entorno — Wattpad CLI v1.0.1
 
-> **Guía oficial de configuración y arquitectura de variables de entorno para Wattpad CLI y su backend cloud.**
+> **Guía oficial de configuración y arquitectura de variables de entorno para Wattpad CLI.**
 >
-> Toda la configuración del sistema está estrictamente centralizada y validada mediante esquemas fuertemente tipados con **Zod** en `src/config/env-schema.ts` y administrada por el módulo singleton `src/config/env.ts`.
+> Toda la configuración del sistema está estrictamente centralizada, tipada y validada en tiempo de ejecución mediante **Zod** en [src/shared/config/env.config.ts](file:///C:/Users/isaki/Videos/Visual%20Studio%20Code/dbSalesWine/src/shared/config/env.config.ts).
 
 ---
 
@@ -10,110 +10,59 @@
 
 1. **Exclusión estricta de archivos `.env` en Git**:
    - Ningún archivo `.env`, `.env.*` ni credenciales privadas se suben al repositorio bajo ninguna circunstancia.
-   - Las variables en producción se configuran exclusivamente en el panel de control del servicio cloud (**Render**).
-2. **Cero claves derivadas de información del equipo**:
-   - Queda terminantemente prohibido utilizar `os.hostname()`, `COMPUTERNAME`, `USERNAME` o información de la máquina para derivar claves criptográficas.
-   - La seguridad se basa en generación criptográfica aleatoria segura (256-bit AES-GCM) y secretos inyectados en la nube.
-3. **Cero dependencias de Localhost**:
-   - Los servicios en la nube y el CLI se comunican exclusivamente vía HTTPS con el backend oficial `https://wattpad-cli.onrender.com`.
+   - `.gitignore` excluye permanentemente `.env` y `.env.*`.
+2. **Arquitectura Soberana sin Bases de Datos Externas**:
+   - Wattpad CLI opera de forma local soberana. La persistencia de manuscritos, capítulos y borradores se almacena en el directorio de usuario (`~/.wattpad/`).
+   - No requiere PostgreSQL, Redis, SQLite ni almacenamiento S3/R2 externo.
+3. **Cero Almacenamiento de Contraseñas en Texto Plano**:
+   - Las sesiones de Wattpad se gestionan mediante tokens y cookies oficiales, protegidas localmente mediante la bóveda criptográfica AES-256 (`CryptoVault`).
 
 ---
 
-## 📋 Inventario Completo de Variables de Entorno
+## 📋 Inventario de Variables de Entorno (.env.production)
 
-### 1. General & Runtime
+### 1. Aplicación (Obligatorias)
 
-| Variable | Tipo | Valor Predeterminado (Dev) | Descripción |
+| Variable | Tipo | Valor Predeterminado | Descripción |
 | :--- | :--- | :--- | :--- |
-| `NODE_ENV` | `string` | `production` | Entorno de ejecución (`development`, `production`, `test`). |
-| `APP_ENV` | `string` | `production` | Entorno de la aplicación. |
-| `LOG_LEVEL` | `string` | `info` | Nivel de registro (`debug`, `info`, `warn`, `error`). |
-| `PORT` | `number` | `3000` | Puerto en el que escucha el servidor API cloud de Bun. |
+| `NODE_ENV` | `enum` | `production` | Entorno de ejecución (`production`, `development`, `test`). |
+| `APP_ENV` | `enum` | `production` | Identificador de entorno de la aplicación. |
+| `LOG_LEVEL` | `enum` | `info` | Nivel de registros en terminal (`silent`, `error`, `warn`, `info`, `debug`). |
 
-### 2. Cloud URLs & Descubrimiento
+### 2. Integración Oficial con Wattpad (Obligatorias)
 
-| Variable | Tipo | Valor Predeterminado (Dev) | Descripción |
+| Variable | Tipo | Valor Predeterminado | Descripción |
 | :--- | :--- | :--- | :--- |
-| `PUBLIC_APP_URL` | `url` | `https://wattpad-cli.onrender.com` | URL pública de la aplicación. |
-| `WATTPAD_API_BASE_URL` | `url` | `https://wattpad-cli.onrender.com` | URL base del backend REST API consumido por el CLI. |
-| `WATTPAD_BOOTSTRAP_URL` | `url` | `https://wattpad-cli.onrender.com` | URL inicial de arranque y resolución de configuración. |
-| `WATTPAD_CLI_CONFIG_URL` | `string` | `https://wattpad-cli.onrender.com/cli/config` | Endpoint público de autodescubrimiento para el CLI. |
-| `WATTPAD_CLI_INSTALL_PS1_URL` | `string` | `https://wattpad-cli.onrender.com/cli/install.ps1` | Endpoint para el script instalador de Windows PowerShell. |
-| `WATTPAD_CLI_INSTALL_SH_URL` | `string` | `https://wattpad-cli.onrender.com/cli/install.sh` | Endpoint para el script instalador de Linux / macOS. |
-| `WATTPAD_CLI_NPM_PACKAGE` | `string` | `@wattpad/cli` | Nombre del paquete en el registro oficial de NPM. |
+| `WATTPAD_BASE_URL` | `url` | `https://www.wattpad.com` | Dirección web oficial de Wattpad. |
+| `WATTPAD_API_BASE` | `url` | `https://www.wattpad.com/api/v3` | Endpoint base de la API REST oficial de Wattpad v3. |
+| `WATTPAD_TIMEOUT_MS`| `number` | `10000` | Tiempo límite en milisegundos para peticiones HTTP. |
+| `WATTPAD_USER_AGENT`| `string` | *(Chrome User-Agent)* | Cadena User-Agent para garantizar compatibilidad con los servicios de Wattpad. |
 
-### 3. Base de Datos Cloud (PostgreSQL)
+### 3. Autenticación y Seguridad (Opcionales con fallback seguro)
 
-| Variable | Tipo | Valor Predeterminado (Dev) | Descripción |
+| Variable | Tipo | Valor Predeterminado | Descripción |
 | :--- | :--- | :--- | :--- |
-| `DATABASE_URL` | `string` | `""` *(memoria fallback)* | Cadena de conexión PostgreSQL administrada en Render. |
-| `DATABASE_POOL_MIN` | `number` | `2` | Cantidad mínima de conexiones en el pool. |
-| `DATABASE_POOL_MAX` | `number` | `10` | Cantidad máxima de conexiones en el pool. |
+| `WATTPAD_VAULT_SALT`| `string` | `wattpad-sovereign-salt` | Sal adicional para la derivación de clave criptográfica local AES-256. |
 
-### 4. Almacenamiento Cloud de Documentos (S3 / Object Storage)
+### 4. Navegador y Playwright (Opcionales)
 
-| Variable | Tipo | Valor Predeterminado (Dev) | Descripción |
+| Variable | Tipo | Valor Predeterminado | Descripción |
 | :--- | :--- | :--- | :--- |
-| `STORAGE_PROVIDER` | `string` | `s3` | Proveedor de almacenamiento cloud de documentos y respaldos. |
-| `STORAGE_ENDPOINT` | `string` | `https://s3.us-east-1.amazonaws.com` | Endpoint del servicio S3 compatible. |
-| `STORAGE_REGION` | `string` | `us-east-1` | Región del bucket cloud. |
-| `STORAGE_BUCKET` | `string` | `wattpad-cli-documents` | Nombre del bucket para almacenar DOCX, TXT y backups. |
-| `STORAGE_ACCESS_KEY` | `string` | `""` | Llave de acceso de la API de almacenamiento. |
-| `STORAGE_SECRET_KEY` | `string` | `""` | Llave secreta de la API de almacenamiento. |
-| `STORAGE_PUBLIC_URL` | `string` | `https://wattpad-cli-documents.s3.us-east-1.amazonaws.com` | URL pública de descarga o CDN. |
+| `WATTPAD_BROWSER_EXECUTABLE_PATH` | `string` | *(Detección automática)* | Ruta personalizada al ejecutable de Google Chrome o Microsoft Edge. |
+| `WATTPAD_BROWSER_HEADLESS` | `boolean` | `false` | Ejecución en modo headless. Por defecto `false` para permitir inicio de sesión interactivo oficial. |
 
-### 5. Seguridad & Criptografía
+### 5. Persistencia Local (Opcionales)
 
-| Variable | Tipo | Valor Predeterminado (Dev) | Descripción |
+| Variable | Tipo | Valor Predeterminado | Descripción |
 | :--- | :--- | :--- | :--- |
-| `JWT_ACCESS_SECRET` | `string` | `wattpad_access_super_secret...` | Secreto maestro para firmar tokens JWT de acceso en la nube. |
-| `JWT_REFRESH_SECRET` | `string` | `wattpad_refresh_super_secret...` | Secreto para firmar tokens de refresco de sesión. |
-| `SESSION_SECRET` | `string` | `wattpad_session_master_salt` | Salting maestro para sesiones y cookies seguras. |
-| `CREDENTIAL_ENCRYPTION_KEY`| `string` | `""` *(generada localmente)* | Llave criptográfica de 256 bits para el baúl local. |
-| `TOKEN_ENCRYPTION_KEY` | `string` | `0123456789abcdef...` | Clave de cifrado simétrico para tokens en tránsito/reposo. |
-| `SESSION_EXPIRATION` | `string` | `30d` | Tiempo de expiración de sesión del usuario. |
-
-### 6. Integraciones Cloud (Google Docs & Microsoft Word)
-
-| Variable | Tipo | Valor Predeterminado (Dev) | Descripción |
-| :--- | :--- | :--- | :--- |
-| `GOOGLE_CLIENT_ID` | `string` | *(ID cliente Google OAuth)* | Client ID oficial de la consola de Google Cloud. |
-| `GOOGLE_CLIENT_SECRET` | `string` | *(Secret cliente Google OAuth)* | Client Secret de la API de Google Docs. |
-| `GOOGLE_REDIRECT_URI` | `string` | `https://wattpad-cli.onrender.com/api/integrations/google/callback` | Callback HTTPS en Render (sin localhost). |
-| `GOOGLE_SCOPES` | `string` | `documents,drive.file` | Permisos solicitados a Google Docs y Drive. |
-| `MICROSOFT_CLIENT_ID` | `string` | *(ID cliente Microsoft)* | Client ID de Azure Active Directory para Office 365. |
-| `MICROSOFT_CLIENT_SECRET` | `string` | *(Secret cliente Microsoft)* | Client Secret de Microsoft Graph. |
-| `MICROSOFT_TENANT_ID` | `string` | `common` | Tenant ID de Azure AD. |
-| `MICROSOFT_REDIRECT_URI` | `string` | `https://wattpad-cli.onrender.com/api/integrations/word/callback` | Callback HTTPS en Render para Word Cloud. |
-
-### 7. Integración con Wattpad
-
-| Variable | Tipo | Valor Predeterminado (Dev) | Descripción |
-| :--- | :--- | :--- | :--- |
-| `WATTPAD_AUTH_PROVIDER` | `string` | `official` | Proveedor de autenticación Wattpad Cloud. |
-| `WATTPAD_API_CONFIGURATION` | `string` | `v4` | Versión de la API de Wattpad utilizada. |
-| `WATTPAD_REQUEST_TIMEOUT` | `number` | `15000` | Tiempo límite de solicitudes en milisegundos. |
-| `WATTPAD_RETRY_LIMIT` | `number` | `3` | Límite de reintentos automáticos ante fallas transitorias. |
-
-### 8. Operaciones, Límites & Observabilidad
-
-| Variable | Tipo | Valor Predeterminado (Dev) | Descripción |
-| :--- | :--- | :--- | :--- |
-| `CORS_ALLOWED_ORIGINS` | `string` | `*` | Orígenes CORS permitidos para la API REST. |
-| `RATE_LIMIT_WINDOW` | `number` | `60000` | Ventana de rate limiting en milisegundos (1 minuto). |
-| `RATE_LIMIT_MAX_REQUESTS` | `number` | `120` | Solicitudes máximas permitidas por ventana. |
-| `SENTRY_DSN` | `string` | `""` | DSN de Sentry para reporte de excepciones. |
-| `TELEMETRY_ENABLED` | `boolean` | `false` | Bandera para envío de telemetría anónima. |
+| `WATTPAD_DATA_DIR` | `string` | `~/.wattpad` | Ruta personalizada al directorio raíz de datos (permite modo portable o aislado). |
+| `WATTPAD_AUTOSAVE_INTERVAL` | `number` | `20` | Intervalo de auto-guardado en segundos para el editor de capítulos. |
 
 ---
 
-## 🚀 Despliegue en Render (Producción)
+## 🛠️ Carga y Validación con Bun y TypeScript
 
-El backend en Render opera de forma 100% autónoma y no depende de GitHub Actions:
-1. Conecta el repositorio `https://github.com/MiguelCarlosRojas/Wattpad-CLI` en el panel de Render.
-2. Selecciona **Web Service** con runtime nativo **Bun** (o Dockerfile con Bun v1.4.4).
-3. **Comando de Compilación (Build Command):** `bun install`.
-4. **Comando de Inicio (Start Command):** `bun run start:api` (ejecuta `src/platform/distribution/server.ts` con Bun).
-5. Añade un **PostgreSQL Database** en Render y vincula automáticamente la variable `DATABASE_URL`.
-6. Define las variables secretas (`JWT_ACCESS_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, etc.) en la pestaña **Environment** de Render.
-7. Los despliegues se disparan automáticamente en Render con cada commit a `main`, sin depender de pipelines o runners externos.
+El archivo [src/shared/config/env.config.ts](file:///C:/Users/isaki/Videos/Visual%20Studio%20Code/dbSalesWine/src/shared/config/env.config.ts) gestiona la carga sin colisiones:
+1. Comprueba la existencia de `.env.production` y lo lee si está presente sin sobreescribir variables existentes en el entorno anfitrión.
+2. Valida estrictamente todos los campos mediante el esquema `envSchema` de **Zod**.
+3. Aplica valores por defecto seguros y previene fallos silenciosos.

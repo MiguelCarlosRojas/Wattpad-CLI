@@ -1,3 +1,5 @@
+import { env } from '../config/env.config';
+
 /**
  * Constantes generales de Wattpad CLI
  */
@@ -9,8 +11,8 @@ export const APP_CONSTANTS = {
   DEFAULT_WIDTH: 80,
   MIN_WIDTH: 70,
   MIN_HEIGHT: 20,
-  WATTPAD_BASE_URL: 'https://www.wattpad.com',
-  WATTPAD_API_BASE: 'https://www.wattpad.com/api/v3',
+  WATTPAD_BASE_URL: env.WATTPAD_BASE_URL,
+  WATTPAD_API_BASE: env.WATTPAD_API_BASE,
   USER_DATA_DIR_NAME: '.wattpad',
   DIVIDER_CHAR: '─',
 };

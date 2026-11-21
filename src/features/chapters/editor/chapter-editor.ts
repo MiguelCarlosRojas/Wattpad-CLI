@@ -7,6 +7,7 @@ import { SessionManager } from '../../../auth/session/session-manager';
 import { COLORS } from '../../../shared/constants/colors.constants';
 import { countWords } from '../../../shared/utils/string-utils';
 import { divider } from '../../../shared/utils/ansi';
+import { env } from '../../../shared/config/env.config';
 
 export class ChapterEditor implements ViewInterface {
   public id = 'chapter-editor' as const;
@@ -33,12 +34,13 @@ export class ChapterEditor implements ViewInterface {
       this.lines = [''];
     }
 
-    // Iniciar temporizador de guardado automático (cada 20 segundos)
+    // Iniciar temporizador de guardado automático
+    const autosaveMs = (env.WATTPAD_AUTOSAVE_INTERVAL || 20) * 1000;
     this.autoSaveTimer = setInterval(() => {
       if (!this.isSaved) {
         this.saveCurrent();
       }
-    }, 20_000);
+    }, autosaveMs);
     if (this.autoSaveTimer?.unref) {
       this.autoSaveTimer.unref();
     }

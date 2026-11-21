@@ -2,13 +2,13 @@ import { SearchFilters, SearchResultItem } from '../../shared/types/search.types
 import { UserSession } from '../../shared/types/auth.types';
 import { LibraryItem } from '../../shared/types/library.types';
 import { InboxConversation, UserNotification } from '../../shared/types/inbox.types';
+import { env } from '../../shared/config/env.config';
 
 /**
  * Cliente HTTP para consultar APIs oficiales de Wattpad
  */
 export class WattpadApiClient {
-  private static userAgent =
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+  private static userAgent = env.WATTPAD_USER_AGENT;
 
   /**
    * Construye las cabeceras estándar para peticiones a Wattpad
@@ -41,10 +41,10 @@ export class WattpadApiClient {
    */
   public static async verifySession(session: UserSession): Promise<boolean> {
     try {
-      const url = 'https://www.wattpad.com/api/v3/users/me';
+      const url = `${env.WATTPAD_API_BASE}/users/me`;
       const res = await fetch(url, {
         headers: this.getHeaders(session),
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(env.WATTPAD_TIMEOUT_MS),
       });
 
       if (res.ok) {
@@ -66,7 +66,7 @@ export class WattpadApiClient {
   public static async searchStories(filters: SearchFilters): Promise<SearchResultItem[]> {
     try {
       const query = encodeURIComponent(filters.query.trim());
-      let url = `https://www.wattpad.com/api/v3/stories?query=${query}&limit=20&fields=stories(id,title,voteCount,readCount,commentCount,description,completed,cover,user(name,username,avatar),parts(id,title),tags,categories,lastPublishedPart,modifyDate)`;
+      let url = `${env.WATTPAD_API_BASE}/stories?query=${query}&limit=20&fields=stories(id,title,voteCount,readCount,commentCount,description,completed,cover,user(name,username,avatar),parts(id,title),tags,categories,lastPublishedPart,modifyDate)`;
 
       if (filters.mature) {
         url += '&mature=1';
@@ -74,7 +74,7 @@ export class WattpadApiClient {
 
       const res = await fetch(url, {
         headers: this.getHeaders(),
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(env.WATTPAD_TIMEOUT_MS),
       });
 
       if (!res.ok) {
@@ -101,7 +101,7 @@ export class WattpadApiClient {
           votes: Number(s.voteCount || 0),
           tags: Array.isArray(s.tags) ? s.tags : [],
           lastUpdated: s.modifyDate || s.lastPublishedPart?.modifyDate || new Date().toISOString(),
-          wattpadUrl: `https://www.wattpad.com/story/${s.id}`,
+          wattpadUrl: `${env.WATTPAD_BASE_URL}/story/${s.id}`,
         };
       });
     } catch {
@@ -115,10 +115,10 @@ export class WattpadApiClient {
   public static async getLibrary(session: UserSession): Promise<LibraryItem[]> {
     if (!session || !session.token) return [];
     try {
-      const url = `https://www.wattpad.com/api/v3/users/${session.userId}/library?limit=30&fields=stories(id,title,description,cover,user(name,username),parts(id,title),modifyDate,categories)`;
+      const url = `${env.WATTPAD_API_BASE}/users/${session.userId}/library?limit=30&fields=stories(id,title,description,cover,user(name,username),parts(id,title),modifyDate,categories)`;
       const res = await fetch(url, {
         headers: this.getHeaders(session),
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(env.WATTPAD_TIMEOUT_MS),
       });
 
       if (!res.ok) return [];
@@ -136,7 +136,7 @@ export class WattpadApiClient {
         genre: Array.isArray(s.categories) && s.categories.length > 0 ? s.categories[0] : 'General',
         chaptersCount: Array.isArray(s.parts) ? s.parts.length : 0,
         lastUpdated: s.modifyDate || new Date().toISOString(),
-        wattpadUrl: `https://www.wattpad.com/story/${s.id}`,
+        wattpadUrl: `${env.WATTPAD_BASE_URL}/story/${s.id}`,
         addedAt: new Date().toISOString(),
       }));
     } catch {
@@ -150,10 +150,10 @@ export class WattpadApiClient {
   public static async getInbox(session: UserSession): Promise<InboxConversation[]> {
     if (!session || !session.token) return [];
     try {
-      const url = `https://www.wattpad.com/api/v3/inbox?limit=20`;
+      const url = `${env.WATTPAD_API_BASE}/inbox?limit=20`;
       const res = await fetch(url, {
         headers: this.getHeaders(session),
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(env.WATTPAD_TIMEOUT_MS),
       });
 
       if (!res.ok) return [];
@@ -182,10 +182,10 @@ export class WattpadApiClient {
   public static async getNotifications(session: UserSession): Promise<UserNotification[]> {
     if (!session || !session.token) return [];
     try {
-      const url = `https://www.wattpad.com/api/v3/notifications?limit=20`;
+      const url = `${env.WATTPAD_API_BASE}/notifications?limit=20`;
       const res = await fetch(url, {
         headers: this.getHeaders(session),
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(env.WATTPAD_TIMEOUT_MS),
       });
 
       if (!res.ok) return [];

@@ -2,13 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 import { sanitizeFileName } from '../../shared/utils/string-utils';
+import { env } from '../../shared/config/env.config';
 
 /**
  * Gestor de almacenamiento en el directorio del usuario ~/.wattpad
  * No almacena datos dentro del repositorio.
  */
 export class FileManager {
-  private static rootDir: string = path.join(os.homedir(), '.wattpad');
+  private static rootDir: string = env.WATTPAD_DATA_DIR ? path.resolve(env.WATTPAD_DATA_DIR) : path.join(os.homedir(), '.wattpad');
 
   public static getRoot(): string {
     return this.rootDir;
