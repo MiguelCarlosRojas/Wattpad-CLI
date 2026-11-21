@@ -11,6 +11,8 @@ node_modules/
 dist/
 build/
 coverage/
+*.exe
+SHA256SUMS.txt
 
 # ==============================================
 # Variables de entorno y secretos

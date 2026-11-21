@@ -5,7 +5,7 @@ import { env } from '../config/env.config';
  */
 export const APP_CONSTANTS = {
   NAME: 'WATTPAD CLI',
-  VERSION: '1.0.1',
+  VERSION: '1.0.0',
   TAGLINE: 'Terminal de escritura',
   DESCRIPTION: 'Tu espacio para crear historias',
   DEFAULT_WIDTH: 80,

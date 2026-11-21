@@ -6,7 +6,20 @@ El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/
 
 ---
 
-## [1.1.0] — 2026-11-19
+## [1.0.0] — 2026-11-21
+
+### 🚀 Primera Versión Oficial — Nueva Etapa de Wattpad CLI
+- **Autenticación Oficial**: Inicio de sesión interactivo y creación de cuenta en Wattpad asistida mediante navegador con Playwright.
+- **Menú Principal Universal**:
+  1. *Buscar novelas*: Motor de búsqueda en tiempo real en Wattpad con filtros navegables por 4 flechas (género, estado, idioma, orden y contenido adulto).
+  2. *Buzón*: Gestión de conversaciones, notificaciones y estado de lectura.
+  3. *Biblioteca*: Catálogo de novelas guardadas con búsqueda interna y ordenamiento.
+  4. *Crear historia*: Asistente interactivo en 5 pasos (metadatos, portada, clasificación, revisión y guardado local).
+  5. *Mis historias*: Administración de obras, estados (*Publicada*, *Borrador*, *Local*, *Modificada*).
+- **Editor de Capítulos TUI Interactivo**: Redacción y edición multilínea, contador en vivo de palabras y caracteres, auto-guardado automático, respaldos locales con timestamp y previsualización formateada (`Ctrl+P`).
+- **Navegación Universal por 4 Flechas**: Soporte estricto de `↑`, `↓`, `←`, `→`, `Enter`, `Esc`, `Tab` y paleta de comandos rápida `Ctrl+P`.
+- **Persistencia Soberana**: Almacenamiento local en `~/.wattpad/` sin motores de bases de datos externas.
+- **Servidor de Distribución para Render**: Servidor HTTP en `src/server.ts` con endpoint `/health`, instaladores oficiales y redirección de binarios.
 
 ### 🏗️ Refactorización Arquitectónica Integral (3 Carpetas Principales)
 - **Consolidación Estricta de `src/`**: Reorganización completa de las 12 carpetas dispersas anteriores en exactamente 3 carpetas de responsabilidad:

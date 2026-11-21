@@ -1,6 +1,6 @@
 {
   "name": "@wattpad/cli",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "description": "Wattpad CLI: Herramienta de terminal para gestionar novelas, capítulos, documentos Word, Bloc de notas y Google Docs con sincronización oficial",
   "type": "module",
   "main": "src/index.ts",
@@ -24,7 +24,10 @@
   },
   "homepage": "https://github.com/MiguelCarlosRojas/Wattpad-CLI#readme",
   "scripts": {
+    "build": "tsc --noEmit",
     "start": "bun run src/index.ts",
+    "start:server": "bun run src/server.ts",
+    "server": "bun run src/server.ts",
     "dev": "bun run src/index.ts",
     "typecheck": "tsc --noEmit"
   },

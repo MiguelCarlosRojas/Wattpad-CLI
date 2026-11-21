@@ -1,4 +1,4 @@
-# Configuración de Variables de Entorno — Wattpad CLI v1.0.1
+# Configuración de Variables de Entorno — Wattpad CLI v1.0.0
 
 > **Guía oficial de configuración y arquitectura de variables de entorno para Wattpad CLI.**
 >
@@ -66,3 +66,16 @@ El archivo [src/shared/config/env.config.ts](file:///C:/Users/isaki/Videos/Visua
 1. Comprueba la existencia de `.env.production` y lo lee si está presente sin sobreescribir variables existentes en el entorno anfitrión.
 2. Valida estrictamente todos los campos mediante el esquema `envSchema` de **Zod**.
 3. Aplica valores por defecto seguros y previene fallos silenciosos.
+
+---
+
+## 🚀 Despliegue en Render (Web Service de Distribución)
+
+Wattpad CLI incluye un servidor HTTP de distribución independiente en `src/server.ts` optimizado para Render:
+
+- **Build Command:** `bun install --frozen-lockfile && bun run build`
+- **Start Command:** `bun run start:server` (o `bun run start`)
+- **Health Check Path:** `/health`
+- **Host / IP:** `0.0.0.0`
+- **Puerto:** Inyectado dinámicamente por Render mediante la variable `PORT`.
+- **Funcionalidad:** Sirve instaladores oficiales (`/cli/install.ps1`, `/cli/install.sh`), comprobación de salud (`/health`), manifiesto de configuración (`/cli/config`) y redirecciones oficiales a GitHub Releases (`/cli/download/:target`).
