@@ -1,6 +1,6 @@
 {
   "name": "@wattpad/cli",
-  "version": "1.3.0",
+  "version": "1.0.1",
   "description": "Wattpad CLI: Herramienta de terminal para gestionar novelas, capítulos, documentos Word, Bloc de notas y Google Docs con sincronización oficial",
   "type": "module",
   "main": "src/core/bootstrap/main.ts",

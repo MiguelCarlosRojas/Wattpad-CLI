@@ -30,7 +30,7 @@ describe('Wattpad Distribution Server & Installer Hosting', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('cache-control')).toContain('no-cache');
     const config = (await res.json()) as any;
-    expect(config.version).toMatch(/1\.[0-3]\.0/);
+    expect(config.version).toMatch(/1\.[0-3]\.[0-9]+/);
     expect(config.serverStatus).toBe('healthy');
     expect(config.installerEndpoints.powershell).toContain('/cli/install.ps1');
     expect(config.installerEndpoints.linuxMac).toContain('/cli/install.sh');
@@ -50,7 +50,7 @@ describe('Wattpad Distribution Server & Installer Hosting', () => {
     expect(res.status).toBe(302);
     expect(res.headers.get('cache-control')).toContain('no-cache');
     const location = res.headers.get('location');
-    expect(location).toMatch(/\/releases\/download\/v1\.[0-3]\.0\/wattpad-linux-x64/);
+    expect(location).toMatch(/\/releases\/download\/v1\.[0-3]\.[0-9]+\/wattpad-linux-x64/);
   });
 
   it('GET /cli/install.ps1 should serve PowerShell installer script', async () => {

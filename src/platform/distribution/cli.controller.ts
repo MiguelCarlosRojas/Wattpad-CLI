@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { getEnv } from '../../core/config/env';
+import { APP_VERSION } from '../../core/config/config';
 import { PublicCliConfig } from '../../core/types/distribution.types';
 
 export class CliController {
@@ -28,7 +29,7 @@ export class CliController {
   public static getPublicConfig(): PublicCliConfig {
     const env = getEnv();
     const manifest = this.getManifest();
-    const version = manifest?.version || '1.3.0';
+    const version = manifest?.version || APP_VERSION;
 
     const binaries: Record<string, any> = {};
     if (manifest && manifest.binaries) {
@@ -109,7 +110,7 @@ export class CliController {
 
   public static getDownloadUrl(target: string): string {
     const manifest = this.getManifest();
-    const version = manifest?.version || '1.3.0';
+    const version = manifest?.version || APP_VERSION;
     const filename = target.includes('win') ? 'wattpad.exe' : `wattpad-${target}`;
     return `https://github.com/MiguelCarlosRojas/Wattpad-CLI/releases/download/v${version}/${filename}`;
   }

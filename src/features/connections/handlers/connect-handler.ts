@@ -3,6 +3,7 @@ import path from 'path';
 import { CommandDefinition, CommandResult, ParsedCommand, RenderBlock } from '../../../core/types/command.types';
 import { defaultConfig } from '../../../core/config/config';
 import { env } from '../../../core/config/env';
+import { InteractiveMenuView, MenuItem } from '../../../platform/terminal/interactive';
 
 export function createConnectCommands(): CommandDefinition[] {
   return [
@@ -208,6 +209,59 @@ export function createConnectCommands(): CommandDefinition[] {
         const isGoogleConnected = await app.googleService.isConnected().catch(() => false);
         const wattpadUser = await app.wattpadService.getProfile();
         const docsDir = defaultConfig.docsDir;
+
+        if (app.appShell) {
+          const items: MenuItem[] = [
+            {
+              id: 'word',
+              label: '1. Microsoft Word',
+              description: 'Importar y exportar archivos .docx nativos',
+              badge: 'LOCAL',
+              action: () => {
+                const cmd = app.registry.get('/connect');
+                if (cmd) cmd.execute(app, { command: '/connect word', subcommand: 'word', args: [], flags: {} });
+              },
+            },
+            {
+              id: 'notepad',
+              label: '2. Bloc de Notas',
+              description: 'Archivos .txt simples en codificación UTF-8',
+              badge: 'LOCAL',
+              action: () => {
+                const cmd = app.registry.get('/connect');
+                if (cmd) cmd.execute(app, { command: '/connect notepad', subcommand: 'notepad', args: [], flags: {} });
+              },
+            },
+            {
+              id: 'google',
+              label: '3. Google Docs',
+              description: 'Sincronizar manuscritos con Google Drive mediante OAuth 2.0',
+              badge: isGoogleConnected ? 'CONECTADO' : 'DESCONECTADO',
+              action: () => {
+                const cmd = app.registry.get('/connect');
+                if (cmd) cmd.execute(app, { command: '/connect google', subcommand: 'google', args: [], flags: {} });
+              },
+            },
+            {
+              id: 'wattpad',
+              label: '4. Sesión de Wattpad',
+              description: wattpadUser ? `Conectado como @${wattpadUser.username}` : 'Conectar cuenta oficial de Wattpad',
+              badge: wattpadUser ? 'CONECTADO' : 'DESCONECTADO',
+              action: () => {
+                const loginCmd = app.registry.get('/login');
+                if (loginCmd) loginCmd.execute(app, { command: '/login', args: [], flags: {} });
+              },
+            },
+          ];
+          app.appShell.pushView(
+            new InteractiveMenuView({
+              id: 'connections-manager',
+              title: 'INTEGRACIONES Y CONEXIONES',
+              subtitle: 'Panel interactivo de servicios y formatos con 4 flechas',
+              items,
+            })
+          );
+        }
 
         return {
           success: true,

@@ -27,11 +27,13 @@ import { ChapterManager } from '../../features/chapters/managers/chapter-manager
 import { DocumentManager } from '../../features/documents/managers/document-manager';
 import { ConnectionManager } from '../../features/connections/managers/connection-manager';
 import { SettingsManager } from '../../core/config/settings-manager';
+import { defaultConfig, APP_VERSION } from '../../core/config/config';
 import { SyncManager } from '../sync/sync-manager';
 import { BackupManager } from '../sync/backup-manager';
 import { SyncEngine } from '../sync/sync-engine';
 
 export class Application {
+  public version = APP_VERSION;
   public wordService: WordService;
   public notepadService: NotepadService;
   public googleService: GoogleService;
@@ -204,7 +206,7 @@ export class Application {
       remoteStories: this.remoteStories,
       localManuscripts: this.localManuscripts,
       currentUser: this.currentUser,
-      version: '1.3.0',
+      version: APP_VERSION,
     });
 
     // 7. Conectar router de comandos con la terminal interactiva

@@ -19,7 +19,8 @@ import { WattpadUser } from '../../features/account/types/account.types';
 import { CommandRegistry } from '../../features/commands/command-registry';
 import { CommandHistory } from '../../features/commands/history';
 import { CommandDefinition, CommandResult, Suggestion } from '../../core/types/command.types';
-import { defaultConfig } from '../../core/config/config';
+import { defaultConfig, APP_VERSION } from '../../core/config/config';
+import { InteractiveView } from './interactive/interactive-view.interface';
 
 export class AppShell {
   private inputValue: string = '';
@@ -40,7 +41,7 @@ export class AppShell {
   private activeChapterId: string | null = null;
   private serverOnline: boolean = true;
   private serverUrl: string = 'https://wattpad-cli.onrender.com';
-  private version: string = '1.3.0';
+  private version: string = APP_VERSION;
 
   // Motor de desplazamiento y vista visual VIPCode
   private viewMode: 'completa' | 'compacta' | 'zen' = 'completa';
@@ -53,6 +54,9 @@ export class AppShell {
 
   // Selector interactivo con 4 flechas
   private activeSelector: (SelectorProps & { onAction?: (actionId: string, item: SelectorItem) => Promise<void> | void }) | null = null;
+
+  // Pila de vistas interactivas (Universal Interactive Framework)
+  private viewStack: InteractiveView[] = [];
 
   // Editor interactivo multilínea en terminal
   private activeEditor: TextEditor | null = null;
@@ -115,6 +119,45 @@ export class AppShell {
 
   public setCommandExecutor(executor: (cmd: string) => Promise<CommandResult>): void {
     this.onCommandExecute = executor;
+  }
+
+  public pushView(view: InteractiveView): void {
+    this.viewStack.push(view);
+    TerminalAdapter.hideCursor();
+    if (view.onMount) {
+      try {
+        view.onMount();
+      } catch {}
+    }
+    if (this.isRunning) {
+      this.render();
+    }
+  }
+
+  public popView(): InteractiveView | undefined {
+    const popped = this.viewStack.pop();
+    if (popped && popped.onUnmount) {
+      try {
+        popped.onUnmount();
+      } catch {}
+    }
+    if (this.viewStack.length === 0) {
+      TerminalAdapter.showCursor();
+    }
+    if (this.isRunning) {
+      this.render();
+    }
+    return popped;
+  }
+
+  public getActiveView(): InteractiveView | null {
+    return this.viewStack.length > 0 ? this.viewStack[this.viewStack.length - 1] : null;
+  }
+
+  public clearViews(): void {
+    while (this.viewStack.length > 0) {
+      this.popView();
+    }
   }
 
   // Compatibilidad hacia atrás
@@ -304,6 +347,34 @@ export class AppShell {
       }
       this.exit();
       process.exit(0);
+      return;
+    }
+
+    // =========================================================================
+    // ENTRADA CUANDO UNA VISTA INTERACTIVA ESTÁ ACTIVA EN LA PILA (4 FLECHAS)
+    // =========================================================================
+    const activeView = this.getActiveView();
+    if (activeView) {
+      if ((key.ctrl && key.name === 'c') || (key.ctrl && key.name === 'd')) {
+        this.popView();
+        return;
+      }
+      const res = activeView.handleKeyPress(str, key);
+      if (res instanceof Promise) {
+        res.then((r) => {
+          if (r === 'pop') {
+            this.popView();
+          } else {
+            this.render();
+          }
+        });
+      } else {
+        if (res === 'pop') {
+          this.popView();
+        } else {
+          this.render();
+        }
+      }
       return;
     }
 
@@ -811,13 +882,15 @@ export class AppShell {
 
     // 2. Cálculo de alturas de la interfaz soberana
     const isEditorActive = Boolean(this.activeEditor);
-    const inputHeight = isEditorActive ? 2 : 5;
+    const activeView = this.getActiveView();
+    const isSpecialView = Boolean(isEditorActive || activeView);
+    const inputHeight = isSpecialView ? 2 : 5;
     const statusBarHeight = 1;
-    const suggestionsHeight = !isEditorActive && this.suggestions.length > 0 ? Math.min(6, this.suggestions.length + 2) : 0;
+    const suggestionsHeight = !isSpecialView && this.suggestions.length > 0 ? Math.min(6, this.suggestions.length + 2) : 0;
     const reservedVertical = headerLines.length + inputHeight + statusBarHeight + suggestionsHeight + 1;
     const midHeight = Math.max(6, config.height - reservedVertical);
 
-    // 3. Área Central: TextEditor, ItemSelector, CommandOutput o HomeView
+    // 3. Área Central: TextEditor, ItemSelector, InteractiveView, CommandOutput o HomeView
     let allContentLines: string[] = [];
 
     if (this.activeEditor) {
@@ -828,6 +901,8 @@ export class AppShell {
         width: config.width,
         height: midHeight,
       });
+    } else if (activeView) {
+      allContentLines = activeView.render(config.width, midHeight);
     } else if (this.latestOutput) {
       allContentLines = CommandOutput.render(this.latestOutput, config.width);
     } else {
@@ -901,11 +976,17 @@ export class AppShell {
       output.push(...sugLines);
     }
 
-    // 5. Fixed Command Input Box
+    // 5. Fixed Command Input Box / Interactive View Status Line
     if (isEditorActive) {
       output.push(
         Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(config.width)),
         padEndVisible(Chalk.dim('  [Modo Editor Activo]  Ctrl+S: Guardar  ·  Ctrl+F: Buscar  ·  Esc: Salir'), config.width)
+      );
+    } else if (activeView) {
+      const hint = activeView.getStatusBarHint ? activeView.getStatusBarHint() : '↑/↓ Navegar  ·  ←/→ Cambiar  ·  Enter Confirmar  ·  Esc Volver';
+      output.push(
+        Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(config.width)),
+        padEndVisible(Chalk.hex(Theme.colors.info, `  ${hint}`), config.width)
       );
     } else {
       const inputLines = CommandInput.render(this.inputValue, this.cursorIndex, config.width, !this.isPaletteOpen);

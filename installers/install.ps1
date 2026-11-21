@@ -37,7 +37,7 @@ function Invoke-WattpadInstall {
 
         $Config = $null
         $ExpectedHash = $null
-        $ConfigVersion = "1.3.0"
+        $ConfigVersion = "1.0.1"
         $ConfigDownloadUrl = $null
         try {
             $ConfigResponse = Invoke-WebRequest -Uri "$BaseUrl/cli/config" -UseBasicParsing -TimeoutSec 15 -ErrorAction Stop

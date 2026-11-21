@@ -22,7 +22,7 @@ export function generateChecksumsAndManifest(): DistributionManifest {
   const distDir = path.resolve(rootDir, 'dist');
   const pkgPath = path.resolve(rootDir, 'package.json');
 
-  let version = '1.3.0';
+  let version = '1.0.1';
   if (fs.existsSync(pkgPath)) {
     try {
       const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));

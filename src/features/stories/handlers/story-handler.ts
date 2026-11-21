@@ -1,6 +1,7 @@
 import { CommandDefinition, CommandResult, ParsedCommand, RenderBlock } from '../../../core/types/command.types';
 import { EditorPreference, RemoteWattpadStory, LocalManuscript, UnifiedStoryCatalog } from '../types/story.types';
 import { formatStatusBadge } from '../../../core/utils/formatter';
+import { InteractiveCatalogView, InteractiveMenuView, InteractiveDialogView, MenuItem } from '../../../platform/terminal/interactive';
 
 /**
  * Función central de actualización ejecutada por /refresh y /stories refresh
@@ -572,6 +573,26 @@ export function createStoryCommands(): CommandDefinition[] {
           });
         }
 
+        if (app.appShell && !filterPublished && !filterDrafts && !filterLocal && !isSearch) {
+          app.appShell.pushView(
+            new InteractiveCatalogView({
+              publishedStories,
+              draftStories: wattpadDrafts,
+              localManuscripts,
+              onAction: async (actionId, item) => {
+                if (actionId === 'open' && item.id) {
+                  app.currentStoryId = item.id;
+                  app.appShell.setState({ activeStoryId: item.id });
+                  app.appShell.setNotification(`✓ Novela activa: ${item.title || item.id}`);
+                } else if (actionId === 'chapters') {
+                  const chapCmd = app.registry.get('/chapters');
+                  if (chapCmd) chapCmd.execute(app, { command: '/chapters', args: [], flags: {} });
+                }
+              },
+            })
+          );
+        }
+
         return {
           success: true,
           blocks,
@@ -609,6 +630,60 @@ export function createStoryCommands(): CommandDefinition[] {
           sub = 'info';
           targetId = app.currentStoryId;
         } else if (!sub) {
+          if (app.appShell) {
+            const storyMenuItems: MenuItem[] = [
+              {
+                id: 'create',
+                label: '1. Crear nueva novela',
+                description: 'Crear una nueva obra en tu catálogo local',
+                action: () => {
+                  const title = 'Nueva Novela';
+                  const created = app.storyRepo.create({ title, genre: 'General', editorPreference: 'word' });
+                  app.currentStoryId = created.id;
+                  app.appShell.setState({ activeStoryId: created.id, stories: app.storyRepo.findAll() });
+                  app.appShell.setNotification(`✓ Creada novela: ${created.title} [${created.id}]`);
+                },
+              },
+              {
+                id: 'open',
+                label: '2. Abrir novela existente',
+                description: 'Seleccionar novela activa del catálogo',
+                action: () => {
+                  const storiesDef = app.registry.get('/stories');
+                  if (storiesDef) storiesDef.execute(app, { command: '/stories', args: [], flags: {} });
+                },
+              },
+              {
+                id: 'edit',
+                label: '3. Editar información de novela activa',
+                description: 'Modificar título, sinopsis o género de la obra seleccionada',
+              },
+              {
+                id: 'delete',
+                label: '4. Eliminar novela',
+                description: 'Eliminar una novela y sus capítulos locales con confirmación',
+              },
+              {
+                id: 'info',
+                label: '5. Información de novela activa',
+                description: 'Ver estadísticas y detalles de la obra actual',
+              },
+              {
+                id: 'link',
+                label: '6. Vincular con manuscrito local',
+                description: 'Asociar archivo Word (.docx) o Bloc de Notas (.txt)',
+              },
+            ];
+            app.appShell.pushView(
+              new InteractiveMenuView({
+                id: 'story-operations-menu',
+                title: 'OPERACIONES DE NOVELA',
+                subtitle: 'Navega con ↑/↓ y pulsa Enter para seleccionar una opción:',
+                items: storyMenuItems,
+              })
+            );
+          }
+
           return {
             success: false,
             blocks: [

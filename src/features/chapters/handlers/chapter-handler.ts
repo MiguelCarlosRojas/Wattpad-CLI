@@ -2,6 +2,7 @@ import path from 'path';
 import { CommandDefinition, CommandResult, ParsedCommand, RenderBlock } from '../../../core/types/command.types';
 import { formatStatusBadge } from '../../../core/utils/formatter';
 import { DocumentParser, DocumentParseResult } from '../../manuscripts/parsers/document-parser';
+import { InteractiveChapterView, InteractiveImportView } from '../../../platform/terminal/interactive';
 
 export function createChapterCommands(): CommandDefinition[] {
   return [
@@ -187,6 +188,38 @@ export function createChapterCommands(): CommandDefinition[] {
           sub = 'status';
           targetArg = app.currentChapterId;
         } else if (!sub) {
+          const activeStory = app.currentStoryId ? app.storyRepo.findById(app.currentStoryId) : app.storyRepo.findAll()[0];
+          const chapters = activeStory ? app.chapterRepo.findByStoryId(activeStory.id) : [];
+
+          if (app.appShell && activeStory) {
+            app.appShell.pushView(
+              new InteractiveChapterView({
+                storyTitle: activeStory.title,
+                chapters,
+                onAction: async (actionId, chap) => {
+                  if (actionId === 'editor') {
+                    app.appShell.openTextEditor({
+                      title: `${chap.title} [${chap.id}]`,
+                      content: chap.content || '',
+                      onSave: (newContent: string) => {
+                        app.chapterRepo.update(chap.id, {
+                          content: newContent,
+                          wordCount: newContent.split(/\s+/).filter(Boolean).length,
+                        });
+                      },
+                    });
+                  } else if (actionId === 'external') {
+                    const { filePath } = await app.wordService.exportChapterToDocx(activeStory, chap);
+                    if (process.platform === 'win32') {
+                      Bun.spawn(['cmd', '/c', 'start', '""', filePath]);
+                    }
+                    app.appShell.setNotification(`Abierto en Word: ${path.basename(filePath)}`);
+                  }
+                },
+              })
+            );
+          }
+
           return {
             success: false,
             blocks: [
@@ -326,6 +359,17 @@ export function createChapterCommands(): CommandDefinition[] {
           }
 
           if (!filePathOrId) {
+            if (app.appShell) {
+              app.appShell.pushView(
+                new InteractiveImportView({
+                  stories: app.storyRepo.findAll(),
+                  onConfirmImport: async (src, filePath, storyId) => {
+                    app.appShell.setNotification(`✓ Importación guiada iniciada: ${path.basename(filePath)}`);
+                  },
+                })
+              );
+            }
+
             return {
               success: false,
               blocks: [

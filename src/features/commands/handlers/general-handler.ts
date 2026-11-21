@@ -1,11 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import { CommandDefinition, CommandResult, ParsedCommand, RenderBlock } from '../../../core/types/command.types';
-import { defaultConfig } from '../../../core/config/config';
+import { defaultConfig, APP_VERSION } from '../../../core/config/config';
 import { sha256 } from '../../../core/security/crypto-utils';
 import { executeRefresh } from '../../stories/handlers/story-handler';
+import { InteractiveSettingsView, InteractiveMenuView, InteractiveDialogView, MenuItem } from '../../../platform/terminal/interactive';
 
-const INSTALLED_VERSION = '1.3.0';
+const INSTALLED_VERSION = APP_VERSION;
 const GITHUB_REPO = 'MiguelCarlosRojas/Wattpad-CLI';
 
 interface ReleaseInfo {
@@ -35,10 +36,10 @@ async function fetchLatestRelease(): Promise<ReleaseInfo | null> {
   // En pruebas, simular respuesta rápida
   if (process.env.NODE_ENV === 'test') {
     return {
-      version: '1.3.0',
-      name: 'Wattpad CLI v1.3.0',
+      version: APP_VERSION,
+      name: `Wattpad CLI v${APP_VERSION}`,
       publishedAt: '2026-11-20T18:00:00Z',
-      body: 'Versión v1.3.0: Google Docs PKCE Desktop, buscador de Wattpad, editor multilínea y perfil completo.',
+      body: 'Versión v1.0.1: Sistema de comandos interactivos, configuración visual, navegación por teclado y diseño minimalista.',
       assetName: 'wattpad.exe',
       assetSize: 156910080,
       downloadUrl: `https://github.com/${GITHUB_REPO}/releases/latest/download/wattpad.exe`,
@@ -110,6 +111,29 @@ export function createGeneralCommands(): CommandDefinition[] {
               ],
             };
           }
+        }
+
+        if (app.appShell && !query) {
+          const menuItems: MenuItem[] = app.registry.getAll().map((c) => ({
+            id: c.name,
+            label: c.name,
+            category: c.category || 'general',
+            description: c.description,
+            details: [
+              `Uso: ${c.usage}`,
+              ...(c.examples && c.examples.length > 0 ? [`Ejemplos:\n${c.examples.map((e) => '  ' + e).join('\n')}`] : []),
+              ...(c.subcommands && c.subcommands.length > 0 ? [`Subcomandos: ${c.subcommands.join(', ')}`] : []),
+            ],
+          }));
+          app.appShell.pushView(
+            new InteractiveMenuView({
+              id: 'help-interactive',
+              title: 'AYUDA INTERACTIVA DE COMANDOS',
+              subtitle: 'Navega con ↑/↓ y pulsa Enter para ver detalles completos de cada comando',
+              items: menuItems,
+              categories: ['Todos', 'general', 'auth', 'stories', 'chapters', 'connections', 'publish', 'discovery'],
+            })
+          );
         }
 
         const categories: Record<string, string[]> = {
@@ -200,7 +224,7 @@ export function createGeneralCommands(): CommandDefinition[] {
       descriptionEn: 'Checks and performs real update of Wattpad CLI via GitHub Releases',
       usage: '/update [--check | --install]',
       examples: ['/update', '/update --check', '/update --install'],
-      execute: async (_app, parsed: ParsedCommand): Promise<CommandResult> => {
+      execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
         const isInstall = Boolean(parsed.flags.install || parsed.flags.i);
         const release = await fetchLatestRelease();
 
@@ -256,6 +280,34 @@ export function createGeneralCommands(): CommandDefinition[] {
         const sizeFormatted = release.assetSize
           ? `${(release.assetSize / (1024 * 1024)).toFixed(1)} MB`
           : 'Desconocido';
+
+        if (app.appShell && !isInstall && !parsed.flags.check) {
+          app.appShell.pushView(
+            new InteractiveDialogView({
+              id: 'update-dialog',
+              title: 'ACTUALIZACIÓN DISPONIBLE DE WATTPAD CLI',
+              message: `Se ha encontrado una nueva versión disponible: v${release.version}`,
+              details: [
+                `Versión instalada actualmente: v${INSTALLED_VERSION}`,
+                `Tamaño: ${sizeFormatted}`,
+                `Cambios: ${release.body}`,
+                '¿Deseas descargar e instalar esta versión ahora?',
+              ],
+              options: [
+                { id: 'no', label: 'No' },
+                { id: 'yes', label: 'Sí (Instalar actualización)' },
+              ],
+              onConfirm: (optId) => {
+                if (optId === 'yes') {
+                  const updateDef = app.registry.get('/update');
+                  if (updateDef) {
+                    updateDef.execute(app, { command: '/update --install', subcommand: '', args: [], flags: { install: true } });
+                  }
+                }
+              },
+            })
+          );
+        }
 
         if (isInstall) {
           // Descargar e instalar
@@ -395,9 +447,30 @@ export function createGeneralCommands(): CommandDefinition[] {
           };
         }
 
+        // Panel interactivo principal de configuración /config con 4 flechas
+        if (app.appShell && app.settingsRepo) {
+          app.appShell.pushView(
+            new InteractiveSettingsView(app.settingsRepo, (mode) => app.appShell.setViewMode(mode))
+          );
+        }
+
         return {
-          success: false,
-          blocks: [{ type: 'error', title: 'Uso inválido', content: 'Uso: /config update [--auto=true|false] [--check=true|false]' }],
+          success: true,
+          blocks: [
+            {
+              type: 'card',
+              title: 'PANEL DE CONFIGURACIÓN INTERACTIVO',
+              subtitle: 'Panel de control con navegación por 4 flechas activado',
+              statusBadge: 'INTERACTIVO',
+              statusColor: '#FF6122',
+              fields: [
+                { label: 'Navegación', value: '↑/↓ Moverse  ·  ←/→ Cambiar valor  ·  Enter Elegir/Editar  ·  Esc Salir' },
+                { label: 'Buscador', value: 'Escribe en cualquier momento para filtrar opciones en tiempo real' },
+                { label: 'Persistencia', value: 'Guardado inmediato en settings.json sin base de datos' },
+              ],
+            },
+          ],
+          message: 'Panel interactivo de configuración abierto.',
         };
       },
     },
@@ -470,6 +543,59 @@ export function createGeneralCommands(): CommandDefinition[] {
       usage: '/refresh [--force]',
       examples: ['/refresh', '/refresh --force'],
       execute: async (app, parsed: ParsedCommand): Promise<CommandResult> => {
+        if (app.appShell && !parsed.flags.force && !parsed.subcommand) {
+          app.appShell.pushView(
+            new InteractiveMenuView({
+              id: 'refresh-selective-menu',
+              title: 'MENÚ DE ACTUALIZACIÓN SELECTIVA',
+              subtitle: 'Elige qué sección deseas sincronizar y actualizar:',
+              items: [
+                {
+                  id: 'all',
+                  label: '1. Todo',
+                  description: 'Sincronizar sesión, obras, capítulos y conexiones',
+                  action: async () => {
+                    await executeRefresh(app, parsed);
+                  },
+                },
+                {
+                  id: 'profile',
+                  label: '2. Perfil',
+                  description: 'Sincronizar datos de perfil y avatar desde Wattpad',
+                  action: async () => {
+                    await app.wattpadService.getProfile();
+                  },
+                },
+                {
+                  id: 'stories',
+                  label: '3. Novelas y capítulos',
+                  description: 'Sincronizar catálogo de historias y borradores',
+                  action: async () => {
+                    await executeRefresh(app, parsed);
+                  },
+                },
+                {
+                  id: 'library',
+                  label: '4. Biblioteca',
+                  description: 'Sincronizar listas de lectura y novelas guardadas',
+                  action: () => {
+                    const libCmd = app.registry.get('/library');
+                    if (libCmd) libCmd.execute(app, { command: '/library', args: [], flags: {} });
+                  },
+                },
+                {
+                  id: 'connections',
+                  label: '5. Conexiones',
+                  description: 'Comprobar estado de Word, Bloc de Notas y Google Docs',
+                  action: () => {
+                    const connCmd = app.registry.get('/connect');
+                    if (connCmd) connCmd.execute(app, { command: '/connect', args: [], flags: {} });
+                  },
+                },
+              ],
+            })
+          );
+        }
         return await executeRefresh(app, parsed);
       },
     },

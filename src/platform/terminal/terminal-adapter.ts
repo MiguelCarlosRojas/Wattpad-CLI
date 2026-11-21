@@ -47,4 +47,12 @@ export class TerminalAdapter {
   public static clearLine(): void {
     process.stdout.write('\x1b[2K\r');
   }
+
+  public static hideCursor(): void {
+    process.stdout.write('\x1b[?25l');
+  }
+
+  public static showCursor(): void {
+    process.stdout.write('\x1b[?25h');
+  }
 }

@@ -1,6 +1,7 @@
 import { CommandDefinition, CommandResult, ParsedCommand } from '../../../core/types/command.types';
 import { DiscoveryFilter } from '../../../platform/wattpad/discovery.types';
 import { DiscoveryView } from '../../../platform/terminal/components/discovery-view';
+import { InteractiveDiscoverView } from '../../../platform/terminal/interactive';
 
 export function createDiscoveryCommands(): CommandDefinition[] {
   return [
@@ -39,6 +40,25 @@ export function createDiscoveryCommands(): CommandDefinition[] {
         };
 
         const result = await app.discoveryService.search(filter);
+
+        if (app.appShell) {
+          app.appShell.pushView(
+            new InteractiveDiscoverView({
+              initialQuery: categoryOrQuery,
+              results: result.stories.map((s) => ({
+                id: s.id,
+                title: s.title,
+                author: s.author.username,
+                description: s.description,
+                reads: (s.readCount || 0).toLocaleString(),
+                votes: (s.voteCount || 0).toLocaleString(),
+                parts: s.numParts || 1,
+                tags: s.tags,
+                url: s.url,
+              })),
+            })
+          );
+        }
 
         return {
           success: true,
@@ -140,6 +160,25 @@ export function createDiscoveryCommands(): CommandDefinition[] {
         }
 
         const result = await app.discoveryService.search(filter);
+
+        if (app.appShell) {
+          app.appShell.pushView(
+            new InteractiveDiscoverView({
+              initialQuery: filter.query || rawText,
+              results: result.stories.map((s) => ({
+                id: s.id,
+                title: s.title,
+                author: s.author.username,
+                description: s.description,
+                reads: (s.readCount || 0).toLocaleString(),
+                votes: (s.voteCount || 0).toLocaleString(),
+                parts: s.numParts || 1,
+                tags: s.tags,
+                url: s.url,
+              })),
+            })
+          );
+        }
 
         if (result.stories.length === 0) {
           return {

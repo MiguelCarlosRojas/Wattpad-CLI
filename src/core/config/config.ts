@@ -3,7 +3,10 @@ import os from 'os';
 import fs from 'fs';
 import { env } from './env';
 
+export const APP_VERSION = '1.0.1';
+
 export interface AppConfig {
+  version: string;
   appDir: string;
   profilesDir: string;
   browserProfileDir: string;
@@ -79,6 +82,7 @@ export function ensureDirectories(): void {
 }
 
 export const defaultConfig: AppConfig = {
+  version: APP_VERSION,
   appDir,
   profilesDir,
   browserProfileDir,

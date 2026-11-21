@@ -1,5 +1,6 @@
 import { CommandDefinition, CommandResult, ParsedCommand } from '../../../core/types/command.types';
 import { openUrlInBrowser } from '../../../platform/browser/browser-launcher';
+import { InteractivePublishView } from '../../../platform/terminal/interactive';
 
 export function createPublishCommands(): CommandDefinition[] {
   return [
@@ -24,6 +25,18 @@ export function createPublishCommands(): CommandDefinition[] {
 
         // /publish or /publish status
         if (!sub || sub === 'status') {
+          if (!sub && app.appShell) {
+            app.appShell.pushView(
+              new InteractivePublishView({
+                stories: app.storyRepo.findAll(),
+                chapters: app.currentStoryId ? app.chapterRepo.findByStoryId(app.currentStoryId) : app.chapterRepo.findAll(),
+                onConfirmPublish: async (storyId, chapterIds, visibility) => {
+                  app.appShell.setNotification(`✓ Publicación iniciada para historia ${storyId}`);
+                },
+              })
+            );
+          }
+
           const stories = app.storyRepo.findAll();
           const isAuthenticated = Boolean(app.currentUser);
 

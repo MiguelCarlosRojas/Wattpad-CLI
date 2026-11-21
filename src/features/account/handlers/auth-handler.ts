@@ -1,4 +1,5 @@
 import { CommandDefinition, CommandResult, ParsedCommand } from '../../../core/types/command.types';
+import { InteractiveProfileView, InteractiveDialogView, InteractiveMenuView, MenuItem } from '../../../platform/terminal/interactive';
 
 export function createAuthCommands(): CommandDefinition[] {
   return [
@@ -209,6 +210,37 @@ export function createAuthCommands(): CommandDefinition[] {
         const isConfirmed = Boolean(parsed.flags.confirm || parsed.flags.c);
 
         if (!isConfirmed) {
+          if (app.appShell) {
+            app.appShell.pushView(
+              new InteractiveDialogView({
+                id: 'logout-confirm-view',
+                title: '¿CERRAR SESIÓN DE WATTPAD?',
+                message: '¿Estás seguro de que deseas cerrar sesión?',
+                details: [
+                  'Se eliminará de forma segura la sesión y el perfil autenticado local.',
+                  'Tus novelas y capítulos locales permanecerán intactos en tu disco.',
+                ],
+                options: [
+                  { id: 'cancel', label: 'Cancelar' },
+                  { id: 'confirm', label: 'Confirmar cierre', isDestructive: true },
+                ],
+                onConfirm: async (optId) => {
+                  if (optId === 'confirm') {
+                    await app.wattpadService.logout();
+                    app.currentUser = null;
+                    if (app.connRepo?.setConnected) {
+                      app.connRepo.setConnected('wattpad', 'Wattpad', false, null);
+                    }
+                    if (app.appShell) {
+                      app.appShell.setState({ currentUser: null });
+                      app.appShell.setNotification('✓ Sesión cerrada exitosamente.');
+                    }
+                  }
+                },
+              })
+            );
+          }
+
           return {
             success: false,
             blocks: [
@@ -293,6 +325,24 @@ export function createAuthCommands(): CommandDefinition[] {
 
         const avatarLocalPath = await app.wattpadService.downloadAndCacheAvatar(user.username, user.avatar);
 
+        if (app.appShell) {
+          app.appShell.pushView(
+            new InteractiveProfileView({
+              user,
+              storiesCount: app.storyRepo?.findAll ? app.storyRepo.findAll().length : 0,
+              draftsCount: app.storyRepo?.findAll ? app.storyRepo.findAll().filter((s: any) => s.status === 'draft').length : 0,
+              manuscriptsCount: app.localManuscripts?.length || 0,
+              onNavigateToStories: () => {
+                const storiesDef = app.registry.get('/stories');
+                if (storiesDef) storiesDef.execute(app, { command: '/stories', args: [], flags: {} });
+              },
+              onRefresh: async () => {
+                await app.refreshSession();
+              },
+            })
+          );
+        }
+
         return {
           success: true,
           blocks: [
@@ -343,6 +393,31 @@ export function createAuthCommands(): CommandDefinition[] {
         }
 
         const inbox = await app.wattpadService.getInbox();
+
+        if (app.appShell) {
+          const items: MenuItem[] = inbox.notifications.map((n: any, idx: number) => ({
+            id: `notif-${idx}`,
+            label: `${n.type.toUpperCase()}: ${n.text.slice(0, 45)}...`,
+            category: 'Notificaciones',
+            description: n.text,
+            badge: 'NUEVA',
+            details: [
+              `Tipo: ${n.type}`,
+              `Fecha: ${n.date ? n.date.slice(0, 16).replace('T', ' ') : 'Reciente'}`,
+              `Mensaje completo: ${n.text}`,
+            ],
+          }));
+          app.appShell.pushView(
+            new InteractiveMenuView({
+              id: 'inbox-view',
+              title: `BUZÓN DE NOTIFICACIONES: @${app.currentUser.username}`,
+              subtitle: 'Lista interactiva desplazable con ↑ y ↓. Pulsa Enter para ver detalles completos.',
+              items: items.length > 0 ? items : [
+                { id: 'empty', label: 'Sin notificaciones', description: 'Tu bandeja de entrada está vacía.' }
+              ],
+            })
+          );
+        }
 
         return {
           success: true,
@@ -398,6 +473,30 @@ export function createAuthCommands(): CommandDefinition[] {
         }
 
         const library = await app.wattpadService.getLibrary();
+
+        if (app.appShell) {
+          const items: MenuItem[] = library.readingLists.map((l: any) => ({
+            id: l.id,
+            label: `Lista: ${l.name}`,
+            description: `${l.storyCount} historia(s) guardadas`,
+            badge: 'LISTA',
+            details: [
+              `Identificador: ${l.id}`,
+              `Total de novelas: ${l.storyCount}`,
+              'Lista de lectura sincronizada desde tu perfil de Wattpad',
+            ],
+          }));
+          app.appShell.pushView(
+            new InteractiveMenuView({
+              id: 'library-view',
+              title: `BIBLIOTECA DE @${app.currentUser.username}`,
+              subtitle: 'Listas de lectura interactivas. Navega con ↑/↓ y pulsa Enter para ver detalles.',
+              items: items.length > 0 ? items : [
+                { id: 'empty', label: 'Sin listas de lectura', description: 'Tu biblioteca no tiene listas creadas.' }
+              ],
+            })
+          );
+        }
 
         return {
           success: true,
