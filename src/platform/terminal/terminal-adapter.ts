@@ -1,58 +1,42 @@
-export type RenderMode = 'fullscreen' | 'inline';
+import { COLORS } from '../../shared/constants/colors.constants';
 
+/**
+ * Adaptador de bajo nivel para la consola y pantalla de terminal
+ */
 export class TerminalAdapter {
-  private static mode: RenderMode = 'fullscreen';
-  private static inAlternateBuffer = false;
+  private static altBufferActive = false;
 
-  public static setMode(mode: RenderMode): void {
-    this.mode = mode;
+  public static getWidth(): number {
+    return process.stdout.columns || 80;
   }
 
-  public static getMode(): RenderMode {
-    return this.mode;
+  public static getHeight(): number {
+    return process.stdout.rows || 24;
   }
 
-  public static enterSession(): void {
-    if (this.mode === 'fullscreen') {
-      // Enter alternate screen buffer & hide cursor during setup
-      process.stdout.write('\x1b[?1049h\x1b[H\x1b[?25h');
-      this.inAlternateBuffer = true;
-    } else {
-      // Inline mode: Ensure clean new line in standard scrollback
-      process.stdout.write('\n');
-      this.inAlternateBuffer = false;
+  public static enterAltBuffer(): void {
+    if (!this.altBufferActive && process.stdout.isTTY) {
+      process.stdout.write('\x1b[?1049h\x1b[?25l'); // Switch to alternate buffer and hide cursor
+      this.altBufferActive = true;
     }
   }
 
-  public static leaveSession(): void {
-    if (this.inAlternateBuffer) {
-      // Leave alternate screen buffer & restore normal buffer & cursor
-      process.stdout.write('\x1b[?1049l\x1b[?25h\n');
-      this.inAlternateBuffer = false;
-    } else {
-      process.stdout.write('\x1b[?25h\n');
+  public static exitAltBuffer(): void {
+    if (this.altBufferActive && process.stdout.isTTY) {
+      process.stdout.write('\x1b[?25h\x1b[?1049l'); // Show cursor and restore buffer
+      this.altBufferActive = false;
     }
   }
 
-  public static renderBuffer(content: string): void {
-    if (this.mode === 'fullscreen') {
-      // Redraw frame cleanly at top-left
-      process.stdout.write('\x1b[H\x1b[2J' + content);
-    } else {
-      // Inline mode: append cleanly
-      process.stdout.write(content + '\n');
-    }
-  }
-
-  public static clearLine(): void {
-    process.stdout.write('\x1b[2K\r');
-  }
-
-  public static hideCursor(): void {
-    process.stdout.write('\x1b[?25l');
+  public static clearScreen(): void {
+    process.stdout.write(COLORS.CLEAR_SCREEN);
   }
 
   public static showCursor(): void {
-    process.stdout.write('\x1b[?25h');
+    process.stdout.write(COLORS.SHOW_CURSOR);
+  }
+
+  public static hideCursor(): void {
+    process.stdout.write(COLORS.HIDE_CURSOR);
   }
 }

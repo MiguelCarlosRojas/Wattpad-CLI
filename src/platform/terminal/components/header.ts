@@ -1,117 +1,50 @@
-import { APP_VERSION } from '../../../core/config/config';
-import { ResponsiveLayoutConfig } from '../responsive';
-import { Theme, Chalk, padEndVisible, stripAnsi } from '../theme';
+import { COLORS } from '../../../shared/constants/colors.constants';
+import { ASCII_LOGO, APP_CONSTANTS } from '../../../shared/constants/app.constants';
+import { divider } from '../../../shared/utils/ansi';
 
-export interface HeaderProps {
-  version: string;
-  user?: string | null;
-  displayName?: string | null;
-  profileVerified?: boolean;
-  isAuthenticated: boolean;
-  serverUrl?: string;
-  serverOnline?: boolean;
-  activeStory?: string | null;
-  activeChapter?: string | null;
-  activePath?: string | null;
-  localChanges?: string | null;
-  mode?: 'completa' | 'compacta' | 'zen';
+export interface HeaderOptions {
+  subtitle1?: string;
+  subtitle2?: string;
+  connectedUser?: string | null;
+  workingDir?: string;
+  width?: number;
 }
 
-export class Header {
-  public static render(props: HeaderProps, config: ResponsiveLayoutConfig): string[] {
+export class HeaderComponent {
+  public static render(options: HeaderOptions = {}): string[] {
+    const width = options.width || process.stdout.columns || 80;
     const lines: string[] = [];
-    const width = Math.max(50, config.width || 80);
-    const mode = props.mode || 'completa';
-    const versionStr = props.version || APP_VERSION;
 
-    // Modo ZEN: Ultra minimalista, una sola línea elegante
-    if (mode === 'zen') {
-      const brand = Chalk.bold(Chalk.hex(Theme.colors.primary, 'WATTPAD CLI'));
-      const version = Chalk.dim(`v${versionStr}`);
-      const userText = props.isAuthenticated && props.user
-        ? Chalk.hex(Theme.colors.success, `● @${props.user.replace(/^@/, '')}`)
-        : Chalk.dim('○ Sin conexión');
-      const zenLine = `${brand} ${version}  ·  ${userText}`;
-      lines.push(padEndVisible(zenLine, width));
-      lines.push(Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(width)));
-      return lines;
+    let line1Sub = options.subtitle1;
+    let line2Sub = options.subtitle2;
+
+    if (options.connectedUser) {
+      line1Sub = `${COLORS.SUCCESS}●${COLORS.RESET} ${COLORS.TEXT_MAIN}@${options.connectedUser}${COLORS.RESET} ${COLORS.TEXT_MUTED}· Conectado${COLORS.RESET}`;
+      line2Sub = `${COLORS.TEXT_MUTED}${options.workingDir || '~/Documents/Wattpad'}${COLORS.RESET}`;
+    } else if (!line1Sub) {
+      line1Sub = `${COLORS.TEXT_MUTED}${APP_CONSTANTS.TAGLINE}${COLORS.RESET}`;
+      line2Sub = `${COLORS.TEXT_DIM}${APP_CONSTANTS.DESCRIPTION}${COLORS.RESET}`;
     }
 
-    // Logotipo icónico oficial Wattpad v1.0.1 (No recortar, deformar ni sustituir)
-    const logo1 = Chalk.bold(Chalk.hex(Theme.colors.primary, '██╗    ██╗     '));
-    const logo2 = Chalk.bold(Chalk.hex(Theme.colors.primary, '██║ █╗ ██║     '));
-    const logo3 = Chalk.bold(Chalk.hex(Theme.colors.primary, '╚███╔███╔╝     '));
-    const logoPrefixLen = 15; // 10 chars logo + 5 spaces
+    const titleLine = `${COLORS.BOLD}${COLORS.ORANGE}${APP_CONSTANTS.NAME} v${APP_CONSTANTS.VERSION}${COLORS.RESET}`;
 
-    // Línea 1: WATTPAD CLI v1.0.1 [+ status a la derecha si hay espacio]
-    const brand = Chalk.bold(Chalk.hex(Theme.colors.primary, 'WATTPAD CLI'));
-    const version = Chalk.dim(`v${versionStr}`);
-    const titleText = `${brand} ${version}`;
+    // Línea 1
+    lines.push(
+      `  ${COLORS.ORANGE}${ASCII_LOGO[0]}${COLORS.RESET}     ${titleLine}`
+    );
+    // Línea 2
+    lines.push(
+      `  ${COLORS.ORANGE}${ASCII_LOGO[1]}${COLORS.RESET}     ${line1Sub}`
+    );
+    // Línea 3
+    lines.push(
+      `  ${COLORS.ORANGE}${ASCII_LOGO[2]}${COLORS.RESET}     ${line2Sub}`
+    );
 
-    let rightStatus = '';
-    if (props.isAuthenticated && props.user && props.user !== 'Desconectado' && props.user !== 'Sin conectar') {
-      const username = props.user.startsWith('@') ? props.user : `@${props.user}`;
-      const dot = Chalk.hex(Theme.colors.success, '●');
-      const userStyled = Chalk.bold(Chalk.hex(Theme.colors.primary, username));
-      const connectedWord = Chalk.hex(Theme.colors.success, 'Conectado');
-      rightStatus = `${dot} ${userStyled}     ${connectedWord}`;
-    } else {
-      const emptyDot = Chalk.dim('○');
-      const disconnectedWord = Chalk.dim('Sin conexión');
-      rightStatus = `${emptyDot} ${disconnectedWord}`;
-    }
+    lines.push('');
+    lines.push(divider(width));
+    lines.push('');
 
-    const availableL1 = width - logoPrefixLen - stripAnsi(titleText).length - stripAnsi(rightStatus).length;
-    let line1Content: string;
-    if (availableL1 >= 2) {
-      line1Content = `${titleText}${' '.repeat(availableL1)}${rightStatus}`;
-    } else {
-      line1Content = titleText;
-    }
-    lines.push(padEndVisible(`${logo1}${line1Content}`, width));
-
-    // Línea 2: Cuenta / Usuario / Estado
-    let line2Content: string;
-    if (props.isAuthenticated) {
-      if (props.profileVerified === false) {
-        line2Content = Chalk.hex(Theme.colors.warning, 'Cuenta: No se pudo verificar el perfil');
-      } else if (props.user && props.user !== 'Desconectado' && props.user !== 'Sin conectar') {
-        const rawUser = props.user.startsWith('@') ? props.user.slice(1) : props.user;
-        const displayName = props.displayName || (props.serverOnline ? 'Wattpad conectado ◉' : 'Conectado');
-        const userPart = `@${rawUser}`;
-        const dotSep = Chalk.dim('·');
-        line2Content = Chalk.dim('Cuenta: ') + Chalk.hex(Theme.colors.text, userPart) + ` ${dotSep} ` + Chalk.hex(Theme.colors.success, displayName);
-      } else {
-        line2Content = Chalk.hex(Theme.colors.warning, 'Cuenta: No se pudo verificar el perfil');
-      }
-    } else {
-      line2Content = Chalk.dim('Sin conexión · Ejecuta /login');
-    }
-    lines.push(padEndVisible(`${logo2}${line2Content}`, width));
-
-    // Línea 3: Contexto activo o ruta de documentos ~/Documents/Wattpad/Novelas [+ Indicador de cambios locales]
-    let line3Left: string;
-    if (props.activeStory) {
-      const storyName = Chalk.hex(Theme.colors.primary, props.activeStory);
-      const chapterPart = props.activeChapter ? Chalk.dim(' · Cap: ') + Chalk.hex(Theme.colors.text, props.activeChapter) : '';
-      line3Left = Chalk.dim('Novela: ') + storyName + chapterPart;
-    } else {
-      const pathText = props.activePath || '~/Documents/Wattpad/Novelas';
-      line3Left = Chalk.hex(Theme.colors.textSecondary, pathText);
-    }
-
-    let line3Content = line3Left;
-    if (props.localChanges) {
-      const changesText = Chalk.hex(Theme.colors.warning, props.localChanges);
-      const availableL3 = width - logoPrefixLen - stripAnsi(line3Left).length - stripAnsi(changesText).length;
-      if (availableL3 >= 2) {
-        line3Content = `${line3Left}${' '.repeat(availableL3)}${changesText}`;
-      }
-    }
-    lines.push(padEndVisible(`${logo3}${line3Content}`, width));
-
-    // Línea 4: Separador horizontal sutil
-    lines.push(Chalk.hex(Theme.colors.surfaceBorder, '─'.repeat(width)));
     return lines;
   }
 }
