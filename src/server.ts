@@ -3,7 +3,7 @@ import { APP_CONSTANTS } from './shared/constants/app.constants';
 /**
  * Script instalador oficial para Windows PowerShell
  */
-function getInstallPs1(): string {
+export function getInstallPs1(): string {
   const version = APP_CONSTANTS.VERSION;
   return `# ==============================================================================
 # Wattpad CLI - Official PowerShell Installer v${version}
@@ -14,6 +14,8 @@ function Invoke-WattpadInstall {
     [CmdletBinding()]
     param()
 
+    $ErrorActionPreference = "Stop"
+
     try {
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls13
     } catch {}
@@ -21,58 +23,123 @@ function Invoke-WattpadInstall {
     $Check = [char]0x2713
     $Arrow = [char]0x25B8
     $Cross = [char]0x2717
-    $Sep   = [string]([char]0x2500) * 49
+    $Sep   = [string]([char]0x2500) * 52
 
     Write-Host ""
-    Write-Host "                       Wattpad CLI v${version}" -ForegroundColor DarkYellow
-    Write-Host "                 Instalador Oficial Windows" -ForegroundColor White
+    Write-Host "                        Wattpad CLI v${version}" -ForegroundColor DarkYellow
+    Write-Host "                  Instalador Oficial para Windows" -ForegroundColor White
     Write-Host ""
     Write-Host "   $Sep" -ForegroundColor DarkGray
 
-    $TempFile = $null
+    $InstallDir  = Join-Path $HOME ".wattpad\\bin"
+    $ExePath     = Join-Path $InstallDir "wattpad.exe"
+    $CmdPath     = Join-Path $InstallDir "wattpad.cmd"
+    $TempFile    = Join-Path $InstallDir "wattpad.exe.tmp"
+    $ChecksumUrl = "https://github.com/MiguelCarlosRojas/Wattpad-CLI/releases/download/v${version}/SHA256SUMS.txt"
+    $DownloadUrl = "https://github.com/MiguelCarlosRojas/Wattpad-CLI/releases/download/v${version}/wattpad.exe"
 
     try {
-        $InstallDir = Join-Path $HOME ".wattpad\\bin"
-        $ExePath    = Join-Path $InstallDir "wattpad.exe"
-        $CmdPath    = Join-Path $InstallDir "wattpad.cmd"
-
+        # 1. Asegurar únicamente el directorio bin (proteger manuscritos y datos locales en .wattpad)
         if (-not (Test-Path $InstallDir)) {
             New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
         }
 
-        $DownloadUrl = "https://github.com/MiguelCarlosRojas/Wattpad-CLI/releases/download/v${version}/wattpad.exe"
+        # 2. Limpieza de archivos temporales de instalaciones anteriores en bin
+        Get-ChildItem -Path $InstallDir -Filter "wattpad.exe.tmp*" -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+        Get-ChildItem -Path $InstallDir -Filter "wattpad.exe.old*" -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+
+        # 3. Descarga del binario a archivo temporal
         Write-Host "   $Arrow Descargando Wattpad CLI v${version}..." -ForegroundColor Cyan
-
-        $TempFile = Join-Path $InstallDir "wattpad.exe.tmp"
-        Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempFile -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop
-
-        if (Test-Path $ExePath) {
-            Remove-Item -Path $ExePath -Force -ErrorAction SilentlyContinue
+        $OldProgress = $ProgressPreference
+        try {
+            $ProgressPreference = "SilentlyContinue"
+            Invoke-WebRequest -Uri $DownloadUrl -OutFile $TempFile -UseBasicParsing -TimeoutSec 180 -ErrorAction Stop
+        } finally {
+            $ProgressPreference = $OldProgress
         }
-        Move-Item -Path $TempFile -Destination $ExePath -Force
+
+        # 4. Validar existencia y tamaño del archivo descargado
+        if (-not (Test-Path $TempFile)) {
+            throw "El archivo de instalación temporal no fue creado."
+        }
+        $FileSize = (Get-Item $TempFile).Length
+        if ($FileSize -lt 50000000) {
+            throw "El tamaño del binario descargado es inválido ($([math]::Round($FileSize / 1MB, 2)) MB). Descarga incompleta."
+        }
+
+        # 5. Comprobar integridad criptográfica SHA-256
+        Write-Host "   $Arrow Verificando integridad criptográfica (SHA-256)..." -ForegroundColor Cyan
+        $ExpectedHash = "af4733bc2cacd2d8b8de080a8e6ffcc6ea70dd6e5007be04e30d8afe50d344a2"
+        try {
+            $OldProgress = $ProgressPreference
+            $ProgressPreference = "SilentlyContinue"
+            $ChecksumText = (Invoke-WebRequest -Uri $ChecksumUrl -UseBasicParsing -TimeoutSec 30 -ErrorAction Stop).Content
+            $ProgressPreference = $OldProgress
+            if ($ChecksumText -match "([a-fA-F0-9]{64})\\s+wattpad\\.exe") {
+                $ExpectedHash = $matches[1]
+            }
+        } catch {
+            # Si no se pudo obtener el archivo remoto, se utiliza el hash oficial embebido
+        }
+
+        $ActualHash = (Get-FileHash -Path $TempFile -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($ActualHash -ne $ExpectedHash.ToLowerInvariant()) {
+            throw "La suma SHA-256 no coincide (Esperado: $ExpectedHash, Obtenido: $ActualHash)."
+        }
+        Write-Host "   $Check Integridad criptográfica verificada con éxito." -ForegroundColor Green
+
+        # 6. Reemplazo seguro del ejecutable anterior
+        if (Test-Path $ExePath) {
+            Remove-Item -Path $ExePath -Force -ErrorAction Stop
+        }
+        Move-Item -Path $TempFile -Destination $ExePath -Force -ErrorAction Stop
         Write-Host "   $Check Binario instalado en: $ExePath" -ForegroundColor Green
 
-        # Crear lanzador cmd
-        $LauncherContent = "@echo off\`r\`n\"$ExePath\" %*\`r\`n"
+        # 7. Creación correcta del lanzador wattpad.cmd
+        $LauncherContent = "@echo off\`r\`n\`"$ExePath\`" %*\`r\`n"
         [System.IO.File]::WriteAllText($CmdPath, $LauncherContent, [System.Text.Encoding]::ASCII)
-        Write-Host "   $Check Lanzador wattpad.cmd creado." -ForegroundColor Green
+        Write-Host "   $Check Lanzador wattpad.cmd generado correctamente." -ForegroundColor Green
 
-        # Configurar PATH de usuario
+        # 8. Configuración segura y desduplicada del PATH de usuario
         $UserPath = [Environment]::GetEnvironmentVariable("Path", [EnvironmentVariableTarget]::User)
-        if ($UserPath -notlike "*$InstallDir*") {
-            [Environment]::SetEnvironmentVariable("Path", "$InstallDir;$UserPath", [EnvironmentVariableTarget]::User)
-            Write-Host "   $Check Registrado en PATH de usuario." -ForegroundColor Green
+        if ($null -eq $UserPath) { $UserPath = "" }
+        $PathEntries = $UserPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        $AlreadyInUserPath = $false
+        foreach ($Entry in $PathEntries) {
+            if ($Entry.Trim().TrimEnd('\\', '/') -ieq $InstallDir.Trim().TrimEnd('\\', '/')) {
+                $AlreadyInUserPath = $true
+                break
+            }
         }
-        if ($env:PATH -notlike "*$InstallDir*") {
+        if (-not $AlreadyInUserPath) {
+            $NewUserPath = if ([string]::IsNullOrWhiteSpace($UserPath)) { $InstallDir } else { "$InstallDir;$UserPath" }
+            [Environment]::SetEnvironmentVariable("Path", $NewUserPath, [EnvironmentVariableTarget]::User)
+            Write-Host "   $Check Registrado en PATH de usuario." -ForegroundColor Green
+        } else {
+            Write-Host "   $Check Ruta ya configurada en PATH de usuario." -ForegroundColor Green
+        }
+
+        # Actualizar PATH de la sesión actual de PowerShell
+        $SessionPathEntries = $env:PATH -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        $AlreadyInSessionPath = $false
+        foreach ($Entry in $SessionPathEntries) {
+            if ($Entry.Trim().TrimEnd('\\', '/') -ieq $InstallDir.Trim().TrimEnd('\\', '/')) {
+                $AlreadyInSessionPath = $true
+                break
+            }
+        }
+        if (-not $AlreadyInSessionPath) {
             $env:PATH = "$InstallDir;$env:PATH"
         }
 
+        Write-Host "   $Sep" -ForegroundColor DarkGray
         Write-Host ""
-        Write-Host "   $Check ¡Instalación de Wattpad CLI v${version} completada!" -ForegroundColor Green
+        Write-Host "   $Check ¡Instalación de Wattpad CLI v${version} completada con éxito!" -ForegroundColor Green
         Write-Host "   Ejecuta: wattpad" -ForegroundColor DarkYellow
         Write-Host ""
     } catch {
-        Write-Host "   $Cross Error durante la instalacion: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "   $Cross Error durante la instalación: $($_.Exception.Message)" -ForegroundColor Red
+        throw $_
     } finally {
         if ($TempFile -and (Test-Path $TempFile)) {
             Remove-Item -Path $TempFile -Force -ErrorAction SilentlyContinue
@@ -87,7 +154,7 @@ Invoke-WattpadInstall
 /**
  * Script instalador oficial para Linux y macOS
  */
-function getInstallSh(): string {
+export function getInstallSh(): string {
   const version = APP_CONSTANTS.VERSION;
   return `#!/usr/bin/env bash
 # Wattpad CLI - Official Linux/macOS Installer v${version}
@@ -136,6 +203,8 @@ export async function startServer(): Promise<any> {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       };
 
       if (method === 'OPTIONS') {
@@ -181,6 +250,8 @@ export async function startServer(): Promise<any> {
           headers: {
             'Content-Type': 'text/plain; charset=utf-8',
             'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
           },
         });
       }
@@ -192,6 +263,8 @@ export async function startServer(): Promise<any> {
           headers: {
             'Content-Type': 'text/plain; charset=utf-8',
             'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
           },
         });
       }
@@ -206,6 +279,8 @@ export async function startServer(): Promise<any> {
           headers: {
             Location: releaseUrl,
             'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
           },
         });
       }
